@@ -1,0 +1,44 @@
+#!/usr/bin/python
+# vim: set fileencoding=utf-8:
+
+"""A program to fetch machination bundles.
+
+Machination workers can request this program to download a set of bundles, which
+are sets of files.
+
+The input XML determines which bundles are to be fetched and from where. A
+configuration file (also XML) describes a set of sources. The output is XML
+describing the success or failure at downloading each of the requested bundles.
+It is expected that this program will fork a daemon if there are files to be
+downloaded, returning failure for each of the bundles which are now in progress.
+Once a download completes, this daemon will wake up the machination daemon which
+is expected to rerun the fetcher, which now returns success.
+
+"""
+
+__author__ = "Bruce Duncan"
+__copyright__ = "Copyright 2010, Bruce Duncan, University of Edinburgh"
+__licence__ = "GPL"
+__version__ = "trunk"
+__maintainer__ = "Bruce Duncan"
+__email__ = "Bruce.Duncan@ed.ac.uk"
+__status__ = "Development"
+
+
+import sys
+from xml.etree import ElementTree
+import fetcher
+import threading
+
+
+def main(args):
+    inputdata = ElementTree.parse(sys.stdin)
+    with open(inputdata.find('config').text) as f:
+        configdata = ElementTree.parse(f)
+    for bundle in inputdata.iter('bundle'):
+        fetch = fetcher.Fetcher(configdata, bundle)
+        thread = threading.Thread(target=fetch)
+        thread.start()
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

@@ -26,15 +26,15 @@ __status__ = "Development"
 
 
 import sys
-from xml.etree import ElementTree
+from lxml import etree
 import fetcher
 import threading
 
 
 def main(args):
-    inputdata = ElementTree.parse(sys.stdin)
+    inputdata = etree.parse(sys.stdin)
     with open(inputdata.find('config').text) as f:
-        configdata = ElementTree.parse(f)
+        configdata = etree.parse(f)
     for bundle in inputdata.iter('bundle'):
         fetch = fetcher.Fetcher(configdata, bundle)
         thread = threading.Thread(target=fetch)

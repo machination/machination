@@ -1,0 +1,23 @@
+<config>
+  <sources>
+    <source id="internal-torrent"
+	    type="torrent"
+	    torrentFileSource="http://www.internal.example.com/torrents"
+	    tracker="tracker.internal.example.com"
+	    />
+    <source id="internal-web"
+	    type="http"
+	    baseURL="http://web.internal.example.com"
+	    />
+    <source id="external-torrent"
+	    type="torrent"
+	    torrentFileSource="http://www.external.example.com/torrents"
+	    tracker="tracker.external.example.com"
+	    />
+    <source id="someone-else"
+	    type="torrent"
+	    torrentFileSource="http://www.peer.com/torrents"
+	    tracker="tracker.peer.com"
+	    />
+  </sources>
+</config>

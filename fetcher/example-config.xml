@@ -1,10 +1,22 @@
 <config>
-  <!-- the fetcher is in charge of this directory. Normally plain
-       downloads should go here, as well as the torrent cache -->
-  <fetcherDir>c:\program files\machination\files</fetcherDir>
+
+  <!-- Files are downloaded to the local cache  -->  
+  <cache>
+    <!-- Where to put downloaded files. Bundles should be downloaded
+         to $location/$id-->
+    <location>c:\program files\machination\files</location>
+    <!-- Maximum size of file cache. Something needs to be pruned if
+         the download will exceed this limit. May be specified as an
+         absolute value or a percentage of the partition/volume
+         $location is on. -->
+    <maxSize>10%</maxSize>
+    <!-- There might be different pruning strategies... -->
+    <pruningStrategy>fifo</pruningStrategy>
+  </cache>
   
   <sources>
-    <!-- The fetcher should try these sources in the order listed, like a path-->
+    <!-- The fetcher should try these sources in the order listed,
+         like a path-->
     <source id="internal-torrent"
 	    type="torrent"
 	    torrentFileSource="http://www.internal.example.com/torrents"

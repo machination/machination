@@ -20,5 +20,10 @@
   <bundle id="id"
 	  encryptionType="AES"
 	  key="passphrase"/>
+
+<!-- 'keep' attribute protects against pruning when the cache is
+     full-->
+  <bundle id="id"
+	  keep="1"/>
   
 </input>

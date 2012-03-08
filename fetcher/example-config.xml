@@ -1,5 +1,10 @@
 <config>
+  <!-- the fetcher is in charge of this directory. Normally plain
+       downloads should go here, as well as the torrent cache -->
+  <fetcherDir>c:\program files\machination\files</fetcherDir>
+  
   <sources>
+    <!-- The fetcher should try these sources in the order listed, like a path-->
     <source id="internal-torrent"
 	    type="torrent"
 	    torrentFileSource="http://www.internal.example.com/torrents"

@@ -1,10 +1,24 @@
 <input>
+  <!-- the location of the config file -->
   <config>c:\program files\machination\utils\fetcher\config.xml</config>
+
+<!-- some ideas for id conventions -->
   <!-- for multios package specify id like this? -->
   <bundle id="os=win:osver={xp,7}:arch=x86:app=msoffice:appver=2010:pkgver=1:comment=nooutlook"/>
+
   <!-- or like this? -->
   <bundle id="win/7/x86/msoffice/2010/1-nooutlook"/>
   <!-- where the "/" could indicate a directory tree and with the following
        being a symbolic link to the above -->
   <bundle id="win/xp/x86/msoffice/2010/1-nooutlook"/>
+
+  <!-- or copy git and bittorrent and use a hash algorithm? -->
+  <bundle id="sha1:hash"/>
+
+<!-- fetching encrypted files -->
+<!-- the whole bundle should be decryptable with the same key -->
+  <bundle id="id"
+	  encryptionType="AES"
+	  key="passphrase"/>
+  
 </input>

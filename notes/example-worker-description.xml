@@ -1,0 +1,42 @@
+<rng:element name="worker"
+    xmlns:rng="http://relaxng.org/ns/structure/1.0"
+    xmlns:wu="https://github.com/machination/ns/workunit"
+    xmlns:gui="https://github.com/machination/ns/guihint"
+    >
+  <rng:attribute rng:name="id">
+    <rng:value>tweaks-1</rng:value>
+  </rng:attribute>
+  <rng:interleave>
+    <rng:element rng:name="Time">
+      <rng:interleave>
+	<rng:element rng:name="NtpEnabled"
+		     wu:wu="1"
+		     gui:icon="file:///some/icon/file"
+		     gui:shorthelp="ref to file?"
+		     gui:furtherhelp="ref to file?"
+		     >
+	  <rng:choice gui:widget="checkbox">
+	    <rng:value>true</rng:value>
+	    <rng:value>false</rng:value>
+	  </rng:choice>
+	</rng:element>
+	<rng:element rng:name="TimeServer1"
+		     wu:wu="1"
+		     gui:icon="file:///some/icon/file"
+		     >
+	  <rng:text/>
+	</rng:element>
+      </rng:interleave>
+    </rng:element>
+    <rng:element rng:name="startMenuClients"
+		 wu:wu="1"
+		 >
+      <rng:interleave>
+	<rng:element rng:name="mail"
+		     gui:icon="mail icon url">
+	  <rng:text/>
+	</rng:element>
+      </rng:interleave>
+    </rng:element>
+  </rng:interleave>
+</rng:element>

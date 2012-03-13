@@ -1,0 +1,5 @@
+<input>
+  <platform id="Win7_64" />
+  <platform id="WinXP_32" />
+  <platform id="WinXP_64" />
+</input>

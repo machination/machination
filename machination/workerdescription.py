@@ -18,12 +18,14 @@ class WorkerDescription:
 
         wuels = self.desc.xpath(
             "//rng:element[@wu:wu='1']",
-            namespaces=nsmap)
+            namespaces=self.nsmap)
         wus = []
         for elt in wuels:
             path = [elt.get("name")]
-            while elt.getparent() :
-                if elt.tag == '{' + nsmap['rng'] + '}' + 'element' :
-                    path.append(elt.get("name")
-        return path
+            current = elt
+            while current = current.getparent() is not None:
+                if current.tag == '{' + self.nsmap['rng'] + '}' + 'element' :
+                    path.append(current.get("name"))
+            wus.append(path)
+        return wus
             

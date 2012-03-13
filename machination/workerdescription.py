@@ -1,14 +1,15 @@
 from lxml import etree
 
+
 class WorkerDescription:
     """Work with worker descriptions"""
 
     nsmap = {
-        'rng':'http://relaxng.org/ns/structure/1.0',
-        'wu':'https://github.com/machination/ns/workunit'
+        'rng': 'http://relaxng.org/ns/structure/1.0',
+        'wu': 'https://github.com/machination/ns/workunit'
         }
 
-    def load(self,description):
+    def load(self, description):
         "load worker description"
 
         self.desc = etree.parse(description)
@@ -19,16 +20,13 @@ class WorkerDescription:
         wuels = self.desc.xpath(
             "//rng:element[@wu:wu='1']",
             namespaces=self.nsmap)
-        wus = []
         for elt in wuels:
             path = []
             current = elt
             while current.getparent() is not None:
-                if current.tag == '{' + self.nsmap['rng'] + '}' + 'element' :
+                if current.tag == '{' + self.nsmap['rng'] + '}element':
                     path.append(current.get("name"))
                 current = current.getparent()
             path.append("")
             path.reverse()
-            wus.append("/".join(path))
-        return wus
-            
+            yield "/".join(path)

@@ -21,11 +21,14 @@ class WorkerDescription:
             namespaces=self.nsmap)
         wus = []
         for elt in wuels:
-            path = [elt.get("name")]
+            path = []
             current = elt
-            while current = current.getparent() is not None:
+            while current.getparent() is not None:
                 if current.tag == '{' + self.nsmap['rng'] + '}' + 'element' :
                     path.append(current.get("name"))
-            wus.append(path)
+                current = current.getparent()
+            path.append("")
+            path.reverse()
+            wus.append("/".join(path))
         return wus
             

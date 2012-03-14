@@ -1,3 +1,4 @@
+"""Worker description file handling"""
 from lxml import etree
 
 
@@ -13,9 +14,9 @@ class WorkerDescription:
     wd = WorkerDescription()
     wd.load(description)
 
-    wugenerator = wd.workUnits()
+    wugenerator = wd.work_units()
 
-    hint_dict = wd.guiHints("xpath")
+    hint_dict = wd.gui_hints("xpath")
 
     DESCRIPTION:
 
@@ -94,6 +95,7 @@ class WorkerDescription:
 
         Calls self.load(description) if description is provided"""
 
+        self.desc = None
         if description:
             self.load(description)
 
@@ -107,7 +109,7 @@ class WorkerDescription:
 
         self.desc = etree.parse(description)
 
-    def workUnits(self):
+    def work_units(self):
         """return a generator of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit

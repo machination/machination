@@ -1,7 +1,53 @@
+<!--
+    This example describes a fictiticious worker called 'tweaks' version 1.
+
+    The initial schema is derived from a subset of the XML used in the
+    tweaks worker from Machination 1 which performed various tasks thought
+    unworthy of their own worker.
+
+    Some other parts have been added for the sole purpose of illustrating
+    the workings of the worker description file format.
+-->
+
+<!--
+    First thing to note: worker description files are basically relaxng
+    schemas (see http://relaxng.org/).
+
+    Anything not intended for relaxng schema checking is in another
+    namespace. Namespaces used by various bits of Machination:
+
+    wu="https://github.com/machination/ns/workunit"
+      - label possible units of work with wu:wu="1"
+      - only applicable to elements (so attributes cannot be units of work)
+
+    gui="https://github.com/machination/ns/guihint"
+      - hints aimed at the interface program (icons, widget choice etc.)
+
+    stpol="https://github.com/machination/ns/status-merge-policy"
+      - used in the top level element to communicate the default
+        status merge policies to update.py
+      - defaults:
+        - stpol:add="machination"
+	- stpol:remove="local"
+	- stpol:modify="machination"
+
+    secret="https://github.com/machination/ns/secrets"
+      - used two ways:
+        - to server: secret:mustEncrypt="1" specifies that this type of
+	  element must always be encrypted.
+	  - only applicable to elements, any attributes of an encrypted
+	    element must also be encrypted.
+	- to worker: secret:secret="1" specifies that this element was
+	  decrypted when being retrieved. Information from here should
+	  not be stored on disk and should be encrypted if being
+	  written to status.xml (update.py will normally do this for you)
+-->
 <element name="worker"
     xmlns="http://relaxng.org/ns/structure/1.0"
     xmlns:wu="https://github.com/machination/ns/workunit"
     xmlns:gui="https://github.com/machination/ns/guihint"
+    xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+    xmlns:secret="https://github.com/machination/ns/secrets"
     >
   <attribute name="id">
     <value>tweaks-1</value>

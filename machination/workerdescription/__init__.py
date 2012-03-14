@@ -66,7 +66,7 @@ class WorkerDescription:
         </zeroOrMore>
       </element>
       <element name="secrets"
-          secret:shouldEncrypt="1"
+          secret:mustEncrypt="1"
           >
           <text/>
       </element>

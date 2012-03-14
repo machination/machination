@@ -20,21 +20,7 @@ import os
 import platform
 import wmi
 import _winreg
-from logging.handlers import SysLogHandler
 from lxml import etree
-
-
-def enable_syslog():
-    """Enables logging to syslog server defined in this function
-    
-    Returns handler object to syslog handler."""
-    #FIXME: Should syslog-related functions be their own module?
-    syslog_server=("machination.see.ed.ac.uk", 514)
-    syslog=SysLogHandler(syslog_server,"local5")
-    if not syslog:
-        sys.exit("Can't open syslog!")
-    return syslog
-
 
 def machination_path:
     """Returns the Machination path, which can be stored in a few places:

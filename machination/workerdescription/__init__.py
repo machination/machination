@@ -14,7 +14,8 @@ class WorkerDescription:
     wd = WorkerDescription()
     wd.load(description)
 
-    wugenerator = wd.workunits()
+    dict_keys = wd.workunits()
+    bool = wd.is_workunit(xpath)
 
     hint_dict = wd.gui_hints("xpath")
 
@@ -103,7 +104,7 @@ class WorkerDescription:
         """Clear all cache attributes"""
 
         self.desc = None
-        self.wu = None
+        self.wucache = None
 
     def load(self, description):
         """load worker description
@@ -119,18 +120,25 @@ class WorkerDescription:
         self.desc = etree.parse(description)
 
     def workunits(self):
-        """return a generator of valid work unit xpaths
+        """return a dictionary key view of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit
         common prefix: wu
+
+        side effects: maintains a cache of wu xpaths in the dictionary
+        self.wucache. This cache is deleted when load() (or __clear()) is
+        called.
 
         returns xpaths for all the elements in the worker description
         where the wu:wu attribute is set to '1'.
         """
 
-        if self.wu:
-            return self.wu.keys()
+        # self.wu exists: just return the keys
+        if self.wucache:
+            return self.wucache.keys()
 
+        # self.wu doesn't exist: construct it;
+        self.wucache = {}
         wuels = self.desc.xpath(
             "//rng:element[@wu:wu='1']",
             namespaces=self.nsmap)
@@ -144,10 +152,10 @@ class WorkerDescription:
             path.append(current.get("name"))
             path.append("")
             path.reverse()
-            self.wu["/".join(path)] = None
-        return self.wu.keys()
+            self.wucache["/".join(path)] = None
+        return self.wucache.keys()
 
-    def is_workunit(self,xpath):
-        """true if xpath is a valid workunit, false otherwise"""
+    def is_workunit(self, xpath):
+        """True if xpath is a valid workunit, False otherwise"""
 
         return xpath in self.workunits()

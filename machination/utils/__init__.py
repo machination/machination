@@ -18,16 +18,70 @@ __status__ = "Development"
 import sys
 import os
 import platform
-from lxml import etree
 import wmi
+import _winreg
+from logging.handlers import SysLogHandler
+from lxml import etree
 
-def get_supported_platforms(config_file="../../tests/example_platforms.xml"):
+
+def enable_syslog():
+    """Enables logging to syslog server defined in this function
+    
+    Returns handler object to syslog handler."""
+    #FIXME: Should syslog-related functions be their own module?
+    syslog_server=("machination.see.ed.ac.uk", 514)
+    syslog=SysLogHandler(syslog_server,"local5")
+    if not syslog:
+        sys.exit("Can't open syslog!")
+    return syslog
+
+
+def machination_path:
+    """Returns the Machination path, which can be stored in a few places:
+        Windows has it in HKLM\Software\Machination
+        Linux has it in /etc/machination
+        
+    If these entries don't exist, fall back to reasonable defaults.
+    
+    Returns the machination path."""
+    if platform.system()[:3] = "Win":
+        try:
+            r = wmi.Registry()
+            result, path = r.GetStringValue(
+                #hDefKey=_winreg.HKEY_LOCAL_MACHINE,
+                # If only. _winreg.HKEY_LOCAL_MACHINE is b0rked on Win7_64
+                # and possibly others.
+                hDefKey=2147483650
+                sSubKeyName = "Software\Machination"
+                sValueName = "Path"
+            )
+            if result:
+                # Registry read failed - use default path
+                # FIXME: Add syslog warning
+                path = 'c:\Program Files\Machination'
+        except:
+            # Something went wrong with the registry setup
+            path = 'c:\program files\machination'
+    else:
+        #Try/Except block handles the exists/read race condition nicely
+        try:
+            with open("/etc/machination") as f:
+                path = f.readline()
+        except IOError:
+            #File doesn't exist
+            path = '/opt/machination/'
+            
+    return path
+
+def get_supported_platforms(config_file=None):
     """Open a list of supported platforms from disk and parse it into a
     list. Supported platforms exist in tags of the form:
     <platform id="foo" />
     
     Returns a list of platforms"""
-
+    
+    if config_file=None
+        config_file = machination_path() + '/config/platforms.xml'
     platform_list = []
     with open(config_file) as f:
         inputdata = etree.parse(f)
@@ -43,7 +97,8 @@ def check_platform(supported_platforms=[]):
     Returns the platform name, or exits if on an unsupported platform"""
 
     if not supported_platforms:
-        supported_platforms = get_supported_platforms()
+        supported_platforms =
+        get_supported_platforms('../../tests/example_platforms.xml')
 
     if platform.system() = "Windows":
         if sys.maxsize > 2**32:
@@ -95,7 +150,7 @@ def machination_id(mach_id=None):
         return mach_id
         
     #FIXME: need better way to refer to machination profile
-    mach_prof = "C:\program files\machination\profile\profile.xml"
+    mach_prof = machination_path() + '/profile/profile.xml'
     with open(mach_prof) as f:
         inputdata = etree.parse(f)
     mach_id = inputdata.getroot().attrib["id"]
@@ -154,3 +209,26 @@ def is_interactive:
     else:
         return False
 
+def runner(cmd, args={}):
+    """Runs an arbitrary external command in Windows via runner.exe.
+    Takes two arguments:
+        1. The command to run
+        2. An optional dictionary of arguments
+
+    Returns the results of the command."""
+    
+    runner = machination_path() + '/utils/win32/runner/runner.exe'
+    command = '"' + runner '"'
+    if args["hidden"]:
+        command += " -h"
+    if args["time"]:
+        command += " -t " + args["time"]
+    command += " " + cmd
+    
+    return os.popen(command).readlines()
+
+def diskfree(disk="C"):
+    """Checks free space on the specified disk
+    Only works on Windows.
+
+    Returns number of bytes free on the disk"""

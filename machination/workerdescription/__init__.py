@@ -87,22 +87,34 @@ class WorkerDescription:
 
     nsmap = {
         'rng': 'http://relaxng.org/ns/structure/1.0',
-        'wu': 'https://github.com/machination/ns/workunit'
-        }
+        'wu': 'https://github.com/machination/ns/workunit'}
+
+    def __init__(self, description=None):
+        """WorkerDescription init
+
+        Calls self.load(description) if description is provided"""
+
+        if description:
+            self.load(description)
 
     def load(self, description):
-        "load worker description"
+        """load worker description
+
+        description should be either something lxml.etree.parse will
+        accept (file like object, path to a file) or an lxml
+        ElementTree or Element object.
+        """
 
         self.desc = etree.parse(description)
 
     def workUnits(self):
-        """return a generator for valid work unit xpaths
+        """return a generator of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit
         common prefix: wu
 
-        
-
+        returns xpaths for all the elements in the worker description
+        where the wu:wu attribute is set to '1'.
         """
 
         wuels = self.desc.xpath(

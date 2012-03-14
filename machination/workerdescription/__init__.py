@@ -37,6 +37,8 @@ class WorkerDescription:
         xmlns="http://relaxng.org/ns/structure/1.0"
         xmlns:wu="https://github.com/machination/ns/workunit"
         xmlns:gui="https://github.com/machination/ns/guihint"
+        xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+        xmlns:secret="https://github.com/machination/ns/secrets"
 
         gui:icon="motd.svg"
         gui:title="Message of the day worker"
@@ -48,8 +50,9 @@ class WorkerDescription:
         <value>motd-1</value>
       </attribute>
       <element name="header"
-        wu:wu="1"
-        gui:icon="motd-header.svg">
+          wu:wu="1"
+          gui:icon="motd-header.svg"
+          >
         <text/>
       </element>
       <element name="news">
@@ -58,8 +61,14 @@ class WorkerDescription:
             <attribute name="id">
               <text/>
             </attribute>
+            <text/>
           </element>
         </zeroOrMore>
+      </element>
+      <element name="secrets"
+          secret:shouldEncrypt="1"
+          >
+          <text/>
       </element>
       <element name="footer" wu:wu="1">
         <text/>
@@ -76,12 +85,15 @@ class WorkerDescription:
     Here is an example of some worker input.xml that validates against
     the above schema:
 
-    <worker id="motd-1">
+    <worker id="motd-1"
+        xmlns:secret="https://github.com/machination/ns/secrets"
+        >
       <header>Hello there.</header>
       <news>
         <item id="brain">I have a brain the size of a planet.</item>
         <item id="depressed">I'm depressed.</item>
       </news>
+      <secrets secret:secret="1">Bob - it's Alice here</secrets>
       <footer>Noone ever listens to me.</footer>
     </worker>
 

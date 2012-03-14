@@ -14,7 +14,7 @@ class WorkerDescription:
     wd = WorkerDescription()
     wd.load(description)
 
-    wugenerator = wd.work_units()
+    wugenerator = wd.workunits()
 
     hint_dict = wd.gui_hints("xpath")
 
@@ -95,9 +95,15 @@ class WorkerDescription:
 
         Calls self.load(description) if description is provided"""
 
-        self.desc = None
+        self.__clear()
         if description:
             self.load(description)
+
+    def __clear(self):
+        """Clear all cache attributes"""
+
+        self.desc = None
+        self.wu = None
 
     def load(self, description):
         """load worker description
@@ -107,9 +113,12 @@ class WorkerDescription:
         ElementTree or Element object.
         """
 
+        # clear everything when loading a new description
+        self.__clear()
+        
         self.desc = etree.parse(description)
 
-    def work_units(self):
+    def workunits(self):
         """return a generator of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit
@@ -118,6 +127,9 @@ class WorkerDescription:
         returns xpaths for all the elements in the worker description
         where the wu:wu attribute is set to '1'.
         """
+
+        if self.wu:
+            return self.wu.keys()
 
         wuels = self.desc.xpath(
             "//rng:element[@wu:wu='1']",
@@ -129,6 +141,13 @@ class WorkerDescription:
                 if current.tag == '{' + self.nsmap['rng'] + '}element':
                     path.append(current.get("name"))
                 current = current.getparent()
+            path.append(current.get("name"))
             path.append("")
             path.reverse()
-            yield "/".join(path)
+            self.wu["/".join(path)] = None
+        return self.wu.keys()
+
+    def is_workunit(self,xpath):
+        """true if xpath is a valid workunit, false otherwise"""
+
+        return xpath in self.workunits()

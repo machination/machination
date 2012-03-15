@@ -36,8 +36,9 @@
   </services>
 
   <logging>
-    <file id="$mdir/log.txt" loglevel="4"/>
-    <file id="$mdir/verboselog.txt" loglevel="8"/>
+    <!-- unrooted paths are assumed to be relative to $mdir -->
+    <file id="log.txt" loglevel="4"/>
+    <file id="verboselog.txt" loglevel="8"/>
     <syslog id="syslog.machination.eng.ed.ac.uk" loglevel="10"/>
     <syslog id="syslog.machination.example.com" loglevel="4"/>
   </logging>
@@ -58,7 +59,8 @@
     <cache>
       <!-- Where to put downloaded files. Bundles should be downloaded
            to $location/$id-->
-      <location>c:\program files\machination\files</location>
+      <!-- unrooted paths assumed to be relative to $workerdir -->
+      <location>files</location>
       <!-- Maximum size of file cache. Something needs to be pruned if
            the download will exceed this limit. May be specified as an
            absolute value or a percentage of the partition/volume

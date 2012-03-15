@@ -6,8 +6,6 @@
 Machination (and its workers) will call this library to ask for a 'worklist'
 based on differences between the 'local' status.xml and the downloaded profile.
 
-The module will rely on xmldiff tools to decide on the appropriate worklist.
-
 """
 
 import pprint
@@ -19,8 +17,8 @@ class XMLCompare(object):
     def __init__(self, leftxml, rightxml):
         self.leftroot = leftxml.getroot()
         self.rightroot = rightxml.getroot()
-        self.leftset = {}
-        self.rightset = {}
+        self.leftset = set()
+        self.rightset = set()
         self.bystate = {'left':{}, 'right':{}, 'same':{}, 'diff':{}}
         self.byxpath = {}
 
@@ -29,15 +27,14 @@ class XMLCompare(object):
 
         self.xml_to_xpath()
 
-        for xpath in self.set_minus(self.leftset, self.rightset):
+        for xpath in self.leftset.difference(self.rightset):
             self.bystate['left'][xpath] = 1
             self.byxpath[xpath] = 'left'
-        for xpath in self.set_minus(self.rightset, self.leftset):
+        for xpath in self.rightset.difference(self.leftset):
             self.bystate['right'][xpath] = 1
             self.byxpath[xpath] = 'right'
 
-        for xpath in self.set_intersection(self.leftset, self.rightset):
-#            print self.leftroot.xpath("a[@id='w']/b[@id='x']")
+        for xpath in self.leftset.intersection(self.rightset):
             #etree needs relative paths here against the root
             l = self.leftroot.xpath(xpath.lstrip('/'))
             r = self.rightroot.xpath(xpath.lstrip('/'))
@@ -63,23 +60,6 @@ class XMLCompare(object):
                 self.bystate['diff'][xpath] = 1
                 self.byxpath[xpath] = 'diff'
 
-
-    def set_minus(self, left, right):
-        minus = {}
-        for key in left:
-            if not right.has_key(key):
-                minus[key]  = 1
-        return minus
-
-    def set_intersection(self, left, right):
-        intersect = {}
-        for key in left:
-            if right.has_key(key):
-                intersect[key] = 1
-        return intersect
-
-
-
     def xml_to_xpath(self):
 
         for elt in self.leftroot:
@@ -91,17 +71,17 @@ class XMLCompare(object):
         return self.leftset, self.rightset
 
     def make_xpath(self, xpathset, elt, current="/"):
-        """Construct Machination-specific xpaths for each element and its attributes, then call recursively on its children."""
+        """Recursively construct xpaths for each element and its attributes, and children."""
         id = ""
         if elt.attrib.get("id"):
             id = "[@id='%s']" % (elt.attrib.get("id"))
 
         xpath = "%s%s%s" % (current, elt.tag, id)
-        xpathset[xpath] = elt
+        xpathset.add(xpath)
 
         for attr in elt.attrib:
             attr_path = "%s/@%s" % (xpath, attr)
-            xpathset[attr_path] = elt
+            xpathset.add(attr_path)
 
         #Recurse
         current = xpath + "/"

@@ -1,0 +1,53 @@
+<config>
+
+  <!-- A machination 2 client can attach to more than one service -->
+  <services>
+    
+    <service id="machination.eng.ed.ac.uk"
+	     clientid="myid on eng">
+      <!-- Load balance across these interfaces perhaps, or maybe do
+           load balancing at the server end (DNS round robin, proper
+           clustering)? -->
+      <interface id="https://interface1.machination.eng.ed.ac.uk"/>
+      <interface id="https://interface2.machination.eng.ed.ac.uk"/>
+    </service>
+    
+    <service id="machination.example.com"
+	     clientid="myid on example.com">
+      <interface id="https://interface.machination.example.com"/>
+    </service>
+
+    <!-- the localhost 'service' is a planned future extension whereby
+         changes can be made to a local file which will be merged into
+         the profile. Used while disconnected or for changes that
+         don't make sense to keep on any of the other services this
+         client consumes configuration from. -->
+    <service id="localhost"
+	     clientid="localhost">
+      <interface id="file:///$mdir/services/localhost/desired.xml"/>
+    </service>
+
+    <!-- Config information from more than one source needs to be
+         merged before a profile is generated -->
+    <mergePolicy>
+      <!-- something complicated goes in here! -->
+    </mergePolicy>
+    
+  </services>
+
+  <logging>
+    <file id="$mdir/log.txt" loglevel="4"/>
+    <file id="$mdir/verboselog.txt" loglevel="8"/>
+    <syslog id="syslog.machination.eng.ed.ac.uk" loglevel="10"/>
+    <syslog id="syslog.machination.example.com" loglevel="4"/>
+  </logging>
+
+  <!-- The daemon or service listening for 'kick' packets-->
+  <daemon port="1313" sleeptime="4000"/>
+
+  <!-- Worker specific configuration -->
+  <worker id="fetcher">
+    <!-- fetcher config goes in here -->
+  </worker>
+
+</config>

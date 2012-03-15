@@ -54,7 +54,43 @@
 
   <!-- Worker specific configuration -->
   <worker id="fetcher">
-    <!-- fetcher config goes in here -->
+    <!-- Files are downloaded to the local cache  -->
+    <cache>
+      <!-- Where to put downloaded files. Bundles should be downloaded
+           to $location/$id-->
+      <location>c:\program files\machination\files</location>
+      <!-- Maximum size of file cache. Something needs to be pruned if
+           the download will exceed this limit. May be specified as an
+           absolute value or a percentage of the partition/volume
+           $location is on. -->
+      <maxSize>10%</maxSize>
+      <!-- There might be different pruning strategies... -->
+      <pruningStrategy>fifo</pruningStrategy>
+    </cache>
+
+    <sources>
+      <!-- The fetcher should try these sources in the order listed,
+           like a path-->
+      <source id="internal-torrent"
+              type="torrent"
+              torrentFileSource="http://www.internal.example.com/torrents"
+              tracker="tracker.internal.example.com"
+              />
+      <source id="internal-web"
+              type="http"
+              baseURL="http://web.internal.example.com"
+              />
+      <source id="external-torrent"
+              type="torrent"
+              torrentFileSource="http://www.external.example.com/torrents"
+              tracker="tracker.external.example.com"
+              />
+      <source id="someone-else"
+              type="torrent"
+              torrentFileSource="http://www.peer.com/torrents"
+              tracker="tracker.peer.com"
+              />
+    </sources>
   </worker>
 
 </config>

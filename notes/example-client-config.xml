@@ -54,6 +54,14 @@
   </platforms>
 
   <!-- Worker specific configuration -->
+  <!-- Workers should be handed an lxml.etree Element as they are
+       instantiated if they are written in python, or a the location
+       of the config.xml file in the calling XML otherwise -->
+  <!-- Worker writers may provide a relaxng config schema for their
+       config.xml element. If so, the appropriate worker snippet will
+       be checked against it, otherwise anything will be assumed
+       valid. -->
+  
   <worker id="fetcher">
     <!-- Files are downloaded to the local cache  -->
     <cache>

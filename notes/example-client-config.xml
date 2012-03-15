@@ -4,7 +4,7 @@
   <services>
     
     <service id="machination.eng.ed.ac.uk"
-	     clientid="myid on eng">
+	     mid="myid on eng">
       <!-- Load balance across these interfaces perhaps, or maybe do
            load balancing at the server end (DNS round robin, proper
            clustering)? -->
@@ -13,7 +13,7 @@
     </service>
     
     <service id="machination.example.com"
-	     clientid="myid on example.com">
+	     mid="myid on example.com">
       <interface id="https://interface.machination.example.com"/>
     </service>
 
@@ -23,7 +23,7 @@
          don't make sense to keep on any of the other services this
          client consumes configuration from. -->
     <service id="localhost"
-	     clientid="localhost">
+	     mid="localhost">
       <interface id="file:///$mdir/services/localhost/desired.xml"/>
     </service>
 

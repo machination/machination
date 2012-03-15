@@ -45,6 +45,13 @@
   <!-- The daemon or service listening for 'kick' packets-->
   <daemon port="1313" sleeptime="4000"/>
 
+  <!-- platforms supported by the client code installed here -->
+  <platforms>
+    <platform id="Win7_64"/>
+    <platform id="WinXP_32"/>
+    <platform id="WinXP_64"/>
+  </platforms>
+
   <!-- Worker specific configuration -->
   <worker id="fetcher">
     <!-- fetcher config goes in here -->

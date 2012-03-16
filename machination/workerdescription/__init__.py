@@ -132,42 +132,57 @@ class WorkerDescription:
         self.desc = etree.parse(description)
 
     def workunits(self):
-        """return a dictionary key view of valid work unit xpaths
+        """return a set of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit
         common prefix: wu
 
-        side effects: maintains a cache of wu xpaths in the dictionary
-        self.wucache. This cache is deleted when load() (or __clear()) is
-        called.
+        side effects: maintains a cache of wu xpaths in the set
+        self.wucache. This cache is deleted when load() (or __clear())
+        is called.
 
         returns xpaths for all the elements in the worker description
-        where the wu:wu attribute is set to '1'.
+        where the wu:wu attribute is set to '1' or which are direct
+        children of the worker element.
         """
 
         # self.wu exists: just return the keys
         if self.wucache:
-            return self.wucache.keys()
+            return self.wucache
 
         # self.wu doesn't exist: construct it;
-        self.wucache = {}
-        wuels = self.desc.xpath(
-            "//rng:element[@wu:wu='1']",
-            namespaces=self.nsmap)
-        for elt in wuels:
-            path = []
-            current = elt
-            while current.getparent() is not None:
-                if current.tag == '{' + self.nsmap['rng'] + '}element':
-                    path.append(current.get("name"))
-                current = current.getparent()
-            path.append(current.get("name"))
-            path.append("")
-            path.reverse()
-            self.wucache["/".join(path)] = None
-        return self.wucache.keys()
+        self.wucache = set()
+
+        # add all 'element' elements which would be direct children of
+        # the /worker element or where wu:wu=1
+        for elt in self.desc.getroot().iter("{%s}element" % self.nsmap["rng"]):
+            path = self._describes_path(elt)
+
+            # len(path) == 3 comes from the fact that a direct child of
+            # worker will end up with a path like ["","worker","Name"]
+            if(len(path) == 3 or elt.get("{%s}wu" % self.nsmap["wu"]) == "1"):
+                self.wucache.add("/".join(path))
+        return self.wucache
 
     def is_workunit(self, xpath):
         """True if xpath is a valid workunit, False otherwise"""
 
         return xpath in self.workunits()
+
+    def _describes_path(self,element):
+        """Return path in the final document which 'element' describes
+        """
+
+        if element.tag != "{%s}element" % self.nsmap['rng']:
+            raise TypeError("The element passed to _describes_path must have tag 'element'")
+        path = []
+        current = element
+        while current.getparent() is not None:
+            if current.tag == "{%s}element" % self.nsmap['rng']:
+                path.append(current.get("name"))
+            current = current.getparent()
+        path.append(current.get("name"))
+        path.append("")
+        path.reverse()
+        return path
+        

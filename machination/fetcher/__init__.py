@@ -21,7 +21,6 @@ __status__ = "Development"
 
 
 import sys
-import random
 
 
 class Fetcher(object):
@@ -30,7 +29,29 @@ class Fetcher(object):
         self.bundle = bundle
 
     def __call__(self):
-        transport = self.config['settings/sources/list/*/*']
+        # Iterate through suitable transports for this download
+        for transport in self.config.xpath('worker[@id="fetcher"]/sources/*'):
+            # Import a suitable module to handle it
+            try:
+                f = __import__(__name__ + '.' + transport.tag,
+                    fromlist=transport.tag).fetcher(self.config, transport)
+            except ImportError as e:
+                if e.message.startswith('No module named ') and e.message.split()[3] == transport.tag:
+                    continue
+                raise
+            except AttributeError as e:
+                if e.message == "'module' object has no attribute 'fetcher'":
+                    continue
+                raise
+
+            # Execute it
+            res = f.fetch(self.bundle)
+            if res:
+                return res
+            # else: loop to try the next transport
+        else:
+            raise Exception("Could not find a suitable transport")
+
 
 def main(args):
     pass

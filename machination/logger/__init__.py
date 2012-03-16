@@ -19,18 +19,41 @@ __status__ = "Development"
 import sys
 from logging.handlers import SysLogHandler
 
-# Defauls syslog server, port, and facility:
-slog_server = ("machination.see.ed.ac.uk",514)
-slog_facility = SysLogHandler.LOG_LOCAL5
+class Logger():
+    """Extends logging.handlers.SysLogHandler for Machination logging
+    purposes"""
 
-def enable_syslog():
-    """Enables logging to syslog server defined in this function
-    
-    Returns handler object to syslog handler."""
-    syslog_server=("machination.see.ed.ac.uk", 514)
-    syslog=SysLogHandler(syslog_server,SysLogHandler.LOG_LOCAL5)
-    if not syslog:
-        sys.exit("Can't open syslog!")
-    return syslog
+    loglist = []
 
+    formats = {
 
+    def __init__(self,config_elt):
+        for dest in config_elt.xpath("/config/logging")[0]:
+            logdef = {
+                "lvl": dest.attrib["loglevel"],
+                "type": dest.tag,
+                "handle": getattr(self, "__%s" % dest.tag,
+                                  self.__file)(dest.attrib["id"])
+            }
+            loglist.append(logdef)
+
+    def __syslog(self, server):
+        #FIXME: Set up syslog server connection and return handle to that
+        pass
+
+    def __file(self, filename):
+        return filename
+
+    def __write_msg(self, msg, lvl, kind, cat="")
+        if not kind in ["warning", "log", "error", "debug"]:
+            self.__write_msg(
+                "[write_msg]: Tried to post message of unknown type"
+                            + kind, 1, "error")
+            return None
+        
+        for log in loglist:
+            if lvl > log["lvl"]:
+                pass
+            else:
+                getattr(self, "__write_%s" % log["type"],
+                        self.__write_file)(msg, kind, cat)

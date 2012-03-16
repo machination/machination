@@ -127,19 +127,21 @@ def linux_kernel:
 
     return platform.release()
 
-def machination_id(mach_id=None):
+def machination_id(serviceid):
     """Parses the machination profile to extract the machination id.
     
     Returns the machination id"""
 
-    if mach_id:
-        return mach_id
-        
-    #FIXME: need better way to refer to machination profile
-    mach_prof = machination_path() + '/profile/profile.xml'
-    with open(mach_prof) as f:
-        inputdata = etree.parse(f)
-    mach_id = inputdata.getroot().attrib["id"]
+    mach_prof = machination_path() + '/config.xml'
+    inputdata = etree.parse(mach_prof).getroot()
+    try:
+        mach_id =
+        inputdata.xpath("/config/services/service[@id='" + serviceid +
+                    "']")[0].attrib["mid"]
+    except IndexError:
+        # Xpath didn't return anything
+        print("XPath error: Could not trace machination id")
+        raise IndexError
     return mach_id
 
 def get_interactive_users(platform=None):

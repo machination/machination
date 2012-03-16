@@ -18,11 +18,10 @@ class XMLCompare(object):
         self.rightxml = rightxml
         self.leftset = set()
         self.rightset = set()
-        self.bystate = {'left': {},
-                        'right': {},
-                        'same': {},
-                        'datadiff': {},
-                        'structdiff': {}}
+        self.bystate = {'left': set(),
+                        'right': set(),
+                        'datadiff': set(),
+                        'structdiff': set()}
         self.byxpath = {}
 
     def compare(self):
@@ -33,11 +32,11 @@ class XMLCompare(object):
         self.make_xpath(self.rightset, self.rightxml.getroot())
 
         for xpath in self.leftset.difference(self.rightset):
-            self.bystate['left'][xpath] = 1
+            self.bystate['left'].add(xpath)
             self.byxpath[xpath] = 'left'
 
         for xpath in self.rightset.difference(self.leftset):
-            self.bystate['right'][xpath] = 1
+            self.bystate['right'].add(xpath)
             self.byxpath[xpath] = 'right'
 
         self.find_diffs(self.leftset.intersection(self.rightset))
@@ -62,12 +61,12 @@ class XMLCompare(object):
                 rval = r[0]
 
             if lval != rval:
-                self.bystate['datadiff'][xpath] = 1
+                self.bystate['datadiff'].add(xpath)
                 self.byxpath[xpath] = 'datadiff'
                 parentpath = '/'
                 for parent in xpath.split('/')[:-1]:
                     parent = parentpath + parent
-                    self.bystate['structdiff'][parent] = 1
+                    self.bystate['structdiff'].add(parent)
                     self.byxpath[parent] = 'structdiff'
                     if parent == '/':
                         parentpath = parent

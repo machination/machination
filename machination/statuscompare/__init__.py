@@ -9,6 +9,7 @@ based on differences between the 'local' status.xml and the downloaded profile.
 """
 
 from lxml import etree
+from machination import workerdescription
 
 
 class XMLCompare(object):
@@ -23,6 +24,9 @@ class XMLCompare(object):
                         'datadiff': set(),
                         'structdiff': set()}
         self.byxpath = {}
+        self.worklist = set()
+        self.wd = workerdescription.WorkerDescription(descfile)
+
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -91,6 +95,31 @@ class XMLCompare(object):
         for childelt in elt:
             self.make_xpath(xpathset, childelt, current)
 
+    def find_work(self, descfile):
+        """Check which xpaths are work_units and return these."""
+
+        for xpath in self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']:
+            if self.wd.is_workunit(xpath):
+                #Its a WU, add it to the list
+                self.worklist.add(xpath)
+            else:
+                parent = self.find_parent_workunit(xpath)
+                self.worklist.add(parent)
+
+    def find_parent_workunit(self, xpath):
+        """Recurse up an xpath, return the first parent that is a workunit."""
+
+        parentxpath = '/'.join(xpath.split('/')[:-1])
+        if self.wd.is_workunit(parentxpath):
+            return parentxpath
+
+        else:
+            if parentxpath:
+                return self.find_parent_workunit(parentxpath)
+            else:
+                raise Exception("No work unit ancestors found!")
+                pass
+
 
 if __name__ == "__main__":
 
@@ -107,3 +136,6 @@ if __name__ == "__main__":
     xmlcmp = XMLCompare(leftxml, rightxml)
     xmlcmp.compare()
     pp.pprint(xmlcmp.byxpath)
+
+    xmlcmp.find_work(sys.argv[3])
+    pp.pprint(xmlcmp.worklist)

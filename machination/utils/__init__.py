@@ -3,7 +3,8 @@
 
 """A machination module for worker utility functions.
 
-Most of the job done by workers is the same, with only minor differences. This library contains utility functions necessary to do that work.
+Most of the job done by workers is the same, with only minor differences.
+This library contains utility functions necessary to do that work.
 
 """
 
@@ -22,23 +23,24 @@ import wmi
 import _winreg
 from lxml import etree
 
+
 def machination_path:
     """Returns the Machination path, which can be stored in a few places:
         Windows has it in HKLM\Software\Machination
         Linux has it in /etc/machination
-        
+
     If these entries don't exist, fall back to reasonable defaults.
-    
+
     Returns the machination path."""
     if platform.system()[:3] = "Win":
         try:
             r = wmi.Registry()
             result, path = r.GetStringValue(
-                #hDefKey=_winreg.HKEY_LOCAL_MACHINE,
+                # hDefKey = _winreg.HKEY_LOCAL_MACHINE,
                 # If only. _winreg.HKEY_LOCAL_MACHINE is b0rked on Win7_64
                 # and possibly others.
-                hDefKey=2147483650
-                sSubKeyName = "Software\Machination"
+                hDefKey = 2147483650,
+                sSubKeyName = "Software\Machination",
                 sValueName = "Path"
             )
             if result:
@@ -56,17 +58,18 @@ def machination_path:
         except IOError:
             #File doesn't exist
             path = '/opt/machination/'
-            
+
     return path
+
 
 def get_supported_platforms(config_file=None):
     """Open a list of supported platforms from disk and parse it into a
     list. Supported platforms exist in tags of the form:
     <platform id="foo" />
-    
+
     Returns a list of platforms"""
-    
-    if config_file=None
+
+    if config_file = None:
         config_file = machination_path() + '/config/platforms.xml'
     platform_list = []
     with open(config_file) as f:
@@ -75,11 +78,12 @@ def get_supported_platforms(config_file=None):
         platform_list.append(avail_platform.attrib["id"])
     return platform_list
 
+
 def check_platform(supported_platforms=[]):
     """Get the current platform information and check it against a list of
     supported platforms, either provided as an argument or via
     get_supported_platforms().
-    
+
     Returns the platform name, or exits if on an unsupported platform"""
 
     if not supported_platforms:
@@ -87,49 +91,53 @@ def check_platform(supported_platforms=[]):
         get_supported_platforms('../../tests/example_platforms.xml')
 
     if platform.system() = "Windows":
-        if sys.maxsize > 2**32:
-            base_os = "Win"+platform.release()+"_64"
-        else
-            base_os = "Win"+platform.release()+"_32"
-    else
+        if sys.maxsize > 2 ** 32:
+            base_os = "Win" + platform.release() + "_64"
+        else:
+            base_os = "Win" + platform.release() + "_32"
+    else:
         base_os = platform.system()
-    
+
     for plat in supported_platforms:
         if plat = base_os:
             return base_os
-    else
-        sys.exit("Running on unknown platform: " + base_os)
+        else:
+            sys.exit("Running on unknown platform: " + base_os)
+
 
 def win_distro:
-    """Returns a string containing the Windows distribution 
-    
+    """Returns a string containing the Windows distribution
+
     Could be WinXP, WinVista, or Win7"""
 
     return "Win" + platform.release()
+
 
 def win_kernel:
     """Returns the kernel version of the Windows distribution"""
 
     return platform.version()
 
+
 def linux_distro:
     """Returns the distribution name of a linux machine, where available."""
 
-    dirEntries = os.listdir(/etc)
-    for entry in dirEntries
+    dirEntries = os.listdir('/etc')
+    for entry in dirEntries:
         if entry[-8:] = "-release":
             return entry[:-8]
-    else
-        sys.exit("No linux releases found (/etc/*-release)")
-        
+        else:
+            sys.exit("No linux releases found (/etc/*-release)")
+
+
 def linux_kernel:
     """Returns the Linux kernel version"""
 
     return platform.release()
 
+
 def machination_id(serviceid):
     """Parses the machination profile to extract the machination id.
-    
     Returns the machination id"""
 
     mach_prof = machination_path() + '/config.xml'
@@ -144,10 +152,11 @@ def machination_id(serviceid):
         raise IndexError
     return mach_id
 
+
 def get_interactive_users(platform=None):
-    """Gets the set of logged on users (currently Windows only) who are 
+    """Gets the set of logged on users (currently Windows only) who are
     logged in interactively.
-    
+
     Returns a list of dictionaries containing domain, username,
     logon id, and session type."""
 
@@ -159,9 +168,8 @@ def get_interactive_users(platform=None):
         return logged_on
     else:
         c = wmi.WMI()
-    
-        session_id={}
-        
+        session_id = {}
+
         # Get sessions associated with processes
 
         for process in c.Win32_SessionProcess():
@@ -177,7 +185,7 @@ def get_interactive_users(platform=None):
             if logon_id in session_id:
                 for sessions in c.Win32_LogonSession(LogonId=logon_id):
                     logon_type = sessions.LogonType
-                    if logon_type == 2|| logon_type == 10:
+                    if logon_type == 2 || logon_type == 10:
                         user_dict = {
                             "Domain": user_dom,
                             "Name": user_name,
@@ -188,6 +196,7 @@ def get_interactive_users(platform=None):
 
         return logged_on
 
+
 def is_interactive:
     """Simple truthiness boolean for when returning the full set of
     get_interactive_users() would be overkill"""
@@ -197,6 +206,7 @@ def is_interactive:
     else:
         return False
 
+
 def runner(cmd, args={}):
     """Runs an arbitrary external command in Windows via runner.exe.
     Takes two arguments:
@@ -204,7 +214,7 @@ def runner(cmd, args={}):
         2. An optional dictionary of arguments
 
     Returns the results of the command."""
-    
+
     runner = machination_path() + '/utils/win32/runner/runner.exe'
     command = '"' + runner '"'
     if args["hidden"]:
@@ -212,11 +222,14 @@ def runner(cmd, args={}):
     if args["time"]:
         command += " -t " + args["time"]
     command += " " + cmd
-    
+
     return os.popen(command).readlines()
+
 
 def diskfree(disk="C"):
     """Checks free space on the specified disk
     Only works on Windows.
 
     Returns number of bytes free on the disk"""
+
+    pass

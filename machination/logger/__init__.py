@@ -1,12 +1,20 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8:
 
-"""A machination module for logging-related functions.
+"""A machination module for logging-related functions. Machination
+can log to local files relative to machination path or to syslog
+servers, all of which are defined in the XML passed in to the
+object at creation time.
 
-Machination uses syslog to the main machination server by default, with file
-logging when the syslog server cannot be found. Functions defined here
-handle debug, message, warn, and error messages.
-"""
+As Machination uses two-dimensional logging (message type and level
+are independent) and each log destination can have its own level
+threshold, each destination is created as a separate logger. This module
+handles creation and dispatching.
+
+Retuns an object with four methods: emsg, wmsg, lmsg, and dmsg. Each logs
+at the appropriate level (error, warning, info, debug) to all sources
+with a loglevel > the level passed to the method. All messages are
+formatted appropriately."""
 
 __author__ = "Stew Wilson"
 __copyright__ = "Copyright 2012, Stew Wilson, University of Edinburgh"
@@ -16,107 +24,99 @@ __maintainer__ = "stew.wilson"
 __email__ = "stew.wilson@ed.ac.uk"
 __status__ = "Development"
 
-import sys
+
+import logging
 from logging.handlers import SysLogHandler
+from lxml import etree
 import inspect
+from machination.utils import machination_path
+
+
 class Logger():
-    """Logs to all sources specified in config.xml's <logger> element tree
-    Currently supports logging to local file and to sysog server.
+    "The core class that handles individual loggers and dispatching"
 
-    """
+    def __init__(self, config_elt):
 
-    loglist = []
+        # Set up module-global vars
 
-    msg_formats = {
-        "error": {"left": "<",
-            "right": ">",
-            "priority": SysLogHandler.LOG_ERR,
-            "prefix": " ERROR:"},
-        "debug": {"left": "[",
-            "right": "]",
-            "priority": SysLogHandler.LOG_DEBUG,
-            "prefix": ""},
-        "log": {"left": "(",
-            "right": ")",
-            "priority": SysLogHandler.LOG_INFO,
-            "prefix": ""},
-        "warning": {"left": "{",
-            "right": "}",
-            "priority": SysLogHandler.LOG_WARN,
-            "prefix": " WARNING:"}
-    }
+        self.loggers = []
+        self.fmtstring = "%(left)s%(lvl)s:%(modname)s.%(funct)s%(right)s"\
+                ": %(message)s"
 
-    def __init__(self,config_elt):
+        # Assign [logger object, priority] to self.loggers for each
+        # entry in /config/logging
         for dest in config_elt.xpath("/config/logging")[0]:
-            logdef = {
-                "lvl": dest.attrib["loglevel"],
-                "type": dest.tag,
-                "handle": getattr(self, "__%s" % dest.tag,
-                                  self.__file)(dest.attrib["id"])
-            }
-            loglist.append(logdef)
+            if not isinstance(dest.tag, str):
+                continue
 
-    # To add an additional logging type "name", add two methods:
-    #   __name(self, src) 
-    # generates a handle (syslog server, open file object) and returns 
-    # that object. Src is the id atttribute in the config statement.
-    #   __write_name(self, fmesg, priority)
-    # writes the formatted message fmesg to the 
+            if dest.tag == "syslog":
+                logger = logging.Logger(dest.attrib["id"])
+                srv = (dest.attrib["id"], 514)
+                hdlr = SysLogHandler(srv, SysLogHandler.LOG_LOCAL5)
+                hdlr.setLevel(logging.DEBUG)
+                fmt = logging.Formatter("%(asctime)s " + self.fmtstring,
+                                        "%b %d %H:%M:%S")
+                hdlr.setFormatter(fmt)
+                logger.addHandler(hdlr)
+                self.loggers.append([logger, int(dest.attrib["loglevel"])])
 
+            elif dest.tag == "file":
+                logger = logging.Logger(dest.attrib["id"])
+                filepath = machination_path() + '/' + dest.attrib["id"]
+                hdlr = logging.FileHandler(filepath)
+                fmt = logging.Formatter(self.fmtstring)
+                hdlr.setFormatter(fmt)
+                logger.addHandler(hdlr)
+                self.loggers.append([logger, int(dest.attrib["loglevel"])])
 
-    def __syslog(self, server):
-        #FIXME: Set up syslog server connection and return handle to that
-        pass
+            else:
+                # Unhandled value
+                raise IOError("1", "Unknown log method " + repr(dest.tag))
 
-    def __file(self, filename):
-        return filename
+    def dmsg(self, msg, lvl=6):
+        "Log a debug message. Default level is 6"
+        fmtdict = {"left": "[",
+                   "right": "]",
+                   "lvl": str(lvl),
+                   "modname": inspect.stack()[1][1],
+                   "funct": inspect.stack()[1][3]}
+        message = msg
+        self.__write_msg(lvl, "debug", message, fmtdict)
 
-    def __write_syslog(self, fmesg, priority)
-        pass
+    def lmsg(self, msg, lvl=4):
+        "Log an info message. Default level is 4"
+        fmtdict = {"left": "(",
+                   "right": ")",
+                   "lvl": str(lvl),
+                   "modname": inspect.stack()[1][1],
+                   "funct": inspect.stack()[1][3]}
+        message = msg
+        self.__write_msg(lvl, "info", message, fmtdict)
 
-    def __write_file(self, fmesg, priority)
-        pass
+    def wmsg(self, msg, lvl=1):
+        "Log a warning message. Default level is 1"
+        fmtdict = {"left": "{",
+                   "right": "}",
+                   "lvl": str(lvl),
+                   "modname": inspect.stack()[1][1],
+                   "funct": inspect.stack()[1][3]}
+        message = "WARNING: " + msg
+        self.__write_msg(lvl, "warning", message, fmtdict)
 
-    def dmesg(self, msg, lvl)
-        self.__write_msg(msg, lvl, "debug")
+    def emsg(self, msg, lvl=1):
+        "Log an error message. Default level is 1"
+        fmtdict = {"left": "<",
+                   "right": ">",
+                   "lvl": str(lvl),
+                   "modname": inspect.stack()[1][1],
+                   "funct": inspect.stack()[1][3]}
+        message = "ERROR: " + msg
+        self.__write_msg(lvl, "debug", message, fmtdict)
 
-    def emesg(self, msg, lvl)
-        self.__write_msg(msg, lvl, "error")
-
-    def lmesg(self, msg, lvl)
-        self.__write_msg(msg, lvl, "log")
-
-    def wmesg(self, msg, lvl)
-        self.__write_msg(msg, lvl, "warning") 
-
-    def __write_msg(self, msg, lvl, kind)
-        if not kind in ["warning", "log", "error", "debug"]:
-            format_msg = "[write_msg]: Tried to post message of unknown type" + kind
-            lvl = 1
-            priority_msg = msg_formats["error"]["priority"]
-        else:
-            # Format message string -- inspect.stack()[1][4] gives what used
-            # to be cat_prefix
-            flib = msg_formats[kind]
-
-            format_msg = flib["left"] + `lvl` + inspect.stack()[1][4] +
-            flib["right"] + ":"
-            pad = " " * len(format_msg)
-            format_msg += flib["prefix"]
-            lines = splitlines(msg)
-            format_msg += lines.pop(0)
-            for line in lines:
-                format_msg += pad + line + "\n"
-
-            priority_msg = flib["priority"]
-
-        for log in loglist:
-            if lvl > log["lvl"]:
+    def __write_msg(self, lvl, cat, msg, fmt):
+        "Dispatcher to write formatted messages to all destinations"
+        for disp in self.loggers:
+            if lvl > disp[1]:
                 pass
             else:
-                getattr(self, "__write_%s" % log["type"],
-                        self.__write_file)(
-                            log["handle"],
-                            format_msg,
-                            priority_msg)
-
+                getattr(disp[0], cat)(msg, extra=fmt)

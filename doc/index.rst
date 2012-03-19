@@ -3,25 +3,30 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+#######################################
 Welcome to Machination's documentation!
-=======================================
+#######################################
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
+.. include:: /workers.rst
 
+
+*********************
 Programming Reference
-=====================
+*********************
 
 .. automodule:: machination.workerdescription
    :members:
 
 
 
+******************
 Indices and tables
-==================
+******************
 
 * :ref:`genindex`
 * :ref:`modindex`

@@ -12,6 +12,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+Here is a preformatted include:
+    .. literalinclude:: example-worker-description.xml
+        :language: xml
+	:linenos:
+
 .. include:: /workers.rst
 
 

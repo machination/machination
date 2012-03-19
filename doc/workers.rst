@@ -58,40 +58,89 @@ return an ``lxml.etree.Element``.
 
 Python example:
 
-Somewhere in ``update``::
+Pythonish pseudocode for what happens in ``update``:
 
+.. code-block:: python
+    :linenos:
+    :emphasize-lines: 8,24
+
+    # somewhere to store current status
     global_current_status = lxml.etree.Element("status")
 
+    # iterate through the workers and find current worker status
     for worker_name in some_list_of_workers:
         worker = machination.workers.worker_name()
-
 	# This is how generate_status() is called
         worker_current_status = worker.generate_status()
 
+	# use the last stored worker status if the worker can't
+	# generate_status
+	if worker_status.get("implemented") == 0:
+	    worker_current_status = last_status(worker_name)
+	
+	# add the worker status to the global status
 	add_status(worker_current_status,global_current_status)
 
-    work_iter = get_work_iter(get_desired_status(),global_current_status)
+    # iterate through all work units
+    work_iter = get_work_units(get_desired_status(),global_current_status)
     work_batch = [work_iter.next()]
     for wuwu in work_iter:
     	if get_worker_name(work_batch[-1]) == get_worker_name(wuwu):
-	    # still the same worker - batch it up
+	    # the same worker as last time - add wuwu to current batch
 	    work_batch.append(wuwu)
 	else:
 	    # different worker, call what we have batched and reset
 	    worker = machination.workers.worker_name()
-	    
 	    # this is how do_work is called
 	    results = worker.do_work(generate_work_xml(work_batch))
-
 	    deal_with_results(results)
 	    work_batch = [wuwu]
 
+Lines 8 and 29 call the workers' ``generate_status`` and ``do_work``
+methods respectively.
 
 Workers implemented in other languages will be handed their input as
 an XML string on ``STDIN``. The input will be encapsulated in a
 ``<call>`` element describing which method is being invoked. They
-should return serialised XML on ``STDOUT``.
+should return serialised XML on ``STDOUT``:
 
+.. code-block:: xml
+
+    <call method="generate_status"/>
+
+.. code-block:: xml
+
+    <return method="generate_status">
+      <worker id="tweaks">
+        <Time>
+	  <NtpEnabled>0</NtpEnabled>
+	</Time>
+	<automaticUpdates>
+          <NoAutoReboot>0</NoAutoReboot>
+	</automaticUpdates>
+      </worker>
+    </return>
+
+.. code-block:: xml
+
+    <call method="do_work">
+      <wu id="/Time/NtpEnabled">
+        <NtpEnabled>1</NtpEnabled>
+      </wu>
+      <wu id="/Time/TimeServer1">
+        <TimeServer1>timeserver1</TimeServer1>
+      </wu>
+      <wu id="/AutomaticUpdates/NoAutoReboot">
+        <NoAutoReboot>1</NoAutoReboot>
+      </wu>
+    </call>
+
+.. code-block:: xml
+
+    <return method="do_work">
+      <wu id="/Time/NtpEnabled" status="success"/>
+      <wu id="/Time/TimeServer1" status="error" message="something"/>
+    </return>
 
 Information Given on All Method Calls
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

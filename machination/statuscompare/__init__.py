@@ -14,7 +14,7 @@ from machination import workerdescription
 
 class XMLCompare(object):
 
-    def __init__(self, leftxml, rightxml):
+    def __init__(self, leftxml, rightxml, descfile):
         self.leftxml = leftxml
         self.rightxml = rightxml
         self.leftset = set()
@@ -26,7 +26,6 @@ class XMLCompare(object):
         self.byxpath = {}
         self.worklist = set()
         self.wd = workerdescription.WorkerDescription(descfile)
-
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -95,12 +94,11 @@ class XMLCompare(object):
         for childelt in elt:
             self.make_xpath(xpathset, childelt, current)
 
-    def find_work(self, descfile):
+    def find_work(self):
         """Check which xpaths are work_units and return these."""
 
         for xpath in self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']:
             if self.wd.is_workunit(xpath):
-                #Its a WU, add it to the list
                 self.worklist.add(xpath)
             else:
                 parent = self.find_parent_workunit(xpath)
@@ -129,13 +127,14 @@ if __name__ == "__main__":
 
     leftfile = sys.argv[1]
     rightfile = sys.argv[2]
+    descfile = sys.argv[3]
 
     leftxml = etree.parse(leftfile)
     rightxml = etree.parse(rightfile)
 
-    xmlcmp = XMLCompare(leftxml, rightxml)
+    xmlcmp = XMLCompare(leftxml, rightxml, descfile)
     xmlcmp.compare()
     pp.pprint(xmlcmp.byxpath)
 
-    xmlcmp.find_work(sys.argv[3])
+    xmlcmp.find_work()
     pp.pprint(xmlcmp.worklist)

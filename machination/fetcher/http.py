@@ -23,7 +23,10 @@ class fetcher(object):
         self.transport = transport
 
     def fetch(self, bundle):
-        f = urllib.request.urlopen(self.transport.xpath('baseURL').text + self.bundle.xpath('id').text)
+        f = urllib.request.urlopen(self.transport.get('baseURL') + '/' +
+                                    bundle.get('id'))
+        with open(self.config.xpath('cache/location')[0].text, 'wb') as o:
+            o.write(f.read())
 
 def main(args):
     pass

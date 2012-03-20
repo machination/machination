@@ -28,7 +28,6 @@ __status__ = "Development"
 import sys
 from lxml import etree
 from machination import fetcher
-import threading
 
 
 def main(args):
@@ -37,8 +36,7 @@ def main(args):
         configdata = etree.parse(f)
     for bundle in inputdata.iter('bundle'):
         fetch = fetcher.Fetcher(configdata, bundle)
-        thread = threading.Thread(target=fetch)
-        thread.start()
+        fetch()
 
 if __name__ == '__main__':
     main(sys.argv[1:])

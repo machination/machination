@@ -48,13 +48,19 @@ worker does *not* implement should return the XML::
 
     <return method="$method" implemented="0"/>
 
+Introspection of a python worker object revealing the non existence of
+a method, a return value of ``None`` in python or the empty string in
+python or other language workers will also be inferred as meaning the
+method is not supported.
+
 
 Python Workers vs. Other Language Workers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Python workers will be instantiated as objects and the methods called
-with an ``lxml.etree.Element`` object as their only argument. They should
-return an ``lxml.etree.Element``.
+with an ``lxml.etree.Element`` object or a list of them as their
+arguments. They should return an ``lxml.etree.Element`` or a list as
+appropriate.
 
 Python example:
 
@@ -62,7 +68,7 @@ Pythonish pseudocode for what happens in ``update``:
 
 .. code-block:: python
     :linenos:
-    :emphasize-lines: 8,24
+    :emphasize-lines: 8,29
 
     # somewhere to store current status
     global_current_status = lxml.etree.Element("status")
@@ -99,17 +105,24 @@ Pythonish pseudocode for what happens in ``update``:
 Lines 8 and 29 call the workers' ``generate_status`` and ``do_work``
 methods respectively.
 
-Workers implemented in other languages will be handed their input as
-an XML string on ``STDIN``. The input will be encapsulated in a
-``<call>`` element describing which method is being invoked. They
-should return serialised XML on ``STDOUT``:
+Workers implemented in other languages (OL workers) will be handed
+their input as an XML string on ``STDIN``. The input will be
+encapsulated in a ``<call>`` element describing which method is being
+invoked. They should return serialised XML on ``STDOUT``.
+
+The ``generate_status`` call:
 
 .. code-block:: xml
 
-    <call method="generate_status"/>
+  <!-- only for OL workers: python workers will have the
+       generate_status method called with no arguments -->
+  <call method="generate_status"/>
+
+Example abridged ``generate_status`` return from the tweaks worker:
 
 .. code-block:: xml
 
+    <!-- outer 'return' element only for OL workers -->
     <return method="generate_status">
       <worker id="tweaks">
         <Time>
@@ -121,22 +134,45 @@ should return serialised XML on ``STDOUT``:
       </worker>
     </return>
 
+Example abridged ``generate_status`` return from the packageman
+worker:
+
 .. code-block:: xml
 
+  <!-- outer 'return' element only for OL workers -->
+  <return method="generate_status">
+    <worker id="packageman">
+      <package id="emacs-23-1">
+        <install type="msi"
+	    startPoint="emacs-23.msi"
+	    transform="some-transform.mst"/>
+	<info displayName="GNU Emacs 23"/>
+      </package>
+    </worker>
+  </return>
+
+Example ``do_work`` call to the tweaks worker
+
+.. code-block:: xml
+
+    <!-- outer 'call' element only for OL workers -->
     <call method="do_work">
-      <wu id="/Time/NtpEnabled">
+      <wu id="/Time/NtpEnabled" op="modify">
         <NtpEnabled>1</NtpEnabled>
       </wu>
-      <wu id="/Time/TimeServer1">
+      <wu id="/Time/TimeServer1" op="add">
         <TimeServer1>timeserver1</TimeServer1>
       </wu>
-      <wu id="/AutomaticUpdates/NoAutoReboot">
+      <wu id="/AutomaticUpdates/NoAutoReboot" op="modify">
         <NoAutoReboot>1</NoAutoReboot>
       </wu>
     </call>
 
+Example ``do_work`` return from tweaks.
+
 .. code-block:: xml
 
+    <!-- outer 'return' element only for OL workers -->
     <return method="do_work">
       <wu id="/Time/NtpEnabled" status="success"/>
       <wu id="/Time/TimeServer1" status="error" message="something"/>
@@ -192,5 +228,5 @@ Configuration Description Files
 
 .. rubric:: Footnotes
 
-.. [#wuwu] Also known as ``wu:wu``s (pronounced 'woo-woo') because of
+.. [#wuwu] Also known as wu:wus (pronounced 'woo-woo') because of
    the way they are commonly marked up in worker description files.

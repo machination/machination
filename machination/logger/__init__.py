@@ -29,7 +29,7 @@ import logging
 from logging.handlers import SysLogHandler
 from lxml import etree
 import inspect
-from machination.utils import machination_path
+import machination.utils
 
 
 class Logger():
@@ -45,6 +45,9 @@ class Logger():
 
         # Assign [logger object, priority] to self.loggers for each
         # entry in /config/logging
+
+        a = machination.utils.MachUtils(config_elt)
+
         for dest in config_elt.xpath("/config/logging")[0]:
             if not isinstance(dest.tag, str):
                 continue
@@ -62,7 +65,8 @@ class Logger():
 
             elif dest.tag == "file":
                 logger = logging.Logger(dest.attrib["id"])
-                filepath = machination_path() + '/' + dest.attrib["id"]
+                filepath = os.path.join(a.machination_path(),
+                                        dest.attrib["id"])
                 hdlr = logging.FileHandler(filepath)
                 fmt = logging.Formatter(self.fmtstring)
                 hdlr.setFormatter(fmt)
@@ -120,3 +124,12 @@ class Logger():
                 pass
             else:
                 getattr(disp[0], cat)(msg, extra=fmt)
+
+if __name__ == "main":
+    conf_file = "/home/swilso11/machination/notes/example-config-file.xml"
+    conf_path = etree.parse(conf_file)
+    log_master = Logger(conf_path)
+    log_master.dmsg("Test Debug Message", 5)
+    log_master.lmsg("Test Log Message", 7)
+    log_master.wmsg("Test Warning Message")
+    log_master.emsg("Test Error Message")

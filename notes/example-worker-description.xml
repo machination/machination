@@ -19,16 +19,16 @@
     wu="https://github.com/machination/ns/workunit"
       - "work units" are the smallest units of XML that make sense as a
         unit of work for a worker. For example, the 'package' element in
-	a packageman worker would probably be a unit of work. The packageman
-	worker might be able to change the application name without needing
-	the rest of the package XML, in which case
-	'package/application/name' might be a unit of work.
+        a packageman worker would probably be a unit of work. The packageman
+        worker might be able to change the application name without needing
+        the rest of the package XML, in which case
+        'package/application/name' might be a unit of work.
       - update.py finds possible units of work by looking for elements
         in the description file with wu:wu="1"
       - only applicable to elements (so attributes cannot be units of work)
       - if no description file is present, or if no elements are marked with
         wu:wu="1", then the direct children of the worker element are
-	assumed to be the smallest work units.
+        assumed to be the smallest work units.
 
     gui="https://github.com/machination/ns/guihint"
       - hints aimed at the interface program (icons, widget choice etc.)
@@ -36,29 +36,29 @@
     stpol="https://github.com/machination/ns/status-merge-policy"
       - update.py asks workers to generate_status() before calculating
         what work needs done. If the generated status is different from
-	the (stored) previous status, then something other than
-	Machination has altered the state of the OS. The changes
-	required by Machination to reach the desired status now have to
-	be merged with any local modifications.
+        the (stored) previous status, then something other than
+        Machination has altered the state of the OS. The changes
+        required by Machination to reach the desired status now have to
+        be merged with any local modifications.
       - used in the top level element to communicate the default
         status merge policies to update.py
       - defaults:
         - stpol:add="machination"
-	- stpol:remove="local"
-	- stpol:modify="machination"
+        - stpol:remove="local"
+        - stpol:modify="machination"
 
     secret="https://github.com/machination/ns/secrets"
       - used two ways:
         - to server: secret:mustEncrypt="1" specifies that this type of
-	  element must always be encrypted.
-	  - only applicable to elements, any attributes of an encrypted
-	    element must also be encrypted.
-	- to worker: secret:secret="1" specifies that this element was
-	  decrypted when being retrieved. Information from here should
-	  not be stored on disk and should be encrypted if being
-	  written to status.xml. Note that workers should not normally
-	  write to status.xml - update.py will do that based on the
-	  output of the worker.
+          element must always be encrypted.
+          - only applicable to elements, any attributes of an encrypted
+            element must also be encrypted.
+        - to worker: secret:secret="1" specifies that this element was
+          decrypted when being retrieved. Information from here should
+          not be stored on disk and should be encrypted if being
+          written to status.xml. Note that workers should not normally
+          write to status.xml - update.py will do that based on the
+          output of the worker.
 -->
 <element name="worker"
     xmlns="http://relaxng.org/ns/structure/1.0"
@@ -73,33 +73,33 @@
   <interleave>
     <element name="Time">
       <interleave>
-	<element name="NtpEnabled"
-		     wu:wu="1"
-		     gui:icon="file:///some/icon/file"
-		     gui:shorthelp="ref to file?"
-		     gui:furtherhelp="ref to file?"
-		     >
-	  <choice gui:widget="checkbox">
-	    <value>true</value>
-	    <value>false</value>
-	  </choice>
-	</element>
-	<element name="TimeServer1"
-		     wu:wu="1"
-		     gui:icon="file:///some/icon/file"
-		     >
-	  <text/>
-	</element>
+        <element name="NtpEnabled"
+                     wu:wu="1"
+                     gui:icon="file:///some/icon/file"
+                     gui:shorthelp="ref to file?"
+                     gui:furtherhelp="ref to file?"
+                     >
+          <choice gui:widget="checkbox">
+            <value>true</value>
+            <value>false</value>
+          </choice>
+        </element>
+        <element name="TimeServer1"
+                     wu:wu="1"
+                     gui:icon="file:///some/icon/file"
+                     >
+          <text/>
+        </element>
       </interleave>
     </element>
     <element name="startMenuClients"
-		 wu:wu="1"
-		 >
+                 wu:wu="1"
+                 >
       <interleave>
-	<element name="mail"
-		     gui:icon="mail icon url">
-	  <text/>
-	</element>
+        <element name="mail"
+                     gui:icon="mail icon url">
+          <text/>
+        </element>
       </interleave>
     </element>
   </interleave>

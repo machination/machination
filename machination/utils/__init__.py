@@ -18,7 +18,6 @@ import sys
 import os
 import platform
 import wmi
-import _winreg
 from lxml import etree
 
 

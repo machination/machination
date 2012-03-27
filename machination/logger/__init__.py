@@ -29,7 +29,7 @@ import logging
 from logging.handlers import SysLogHandler
 from lxml import etree
 import inspect
-import machination.utils
+from machination import utils
 
 
 class Logger():
@@ -46,7 +46,7 @@ class Logger():
         # Assign [logger object, priority] to self.loggers for each
         # entry in /config/logging
 
-        a = machination.utils.MachUtils(config_elt)
+        a = utils.MachUtils(config_elt)
 
         for dest in config_elt.xpath("/config/logging")[0]:
             if not isinstance(dest.tag, str):

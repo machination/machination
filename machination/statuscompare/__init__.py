@@ -118,6 +118,30 @@ class XMLCompare(object):
                 raise Exception("No work unit ancestors found!")
                 pass
 
+    def dependencies_state_to_wu(self, deps, worklist):
+        """Combine state dependencies with worklist to find work dependencies.
+
+        deps: a list of lxml ``Element``s from the profile. These
+        should be in the form:
+
+        .. code-block:: xml
+          <dep id="something"
+               src="/some/xpath"
+               op="requires|excludes"
+               tgt="/some/other/xpath"/>
+
+        worklist: as returned by ``find_work``
+
+        returns: a list (set?, iterable?) of dependencies between work
+        units::
+
+          [[wuA, wuB], [wuB, wuC], [wuD, wuE], ...]
+
+        meaning workunit ``wuA`` depends on ``wuB``, ``wuB`` depends
+        on ``wuC`` and so on.
+        """
+        pass
+
 
 if __name__ == "__main__":
 

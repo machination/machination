@@ -22,6 +22,8 @@ Programming Reference
 .. automodule:: machination.workerdescription
    :members:
 
+.. automodule:: machination.statuscompare
+   :members:
 
 
 ******************

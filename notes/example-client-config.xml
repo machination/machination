@@ -82,19 +82,16 @@
       <!-- The fetcher should try these sources in the order listed,
            like a path-->
       <torrent id="internal-torrent"
-              torrentFileSource="http://www.internal.example.com/torrents"
-              tracker="tracker.internal.example.com"
+              baseURL="http://www.internal.example.com/torrents"
               />
       <http id="internal-web"
               baseURL="http://web.internal.example.com"
               />
       <torrent id="external-torrent"
-              torrentFileSource="http://www.external.example.com/torrents"
-              tracker="tracker.external.example.com"
+              baseURL="http://www.external.example.com/torrents"
               />
       <torrent id="someone-else"
-              torrentFileSource="http://www.peer.com/torrents"
-              tracker="tracker.peer.com"
+              baseURL="http://www.peer.com/torrents"
               />
     </sources>
   </worker>

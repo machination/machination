@@ -8,6 +8,7 @@ Contents:
    :maxdepth: 2
 
 .. include:: /workers.rst
+.. include:: /dependencies.rst
 
 Testing preformatted include:
     .. literalinclude:: example-worker-description.xml

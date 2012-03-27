@@ -1,0 +1,10 @@
+<profile id="some_id">
+  <deps>
+    <!-- "some_hash" is a generated hash of src, op, and target
+         concatentated. It might just be those strings
+         concatenated. It is there to provide a unique id attribute as
+         required by the Machination restricted XML rules. -->
+    <dep id="some_hash" src="/xpath/1" op="requires" tgt="/xpath/2"/>
+    <dep id="some_hash" src="/xpath/3" op="excludes" tgt="/xpath/4"/>
+  </deps>
+</profile>

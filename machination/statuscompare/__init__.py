@@ -121,7 +121,7 @@ class XMLCompare(object):
     def dependencies_state_to_wu(self, deps, worklist):
         """Combine state dependencies with worklist to find work dependencies.
 
-        deps: a list of lxml ``Element``s from the profile. These
+        deps: an iterable of lxml ``Element``s from the profile. These
         should be in the form:
 
         .. code-block:: xml
@@ -138,9 +138,18 @@ class XMLCompare(object):
           [[wuA, wuB], [wuB, wuC], [wuD, wuE], ...]
 
         meaning workunit ``wuA`` depends on ``wuB``, ``wuB`` depends
-        on ``wuC`` and so on.
+        on ``wuC`` and so on. This output should be suitable for a
+        (yet to be chosen or implemented) topological sort and may
+        change later depending on implementation choice.
         """
-        pass
+        for sdep in deps:
+            # translate src and tgt state xpaths to wu xpaths
+            src_wu = self.find_parent_workunit(sdep.get("src"))
+            tgt_wu = self.find_parent_workunit(sdep.get("tgt"))
+
+            # find intended work operation for both wus
+
+            # get to one of [src, tgt], [tgt, src] or nothing
 
 
 if __name__ == "__main__":

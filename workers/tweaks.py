@@ -21,8 +21,8 @@ class tweaks():
         self.utils = utils
 
     def do_work(work_list):
-    	"Iterates over the work list, currently only handles time functions."
-        for item in work_list:
+        "Iterates over the work list, currently only handles time functions."
+        for item in work_list[0]:
             if item.tag == "NtpEnabled":
                 timeconfig[item.tag] = item.value
             elif item.tag[:-1] == "TimeServer":
@@ -100,9 +100,9 @@ class tweaks():
         # FIXME: Check whether parse can take a dictionary
         time = etree.Element("Time")
         for key, value in timestat.items():
-        	elem = etree.Element(key)
-        	elem.text = value
-        	time.append(elem)
+            elem = etree.Element(key)
+            elem.text = value
+            time.append(elem)
 
         return time
 
@@ -140,3 +140,4 @@ class tweaks():
                 stat[keyname] = value
         
         return stat
+        

@@ -1,0 +1,36 @@
+From an email aiming to crystalise thinking about dependencies:
+
+Expanding (1), a topological sort relies on the dependencies all having
+the form "A depends on B", which turns into "B must come before A".
+Machination dependencies come in the profile in two basic forms:
+
+- A requires B
+- C excludes D
+
+These are statements about state, not actions, and its the actions which
+need to be ordered. I think the key is to turn these into dependencies
+on actions (i.e. workunits). How to do this in turn varies according to
+which actions are being taken on the state information referenced by A-D
+(add, remove or modify).
+
+- If wuA is add or modify, wuB must be add or modify and the dependency
+is as usually written (wuA deps wuB).
+
+- If wuA is remove, wuB could be anything (from a dependency point of
+view: it probably couldn't be an add for other reasons), but if it is
+also remove we have a dependency wuB deps wuA (i.e. the reverse of what
+one might expect on seeing "A requires B"). Note that we don't lose much
+by enforcing wuB deps wuA regardless of whether wuB is a remove or not.
+
+- If wuC is add or modify, wuD must be remove (anything else would imply
+the existence of D and C together). Dependency wuC deps wuD.
+
+- If wuC is remove, wuD could be add or remove. If wuD is add, we have
+dependency wuD deps wuC.
+
+Whilst circular requires and excludes are allowed at the server end when
+constructing the profile XML, these should always be unordered
+dependencies. Only ordered dependencies are preserved and written into
+the profile for update.py to find. Therefore, encountering a circular
+dependency in the topological sort should be an error.
+

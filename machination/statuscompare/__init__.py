@@ -152,7 +152,7 @@ class XMLCompare(object):
         """
         for sdep in deps:
             # build a list of deps for topological sort just now
-            # might change to 'yield' approach later
+            # might change to generator approach later
             topdeps = []
             
             # translate src and tgt state xpaths to wu xpaths
@@ -187,6 +187,7 @@ class XMLCompare(object):
                         continue
 
                     # tgt_action must now be add or modify
+                    # src_action deps tgt_action
                     topdeps.append([sdep.get("src"), sdep.get("tgt")])
 
                 elif src_action == "remove" and tgt_action == "remove":
@@ -198,11 +199,38 @@ class XMLCompare(object):
                     continue
                 
             elif sdep.get("op") == "excludes":
-                pass
+                if src_action == "add" or src_action == "modify":
+
+                    # tgt_action better be remove or none
+                    if tgt_action == "add" or tgt_action == "modify":
+                        raise Exception(sdep.get("src") +
+                                        " excludes " +
+                                        sdep.get("tgt") +
+                                        " which will still exist")
+
+                    if tgt_action == "none":
+                        # we must assume the target xpath is not there
+                        # TODO?: really check the state
+                        continue
+
+                    # tgt_action must now be remove
+                    # src_action deps tgt_action
+                    topdeps.append([sdep.get("src"), sdep.get("tgt")])
+
+                elif src_action == "remove":
+                    if tgt_action == "add":
+                        # tgt_action deps src_action
+                        topdeps.append([sdep.get("tgt"), spep.get("src")])
+
+                else:
+                    # src_action == none
+                    continue
 
             else:
                 raise Exception("Don't understand dependency op '%s'"
                                 % sdep.get("op"))
+
+        return topdeps
 
 
 if __name__ == "__main__":

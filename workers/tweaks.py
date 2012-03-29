@@ -16,11 +16,10 @@ class tweaks():
     #Define a shorthand constant for HKLM.
     _HLKM = 2147483650
     
-    def __init__(logger, utils):
-        self.logger = logger
-        self.utils = utils
+    def __init__(self, config_elt):
+        self.logger = machination.logger.Logger(config_elt)
 
-    def do_work(work_list):
+    def do_work(self, work_list):
         "Iterates over the work list, currently only handles time functions."
         for item in work_list[0]:
             if item.tag == "NtpEnabled":
@@ -35,7 +34,7 @@ class tweaks():
                 
         self._doTimeSetting(todo)
 
-    def _doTimeSetting(settings):
+    def _doTimeSetting(self, settings):
         # Set time servers first
         logger.lsmg("Setting time servers")
         r = wmi.Registry()
@@ -95,18 +94,16 @@ class tweaks():
             if result:
                 logger.emsg("Could not set NTP: {0}".format(result))
 
-    def generate_status():
+    def generate_status(self):
         timestat = _gen_time_status()
-        # FIXME: Check whether parse can take a dictionary
         time = etree.Element("Time")
         for key, value in timestat.items():
             elem = etree.Element(key)
             elem.text = value
             time.append(elem)
-
         return time
 
-    def _gen_time_status():
+    def _gen_time_status(self):
         stat = {}
         
         r = wmi.Registry()

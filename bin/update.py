@@ -5,6 +5,7 @@
 """
 
 import sys
+import itertools
 from machination import utils, statuscompare, workerdescription, fetcher, hierarchy, context
 import topsort
 from lxml import etree
@@ -59,9 +60,23 @@ def main(args):
     xmlcmp.find_work()
     stdeps = dst_elt.xpath("/status/deps/dep")
     wudeps = xmlcmp.dependencies_state_to_wu(stdeps,xmlcmp.worklist,xmlcmp.byxpath)
-    sorted_work = topsort()
+    first = True
+    previous_failures = set()
+    for i_workset in iter(topsort.topsort_levels(wudeps)):
+        # wuwus within an 'i_workset' are independent of each other
 
-    # fether: downloads and workers: do_work
+        # wuwus that aren't mentioned in wudeps should be in the
+        # first i_workset
+        if(first):
+            first = False
+            i_workset = i_workset.union(find_nodeps(xmlcmp.worklist, wudeps))
+        
+        # fether: downloads and workers: do_work
+        # parallelisation perhaps?
+        results = spawn_work(parcel_work(i_workset, previous_failures))
+
+        # mark any failures
+        previous_failures = previous_failures.union(results.failures())
 
     # gather resultant_status
 

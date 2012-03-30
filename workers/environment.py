@@ -1,12 +1,13 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8:
 
-"""A worker for setting Windows environment variables"""
+"A worker for setting Windows environment variables"
 
 from lxml import etree
 import wmi
 import machination
 import os
+
 
 class environment():
     "Manipulates environment variables in Windows."
@@ -64,7 +65,7 @@ class environment():
         res = etree.element("wu",
                             id=work.attrib["id"])
         if result:
-            msg = "Could not set environment variable {0} to {1}".format(varname, val)
+            msg = "Could not set {0} to {1}".format(varname, val)
             ext_msg = msg + "Error code: {}".format(result)
             logger.wmsg(message)
             logger.dmsg(ext_msg)
@@ -128,10 +129,11 @@ class environment():
     def __parse_env(self):
         "Generate a dictionary of environment variables"
         env = {}
-        
-        [result, names, types] = r.EnumValues(hDefKey=__HKLM,sSubKeyName=envloc)
+
+        [result, names, types] = r.EnumValues(hDefKey=__HKLM,
+                                              sSubKeyName=envloc)
         if result:
-            logger.emsg("Could not parse environment variables: {0}".format(result))
+            logger.emsg("Could not parse environment vars: {0}".format(result))
 
         for key, type in zip(names, types):
             method = "Get{0}Value".format(methods(type))
@@ -139,7 +141,7 @@ class environment():
                                                sSubKeyName=envloc,
                                                sValueName=key)
             if result:
-                logger.emsg("Could not get value for {0}: {1}".format(key, result))
+                logger.emsg("Could not get {0} value: {1}".format(key, result))
             else:
                 env[key] = [methods(type), value]
         return env
@@ -162,5 +164,3 @@ class environment():
             out.append(line)
             count += 1
         return out
-
-      

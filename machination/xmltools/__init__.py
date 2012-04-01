@@ -59,29 +59,37 @@ class mrxpath:
     
     def set_path(self, path):
         """Set the path this instance represents
+        """
+        self.rep = self.to_rep(path)
 
-        calling options on instance ``mrx``::
-          mrx.set_path(another_mrxpath_object)
-          mrx.set_path("/standard/form[@id='frog']/xpath")
-          mrx.set_path("/abbreviated/form[frog]/xpath")
+    def to_rep(self, path):
+        """Return a represntation based on ``path``
+        
+        calling options::
+          set_path(another_mrxpath_object)
+          set_path("/standard/form[@id='frog']/xpath")
+          set_path("/abbreviated/form[frog]/xpath")
+          set_path(etree_element)
         
         """
         if isinstance(path,mrxpath):
             # clone another MXpath
-            self.rep = path.clone_rep()
+            return path.clone_rep()
         elif isinstance(path,basestring):
             # a string, break it up and store the pieces
-            newrep = []
+            rep = []
             tokens, remainder = mrxpath.scanner.scan(path)
             working = [('ELT','')]
             for token in tokens:
                 if token[0] == "SEP":
-                    newrep.append(self.tokens_to_rep(working,newrep))
+                    rep.append(self.tokens_to_rep(working,rep))
                     working = []
                 else:
                     working.append(token)
-            newrep.append(self.tokens_to_rep(working,newrep))
-            self.rep = newrep
+            rep.append(self.tokens_to_rep(working,rep))
+            return rep
+        elif isinstance(path,Element):
+            raise Exception("TODO: from element not yet supported")
 
     def tokens_to_rep(self, tokens, rep=None):
         if rep and self.is_attribute(rep):

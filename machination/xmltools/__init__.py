@@ -126,10 +126,27 @@ class mrxpath:
             return True
         return False
 
-    def is_element(self,rep):
+    def is_element(self,rep=None):
         """True if this object represents an element, False otherwise"""
         if rep == None:
             rep = self.rep
         if len(rep) == 0:
             return False
         return not self.is_attribute()
+
+    def parent(self):
+        """return mrxpath of parent element"""
+        p = mrxpath(self)
+        p.rep.pop()
+        return p
+
+    def to_xpath(self,rep=None):
+        """return xpath string"""
+        if rep == None: rep = self.rep
+        return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in rep])
+
+    def to_abbrev_xpath(self, rep=None):
+        """return Machination abbreviated xpath string"""
+        if rep == None: rep = self.rep
+        return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in rep])
+       

@@ -16,6 +16,9 @@
     Anything not intended for relaxng schema checking is in another
     namespace. Namespaces used by various bits of Machination:
 
+    info="https://github.com/machination/ns/info"
+      - general worker information
+
     wu="https://github.com/machination/ns/workunit"
       - "work units" are the smallest units of XML that make sense as a
         unit of work for a worker. For example, the 'package' element in
@@ -62,11 +65,17 @@
 -->
 <element name="worker"
     xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:info="https://github.com/machination/ns/info"
     xmlns:wu="https://github.com/machination/ns/workunit"
     xmlns:gui="https://github.com/machination/ns/guihint"
     xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
     xmlns:secret="https://github.com/machination/ns/secrets"
+
+    info:ordered="0"
     >
+  <info:platforms>
+    <info:platform id="win32"/>
+  </info:platforms>
   <attribute name="id">
     <value>tweaks-1</value>
   </attribute>

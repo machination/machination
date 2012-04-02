@@ -10,6 +10,7 @@ based on differences between the 'local' status.xml and the downloaded profile.
 
 from lxml import etree
 from machination import workerdescription
+from machination import xmltools
 
 
 class XMLCompare(object):
@@ -72,15 +73,9 @@ class XMLCompare(object):
             if lval != rval:
                 self.bystate['datadiff'].add(xpath)
                 self.byxpath[xpath] = 'datadiff'
-                parentpath = '/'
-                for parent in xpath.split('/')[:-1]:
-                    parent = parentpath + parent
-                    self.bystate['structdiff'].add(parent)
-                    self.byxpath[parent] = 'structdiff'
-                    if parent == '/':
-                        parentpath = parent
-                    else:
-                        parentpath = parent + "/"
+                for a in xmltools.mrxpath(xpath).ancestors():
+                    self.bystate['structdiff'].add(a.to_xpath())
+                    self.byxpath[a.to_xpath()] = 'structdiff'
 
     def make_xpath(self, xpathset, elt, current="/"):
         """Recursively construct xpaths for all elements."""
@@ -113,7 +108,12 @@ class XMLCompare(object):
     def find_parent_workunit(self, xpath):
         """Recurse up an xpath, return the first parent that is a workunit."""
 
-        parentxpath = '/'.join(xpath.split('/')[:-1])
+#        parentxpath = '/'.join(xpath.split('/')[:-1])
+        mrx = mrxpath(xpath)
+        pmrx = mrx.parent()
+        if pmrx:
+            parentxpath = pmrx.to_xpath()
+            
         if self.wd.is_workunit(parentxpath):
             return parentxpath
 

@@ -26,6 +26,9 @@ gui:doc="documentation.html"
 <attribute name="separator">
 <text/>
 </attribute>
+<attribute name="notpres">
+<text/>
+</attribute>
 </zeroOrMore>
 <zeroOrMore>
 <element name="item">

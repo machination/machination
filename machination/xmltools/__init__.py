@@ -41,15 +41,15 @@ class mrxpath(object):
     def token_sep(scanner,token): return "SEP", token
     def token_bracket(scanner,token): return "BRACKET", token
     def token_op(scanner, token): return "OP", token
-    def token_att(scanner,token): return "ATT", token[1:]
-    def token_elt(scanner,token): return "ELT", token
+    def token_at(scanner,token): return "AT", token
+    def token_name(scanner,token): return "NAME", token
     scanner = re.Scanner([
             ("'(?:\\\\.|[^'])*'|\"(?:\\\\.|[^\"])*\"", token_qstring),
             (r"/", token_sep),
             (r"[\[\]]", token_bracket),
             (r"=", token_op),
-            (r"@[a-zA-Z]\w*", token_att),
-            (r"\w*", token_elt),
+            (r"@", token_at),
+            (r"\w*", token_name),
             ])
 
     def __init__(self, mpath=None, att=None):
@@ -79,7 +79,7 @@ class mrxpath(object):
             # a string, break it up and store the pieces
             rep = []
             tokens, remainder = mrxpath.scanner.scan(path)
-            working = [('ELT','')]
+            working = [('NAME','')]
             for token in tokens:
                 if token[0] == "SEP":
                     rep.append(self.tokens_to_rep(working,rep))
@@ -110,22 +110,45 @@ class mrxpath(object):
     def tokens_to_rep(self, tokens, rep = None):
         if rep and self.is_attribute(rep):
             raise Exception("cannot add more to an attribute xpath")
-        if tokens[0][0] == "ELT":
+        if tokens[0][0] == "NAME":
             name = tokens[0][1]
             if len(tokens) == 1:
+                # expecting: 
+                #  [NAME]
                 # just an element
                 return [name]
-            elif tokens[2][0] == "ATT":
+            elif tokens[2][0] == "AT":
+                # expecting:
+                #  [NAME,BRACKET,AT,NAME,OP,QSTRING,BRACKET]
                 # an element with an id passed as [@id="something"]
-                idname = tokens[4][1]
+                if len(tokens) < 7:
+                    raise Exception("expecting a 7 token sequence: " +
+                                    "[NAME,BRACKET,AT,NAME," +
+                                    "OP,QSTRING,BRACKET] got " +
+                                    repr(tokens))
+                if tokens[5][0] != "QSTRING":
+                    raise Exception("expecting a QSTRING at element 5 of " +
+                                    str(tokens) + " got " + str(tokens[5]))
+                idname = tokens[5][1]
                 return [name,idname]
             else:
+                # expecting:
+                #  [NAME,BRACKET,QSTRING|NAME,BRACKET]
                 # an element with an id passed as [something]
+                if len(tokens) < 4:
+                    raise Exception("expecting a 4 token sequence: " +
+                                    "[NAME,BRACKET,QSTRING|NAME,BRACKET]" +
+                                    " got " +
+                                    repr(tokens))
+                if tokens[2][0] != "NAME" and tokens[2][0] != "QSTRING":
+                    raise Exception("expecting a NAME or QSTRING at " +
+                                    "element 2 of " +
+                                    str(tokens) + " got " + str(tokens[2]))
                 idname = tokens[2][1]
                 return [name,idname]
-        elif tokens[0][0] == "ATT":
-            # an attribute
-            return ["@" + tokens[0][1]]
+        elif tokens[0][0] == "AT":
+            # an attribute, the next token should be the name
+            return ["@" + tokens[1][1]]
             
     def clone_rep(self):
         """Return a clone of representation"""
@@ -136,9 +159,8 @@ class mrxpath(object):
 
     def is_attribute(self, rep = None):
         """True if self represents an attribute, False otherwise"""
-        if len(self.rep) == 0:
-            return False
-        if len(self.rep[-1][0]) == 0:
+        if len(self.rep) < 2:
+            # Not anything (first item in rep is always [''])
             return False
         if self.rep[-1][0][0] == "@":
             return True
@@ -146,7 +168,8 @@ class mrxpath(object):
 
     def is_element(self):
         """True if self represents an element, False otherwise"""
-        if len(self.rep) == 0:
+        if len(self.rep) < 2:
+            # Not anything (first item in rep is always [''])
             return False
         return not self.is_attribute()
 
@@ -166,14 +189,15 @@ class mrxpath(object):
             p = p.parent()
         return a
 
-    def to_xpath(self, rep = None):
+    def to_xpath(self):
         """return xpath string"""
         return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
 
-    def to_abbrev_xpath(self, rep = None):
+    def to_abbrev_xpath(self):
         """return Machination abbreviated xpath string"""
         return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
        
-    def to_xpath_list(self, rep = None):
+    def to_xpath_list(self):
+        """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
     

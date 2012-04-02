@@ -79,8 +79,6 @@ class mrxpath(object):
             # a string, break it up and store the pieces
             rep = []
             tokens, remainder = mrxpath.scanner.scan(path)
-            print(tokens)
-            print(remainder)
             working = [('ELT','')]
             for token in tokens:
                 if token[0] == "SEP":
@@ -158,6 +156,15 @@ class mrxpath(object):
         p = self.clone_rep()
         p.pop()
         return mrxpath(p)
+
+    def ancestors(self):
+        """return a list of ancestors as mrxpath objects (parent first)"""
+        a = []
+        p = self.parent()
+        while p:
+            a.append(p)
+            p = p.parent()
+        return a
 
     def to_xpath(self, rep = None):
         """return xpath string"""

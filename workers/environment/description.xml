@@ -4,6 +4,7 @@ xmlns:wu="https://github.com/machination/ns/workunit"
 xmlns:gui="https://github.com/machination/ns/guihint"
 xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
 xmlns:secret="https://github.com/machination/ns/secrets"
+xmlns:plat="https://github.com/machination/ns/platforms"
 
 gui:icon="environment.svg"
 gui:title="Environment worker"
@@ -14,6 +15,10 @@ gui:doc="documentation.html"
 <attribute name="id">
 <value>environment-1</value>
 </attribute>
+<plat:platforms>
+<plat:platform id="win32"/>
+<plat:platform id="win64"/>
+</plat:platforms>
 <oneOrMore>
 <element name="var" wu:wu="1">
 <attribute name="id">

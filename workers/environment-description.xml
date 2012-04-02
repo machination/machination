@@ -1,0 +1,41 @@
+<element name="worker"
+xmlns="http://relaxng.org/ns/structure/1.0"
+xmlns:wu="https://github.com/machination/ns/workunit"
+xmlns:gui="https://github.com/machination/ns/guihint"
+xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+xmlns:secret="https://github.com/machination/ns/secrets"
+
+gui:icon="environment.svg"
+gui:title="Environment worker"
+gui:shorthelp="manipulates environment variables"
+gui:longhelp="longhelp.txt"
+gui:doc="documentation.html"
+>
+<attribute name="id">
+<value>environment-1</value>
+</attribute>
+<oneOrMore>
+<element name="var" wu:wu="1">
+<attribute name="id">
+<text/>
+</attribute>
+<zeroOrMore>
+<attribute name="type">
+<text/>
+</attribute>
+<attribute name="separator">
+<text/>
+</attribute>
+</zeroOrMore>
+<zeroOrMore>
+<element name="item">
+<attribute name="id">
+<text/>
+</attribute>
+<text/>
+</element>
+<text/>
+</zeroOrMore>
+</element>
+</oneOrMore>
+</element>

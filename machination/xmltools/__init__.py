@@ -19,7 +19,7 @@ most places where Machination uses XML. These restrictions are:
 from lxml import etree
 import re
 
-class mrxpath:
+class mrxpath(object):
     """Manipulate Machination restricted xpaths.
 
     Machination xpaths are of the form::
@@ -49,36 +49,38 @@ class mrxpath:
             (r"[\[\]]", token_bracket),
             (r"=", token_op),
             (r"@[a-zA-Z]\w*", token_att),
-            (r"[a-zA-Z]\w*", token_elt),
+            (r"\w*", token_elt),
             ])
 
-    def __init__(self, mpath=None):
+    def __init__(self, mpath=None, att=None):
         self.rep = []
-        if(mpath):
+        if(mpath is not None):
             self.set_path(mpath)
     
-    def set_path(self, path):
-        """Set the path this instance represents
-        """
-        self.rep = self.to_rep(path)
-
-    def to_rep(self, path):
+    def set_path(self, path, att = None):
         """Return a represntation based on ``path``
         
-        calling options::
+        calling options, elements::
           set_path(another_mrxpath_object)
           set_path("/standard/form[@id='frog']/xpath")
           set_path("/abbreviated/form[frog]/xpath")
           set_path(etree_element)
-        
+
+        attributes::
+          set_path("/path/to/@attribute")
+          set_path(etree_element,"attribute_name")
         """
-        if isinstance(path,mrxpath):
-            # clone another MXpath
-            return path.clone_rep()
-        elif isinstance(path,basestring):
+        if isinstance(path, list):
+            self.rep = path
+        elif isinstance(path, mrxpath):
+            # clone another mrxpath
+            self.rep = path.clone_rep()
+        elif isinstance(path, str):
             # a string, break it up and store the pieces
             rep = []
             tokens, remainder = mrxpath.scanner.scan(path)
+            print(tokens)
+            print(remainder)
             working = [('ELT','')]
             for token in tokens:
                 if token[0] == "SEP":
@@ -87,66 +89,84 @@ class mrxpath:
                 else:
                     working.append(token)
             rep.append(self.tokens_to_rep(working,rep))
-            return rep
-        elif isinstance(path,Element):
-            raise Exception("TODO: from element not yet supported")
+            self.rep = rep
+        elif isinstance(path, etree._Element):
+            # an etree element, follow parents to root
+            elt = path
+            path = []
+            if att is not None:
+                if att not in elt.keys():
+                    raise Exception("Cannot make a path to an attribute that does not exist")
+                path.append(["@" + att])
+            while(elt is not None):
+                item = [elt.tag]
+                if "id" in elt.keys():
+                    item.append(elt.get("id"))
+                path.append(item)
+                elt = elt.getparent()
+            path.append([""])
+            path.reverse()
+            self.rep = path
 
-    def tokens_to_rep(self, tokens, rep=None):
+    # TODO: this parser is fragile and doesn't give sensible error messages
+    def tokens_to_rep(self, tokens, rep = None):
         if rep and self.is_attribute(rep):
             raise Exception("cannot add more to an attribute xpath")
         if tokens[0][0] == "ELT":
             name = tokens[0][1]
             if len(tokens) == 1:
+                # just an element
                 return [name]
             elif tokens[2][0] == "ATT":
+                # an element with an id passed as [@id="something"]
                 idname = tokens[4][1]
                 return [name,idname]
             else:
+                # an element with an id passed as [something]
                 idname = tokens[2][1]
                 return [name,idname]
         elif tokens[0][0] == "ATT":
+            # an attribute
             return ["@" + tokens[0][1]]
             
     def clone_rep(self):
-        """Return a clone of the invoking object's representation"""
+        """Return a clone of representation"""
         new = []
         for el in self.rep:
             new.append(el)
         return new
 
-    def is_attribute(self,rep=None):
-        """True if this object represents an attribute, False otherwise"""
-        if rep == None:
-            rep = self.rep
-        if len(rep) == 0:
+    def is_attribute(self, rep = None):
+        """True if self represents an attribute, False otherwise"""
+        if len(self.rep) == 0:
             return False
-        if len(rep[-1][0]) == 0:
+        if len(self.rep[-1][0]) == 0:
             return False
-        if rep[-1][0][0] == "@":
+        if self.rep[-1][0][0] == "@":
             return True
         return False
 
-    def is_element(self,rep=None):
-        """True if this object represents an element, False otherwise"""
-        if rep == None:
-            rep = self.rep
-        if len(rep) == 0:
+    def is_element(self):
+        """True if self represents an element, False otherwise"""
+        if len(self.rep) == 0:
             return False
         return not self.is_attribute()
 
     def parent(self):
-        """return mrxpath of parent element"""
-        p = mrxpath(self)
-        p.rep.pop()
-        return p
+        """return mrxpath of parent element of rep or self.rep"""
+        if len(self.rep) == 2: return None
+        p = self.clone_rep()
+        p.pop()
+        return mrxpath(p)
 
-    def to_xpath(self,rep=None):
+    def to_xpath(self, rep = None):
         """return xpath string"""
-        if rep == None: rep = self.rep
-        return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in rep])
+        return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
 
-    def to_abbrev_xpath(self, rep=None):
+    def to_abbrev_xpath(self, rep = None):
         """return Machination abbreviated xpath string"""
-        if rep == None: rep = self.rep
-        return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in rep])
+        return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
        
+    def to_xpath_list(self, rep = None):
+        return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
+    

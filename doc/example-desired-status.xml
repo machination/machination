@@ -2,6 +2,7 @@
 
   <directories status_dir="/var/lib/machination2"
                cache_dir="/var/cache/machination"
+               
                />
 
   <!-- A machination 2 client can attach to more than one service -->

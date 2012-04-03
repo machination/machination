@@ -22,16 +22,57 @@ from lxml import etree
 
 desired_status = None
 
-def machination_path():
-    "Returns the Machination path"
+def win_machination_path():
+    try:
+        # look at the registry key HKLM\Software\Machination
+        import wmi
+        r = wmi.Registry()
+        # hDefKey should be _winreg.HKLM but that doesn't work on
+        # win7_64
+        result, path = r.GetStringValue(
+            hDefKey=2147483650,
+            sSubKeyName="Software\Machination",
+            sValueName="Path")
+        if result:
+            # Registry read failed - use default path
+            # FIXME: Add syslog warning
+            return 'c:\Program Files\Machination'
+    except:
+        # Something went wrong with the registry setup
+        return 'c:\Program Files\Machination'
+
 
 def status_dir():
     """returns path to status dir
 
     usually /var/lib/machination or C:\Program Files\Machination\status"""
+    return _get_dir("status")
+
+def cache_dir():
+    """returns path to cache dir
+
+    usually /var/cache/machination or C:\Program Files\Machination\cache"""
+    return _get_dir("cache")
+
+def bin_dir():
+    """returns path to bin dir
+
+    usually /usr/bin or C:\Program Files\Machination\bin"""
+    return _get_dir("bin")
+
+def python_lib_dir():
+    """returns path to python_lib dir
+
+    usually /usr/lib/python or C:\Program Files\Machination"""
+    return _get_dir("python_lib")
+
+def _get_dir(name):
+    dirname = name + "_dir"
+    envname = "MACHINATION_" + name.upper()
+    
     # try the environment
-    if 'MACHINATION_STATUS_DIR' in os.environ:
-        return os.environ['MACHINATION_STATUS_DIR']
+    if envname in os.environ:
+        return os.environ[envname]
 
     # now look to see if we've parsed the desired status file
     if(desired_status):
@@ -41,35 +82,26 @@ def status_dir():
         except IndexError:
             raise Exception("/status/directories element not found in '%s'"
                             % desired_status_file)
-        if "status_dir" in directories.keys():
-            return directories.get("status_dir")
-    
-    # try bootstrapping
-    if 'MACHINATION_BOOTSTRAP_DIR' in os.environ:
-        return os.environ['MACHINATION_BOOTSTRAP_DIR']
+        if name in directories.keys():
+            return directories.get(name).format(dsdir=os.path.dirname(desired_status_file))
+
+    # "status" sometimes needs bootstrapping from another location -
+    # usually for debugging purposes
+    if name == "status":
+        if 'MACHINATION_BOOTSTRAP_DIR' in os.environ:
+            return os.environ['MACHINATION_BOOTSTRAP_DIR']
 
     # if all else fails, return the default
-    if platform.system()[:3] == "Win":
-        try:
-            # look at the registry key HKLM\Software\Machination
-            import wmi
-            r = wmi.Registry()
-            # hDefKey should be _winreg.HKLM but that doesn't work on
-            # win7_64
-            result, path = r.GetStringValue(
-                hDefKey=2147483650,
-                sSubKeyName="Software\Machination",
-                sValueName="Path")
-            if result:
-                # Registry read failed - use default path
-                # FIXME: Add syslog warning
-                path = 'c:\Program Files\Machination'
-        except:
-            # Something went wrong with the registry setup
-            path = 'c:\program files\machination'
-        return os.path.join(path,"status")
-    else:
-        return "/var/lib/machination";
+    platname = platform.system()[:3]
+    # ugly: a better way anyone?
+    if name == "status":
+        return os.path.join(win_machination_path(),"status") if platname == "Win" else '/var/lib/machination'
+    elif name == "cache":
+        return os.path.join(win_machination_path(),"cache") if platname == "Win" else '/var/cache/machination'
+    elif name == "bin":
+        return os.path.join(win_machination_path(),"bin") if platname == "Win" else '/usr/bin'
+    elif name == "python_lib":
+        return win_machination_path() if platname == "Win" else '/usr/lib/python'
 
 desired_status_file = os.path.join(status_dir(),"desired-status.xml")
 try:

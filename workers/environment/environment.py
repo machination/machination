@@ -9,7 +9,7 @@ import machination
 import os
 
 
-class environment():
+class environment(object):
     "Manipulates environment variables in Windows."
 
     r = None
@@ -80,6 +80,9 @@ class environment():
         # Given that modifications to multi-vars are done in statuscompare
         # as <var> is the wu-tag, for registry entries, modify == add.
         return self.__add(work)
+
+    def __order(self, work):
+        pass
 
     def __remove(self, work):
         "Remove unwanted variables"

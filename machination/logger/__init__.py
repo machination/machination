@@ -32,7 +32,7 @@ import inspect
 from machination import utils
 
 
-class Logger():
+class Logger(object):
     "The core class that handles individual loggers and dispatching"
 
     def __init__(self, config_elt):

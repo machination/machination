@@ -7,134 +7,108 @@ their own worker.
 Currently only handles NTP (enable/disable and ser server)."""
 
 from lxml import etree
-import wmi
+from os import popen
 import machination
 
-class tweaks():
+class tweaks(object):
     logger = None
-    utils = None
     #Define a shorthand constant for HKLM.
-    _HLKM = 2147483650
+    sync_map{"NTP": "MANUAL",
+             "NT5DS": "DOMHIER",
+             "AllSync": "ALL"
+             "NoSync": "NO"}
+    cmd = "w32tm"
     
-    def __init__(self, config_elt):
-        self.logger = machination.logger.Logger(config_elt)
+    def __init__(self, logger):
+        self.logger = logger
 
     def do_work(self, work_list):
-        "Iterates over the work list, currently only handles time functions."
-        for item in work_list[0]:
-            if item.tag == "NtpEnabled":
-                timeconfig[item.tag] = item.value
-            elif item.tag[:-1] == "TimeServer":
-                timeconfig["TimeServer"].append(item.value)
-            else:
-                message = "Undefined work unit for tweaks: {0} {1}".format(
-                    item.tag,
-                    item.value)
-                logger.wmsg(message)
-                
-        self._doTimeSetting(todo)
-
-    def _doTimeSetting(self, settings):
-        # Set time servers first
-        logger.lsmg("Setting time servers")
-        r = wmi.Registry()
-        srvkeyname = "SOFTWARE/Microsoft/Windows/CurrentVersion/DateTime/Servers"
-        
-        # FIXME set the default value under srvkeyname to 1
-        
-        # Set individual time servers
-        for i in (1,2,3):
-            val = settings["TimeServer"][(i-1)]
-            result = r.SetStringValue(
-                hDefKey=_HKLM,
-                sSubKeyName=srvkeyname,
-                sValueName=str(i),
-                sValue=val)
-            if result:
-                # Registry write failed
-                logger.emsg("Failed to set Timeserver{0}".format(i))
-            else:
-                logger.lmsg("Timeservers: {1}\n{0}{2}\n{0}{3}".format(
-                " "*13,
-                settings["TimeServer"][0],
-                settings["TimeServer"][1],
-                settings["TimeServer"][2]), 4)
-        
-        # Define values to registry-twiddle the time settings
-        timesetloc = "System/CurrentControlSet/Services/W32Time/Parameters"
-        serverval = "{0},0x1".format(settings["TimeServer"][0])
-        
-        # Set default time server
-        result = r.SetStringValue(
-            hDefKey=_HKLM,
-            sSubKeyName=timesetloc,
-            sValueName="NtpServer",
-            sValue=serverval)
-        if result:
-            # Registry write failed
-            logger.emsg("Failed to set default Timeserver: {0}".format(result))
-
-        # Enable or disable NTP as necessary.
-        if settings["NtpEnabled"] == "True":
-            logger.lmsg("Enabling NTP Time Synchronisation")
-            result = r.SetStringValue(
-                hDefKey=_HKLM,
-                sSubKeyName=timesetloc,
-                sValueName="Type",
-                sValue="NTP")
-            if result:
-                logger.emsg("Could not set NTP: {0}".format(result))
+        "Process the work units and return their status."
+        result = []
+        for wu in work_list:
+            operator = "__{}".format(wu.attrib["op"])
+            res = getattr(self, operator)(wu)
+            result.append(res)
+        command = "net stop w32time && net start w32time"
+        stream = popen(command)
+        return result
+    
+    def __add(self, work):
+        # Add can only be called on ManualPeerList
+        res = etree.element("wu", id=work.attrib["id"])
+        peers = [peer.attrib["id"] for peer in work[1].iter("Peer")]
+        flat = " ".join(peers)
+        command = '{0} /config /manualpeerlist:"{1}"'.format(self.cmd, flat)
+        stream = popen(command)
+        if stream[:-13] == "successfully.":
+            res.attrib["status"] = "success"
         else:
-            logger.lmsg("Disabling NTP Time Synchronisation")
-            result = r.SetStringValue(
-                hDefKey=_HKLM,
-                sSubKeyName=timesetloc,
-                sValueName="Type",
-                sValue="NoSync")
-            if result:
-                logger.emsg("Could not set NTP: {0}".format(result))
+            res.attrib["status"] = "error"
+            res.attrib["message"] = stream
+            logger.wmsg("Could not set time server list: " + stream)
+        return res
+
+    def __remove(self, work):
+        # Remove can only be called on ManualPeerList
+        res = etree.element("wu", id=work.attrib["id"])
+        command = self.cmd + ' /config /manualpeerlist:""'
+        stream = popen(command)
+        if stream[:-13] == "successfully.":
+            res.attrib["status"] = "success"
+        else:
+            res.attrib["status"] = "error"
+            res.attrib["message"] = stream
+            logger.wmsg("Could not clear time server list: " + stream)
+        return res
+
+    def __modify(self, work):
+        res = etree.element("wu", id=work.attrib["id"])
+        # What are we changing?
+        switch = work[1].tag.lower()
+        if work[1].tag == "SyncFromFlags":
+            opt = work[1].text
+        elif work[1].tag == "ManualPeerList:
+            peers = [peer.attrib["id"] for peer in work[1].iter("Peer")]
+            opt = '"{0}"'.format(" ".join(peers))
+        else:
+            # This shouldn't happen
+            msg = "{0} passed to modify.".format(switch)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+            logger.wmsg(msg)
+            return res
+        command = "{0} /config /{1}:{2}".format(self.cmd, switch, opt)
+        stream = popen(command)
+        if stream[:-13] == "successfully.":
+            res.attrib["status"] = "success"
+        else:
+            msg = "Could not modify {0}: {1}".format(work[1].tag, stream)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+            logger.wmsg(msg)
+        return res
+
+    def __order(self, work)
+        # Order makes no sense
+        pass
 
     def generate_status(self):
-        timestat = _gen_time_status()
-        time = etree.Element("Time")
-        for key, value in timestat.items():
-            elem = etree.Element(key)
-            elem.text = value
-            time.append(elem)
-        return time
-
-    def _gen_time_status(self):
-        stat = {}
-        
-        r = wmi.Registry()
-        
-        ntpstatloc = "System/CurrentControlSet/Services/W32Time/Parameters"
-        timesrvloc = "SOFTWARE/Microsoft/Windows/CurrentVersion/DateTime/Servers"
-        result, value = r.GetStringValue(
-            hDefKey=_HKLM,
-            sSubKeyName=ntpstatloc,
-            sValueName="Type")
-        if result:
-            # Registry read failed
-            logger.emsg("Could not read NTP status")
-        else:
-            if value == "NTP":
-                stat["NtpEnabled"] = "True"
-            elif value == "NoSync":
-                stat["NtpEnabled"] = "False"
-        
-        for i in (1,2,3):
-            valname = "{0}".format(i)
-            result, value = r.GetStringValue(
-                hDefKey=_HKLM,
-                sSubKeyName=timesrvloc,
-                sValueName=valname)
-            if result:
-                # Registry read failed
-                logger.emsg("Could not read NTP Server {0}".format(i))
-            else:
-                keyname = "TimeServer{0}".format(i)
-                stat[keyname] = value
-        
-        return stat
-        
+        type = ""
+        srvlist = []
+        status_elt = etree.Element("Time")
+        command = self.cmd + " /query /configuration"
+        stream = popen(command)
+        output = stream.read().splitlines()
+        for line in output:
+            if line[:4] == "Type":
+                elt = etree.Element("SyncFromFlags")
+                elt.text = self.sync_map{line[6:-8])
+            elif line[:10] == "NtpServer:":
+                elt = etree.Element("ManualPeerList")
+                servers = line[11:-8].split()
+                for srv in servers:
+                    peer = etree.Element("Peer")
+                    peer.attrib["id"] = srv
+                    elt.append(peer)
+            status_elt.append(elt)
+        return status_elt

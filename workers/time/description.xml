@@ -1,0 +1,39 @@
+<element name="worker"
+xmlns="http://relaxng.org/ns/structure/1.0"
+xmlns:wu="https://github.com/machination/ns/workunit"
+xmlns:gui="https://github.com/machination/ns/guihint"
+xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+xmlns:secret="https://github.com/machination/ns/secrets"
+xmlns:plat="https://github.com/machination/ns/platforms"
+
+gui:icon="time.svg"
+gui:title="Time worker"
+gui:shorthelp="manipulates ntp settings"
+gui:longhelp="longhelp.txt"
+gui:doc="documentation.html"
+>
+<attribute name="id">
+<value>time-1</value>
+</attribute>
+<plat:platforms>
+<plat:platform id="win7_32"/>
+<plat:platform id="win7_64"/>
+</plat:platforms>
+<element name="SyncFromFlags" wu:wu="1">
+<choice>
+<value>NONE</value>
+<value>DOMHIER</value>
+<value>MANUAL</value>
+<value>ALL</value>
+</choice>
+</element>
+<element name="ManualPeerList" wu:wu="1">
+<zeroOrMore>
+<element name="peer">
+<attribute name="id">
+<text/>
+</attribute>
+</element>
+</zeroOrMore>
+</element>
+</element>

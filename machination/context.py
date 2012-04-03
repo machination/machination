@@ -60,4 +60,4 @@ def main(args):
 if __name__ == '__main__':
     main(sys.argv[1:])
 
-del sys, platform, join, etree
+del sys, join, etree

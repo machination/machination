@@ -1,0 +1,130 @@
+<status>
+
+  <directories status_dir="/var/lib/machination2"
+               cache_dir="/var/cache/machination"
+               />
+
+  <!-- A machination 2 client can attach to more than one service -->
+  <services>
+
+    <service id="machination.eng.ed.ac.uk"
+             mid="myid on eng">
+      <!-- Load balance across these interfaces perhaps, or maybe do
+           load balancing at the server end (DNS round robin, proper
+           clustering)? -->
+      <interface id="https://interface1.machination.eng.ed.ac.uk"/>
+      <interface id="https://interface2.machination.eng.ed.ac.uk"/>
+    </service>
+
+    <service id="machination.example.com"
+             mid="myid on example.com">
+      <interface id="https://interface.machination.example.com"/>
+    </service>
+
+    <!-- the localhost 'service' is a planned future extension whereby
+         changes can be made to a local file which will be merged into
+         the profile. Used while disconnected or for changes that
+         don't make sense to keep on any of the other services this
+         client consumes configuration from. -->
+    <service id="localhost"
+             mid="localhost">
+      <interface id="file:///$mdir/services/localhost/desired.xml"/>
+    </service>
+
+    <!-- Config information from more than one source needs to be
+         merged before a profile is generated -->
+    <mergePolicy>
+      <!-- something complicated goes in here! -->
+    </mergePolicy>
+
+  </services>
+
+  <logging>
+    <!-- unrooted paths are assumed to be relative to $mdir -->
+    <file id="log.txt" loglevel="4"/>
+    <file id="verboselog.txt" loglevel="8"/>
+    <syslog id="syslog.machination.eng.ed.ac.uk" loglevel="10"/>
+    <syslog id="syslog.machination.example.com" loglevel="4"/>
+  </logging>
+
+  <!-- The daemon or service listening for 'kick' packets-->
+  <daemon port="1313" sleeptime="4000"/>
+
+  <!-- platforms supported by the client code installed here -->
+  <platforms>
+    <platform id="Win7_64"/>
+    <platform id="WinXP_32"/>
+    <platform id="WinXP_64"/>
+  </platforms>
+
+  <!-- Worker specific configuration -->
+  <!-- Workers should be handed an lxml.etree Element as they are
+       instantiated if they are written in python, or a the location
+       of the config.xml file in the calling XML otherwise -->
+  <!-- Worker writers may provide a relaxng config schema for their
+       config.xml element. If so, the appropriate worker snippet will
+       be checked against it, otherwise anything will be assumed
+       valid. -->
+
+  <worker id="example">
+    <config>
+      <!-- information that controls how the worker does its job goes
+           here - i.e. config info for the worker-->
+      <!-- lets say this worker runs on Windows and can achieve its
+           goals using either WMI or directly hacking the registry and
+           that there are pros and cons of each, so the local
+           administrator should choose between them.
+      -->
+      <useMethod>WMI</useMethod>
+      <!-- or maybe it needs to refer to some external source -->
+      <source>something</source>
+    </config>
+    <!-- information on the desired status of the system goes here -
+         i.e config info for the system -->
+    <!-- maybe we're maintaining lists of example files cached from
+         'source' -->
+    <directory id="/usr/doc/examples1">
+      <file id="example1"/>
+      <file id="example2"/>
+      <file id="example3"/>
+    </directory>
+  </worker>
+
+  <!-- the fetcher probably won't be a worker any more -->
+  <worker id="fetcher">
+    <config>
+      <!-- Files are downloaded to the local cache  -->
+      <cache>
+        <!-- Where to put downloaded files. Bundles should be downloaded
+             to $location/$id-->
+        <!-- unrooted paths assumed to be relative to $workerdir -->
+        <location>files</location>
+        <!-- Maximum size of file cache. Something needs to be pruned if
+             the download will exceed this limit. May be specified as an
+             absolute value or a percentage of the partition/volume
+             $location is on. -->
+        <maxSize>10%</maxSize>
+        <!-- There might be different pruning strategies... -->
+        <pruningStrategy>fifo</pruningStrategy>
+      </cache>
+      
+      <sources>
+        <!-- The fetcher should try these sources in the order listed,
+             like a path-->
+        <torrent id="internal-torrent"
+                 baseURL="http://www.internal.example.com/torrents"
+                 />
+        <http id="internal-web"
+              baseURL="http://web.internal.example.com"
+              />
+        <torrent id="external-torrent"
+                 baseURL="http://www.external.example.com/torrents"
+                 />
+        <torrent id="someone-else"
+                 baseURL="http://www.peer.com/torrents"
+                 />
+      </sources>
+    </config>
+  </worker>
+
+</status>

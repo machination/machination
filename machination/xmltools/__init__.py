@@ -196,6 +196,10 @@ class mrxpath(object):
     def to_abbrev_xpath(self):
         """return Machination abbreviated xpath string"""
         return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
+
+    def to_noid_path(self):
+        """return xpath with no ids"""
+        return "/".join([e[0] for e in self.rep])
        
     def to_xpath_list(self):
         """return list of xpath path elements"""

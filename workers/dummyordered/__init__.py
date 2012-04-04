@@ -54,7 +54,30 @@ class pretend_config(object):
             self.path = path
 
     def to_xml(self):
-        pass
+        elt = etree.Element("tofile")
+        with open(self.path, "r") as f:
+            directive = f.readline().split(":")[1].rstrip("\r\n")
+            delt = etree.Element("directive")
+            elt.append(delt)
+            delt.text = directive
+            f.readline() # [items]
+            line = f.readline()
+            while line != '':
+                itid, text = line.rstrip("\r\n").split(":")
+                item_elt = etree.SubElement(elt, "item")
+                item_elt.set("id",itid)
+                item_elt.text = text
+                line = f.readline()
+        return elt
+
+    def from_xml(self, elt):
+        delt = elt.xpath("directive")[0]
+        items = elt.xpath("item")
+        with open(self.path, "w") as f:
+            f.write("directive:" + delt.text + "\n")
+            f.write("[items]\n")
+            for item in items:
+                f.write("{}:{}".format(item.get("id"),item.text))
 
 class pretend_db(object):
     "a pretend database where the the items 'sysitem' elements represent go"

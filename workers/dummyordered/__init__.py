@@ -10,15 +10,19 @@ import errno
 class worker(object):
     "Test of order preservation"
 
-    def __init__(self):
+    def __init__(self, datadir = None):
         self.desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
+        if datadir:
+            self.datadir = datadir
+        else:
+            self.datadir = os.path.join(context.cache_dir(),"dummyordered")
 
     def generate_status(self):
         w_elt = etree.Element("worker")
         w_elt.set("id","dummyordered")
 
         # <sysitem> elements first from pretend_db
-        pdb = pretend_db()
+        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
         cur_id = pdb.get_next(None)
         while cur_id != pdb.endstr:
             text, next = pdb.get_contents(cur_id)
@@ -28,14 +32,26 @@ class worker(object):
             w_elt.append(item_elt)
             cur_id = next
 
-        # get to_file element by converting from pretend_config
+        # get tofile element by converting from pretend_config
+        pc = pretend_config(os.path.join(self.datadir),"conf.txt")
+        w_elt.append(pc.to_xml())
 
-        # notordered from existence testing on some files
+        # notordered from contents of some files
+        fpath = os.path.join(self.datadir, "files")
+        dic = {}
+        for f in os.listdir(fpath):
+            with open(os.path.join(fpath,f)) as fd:
+                dic[f] = fd.readline().rstrip("\r\n")
+        for key in sorted(dic.iterkeys()):
+            no_elt = w_elt.SubElement("notordered")
+            no_elt.set("id", key)
+            no_elt.text = dic[key]
 
         return w_elt
 
     def do_work(self,wus):
         pass
+
 
 class pretend_config(object):
     """adaptor to a pretend config file format::
@@ -49,25 +65,29 @@ class pretend_config(object):
 
     def __init__(self, path = None):
         if path is None:
-            self.path = "/tmp/machination/dummyordered/file.conf"
+            self.path = "/tmp/machination/dummyordered/conf.txt"
         else:
             self.path = path
 
     def to_xml(self):
         elt = etree.Element("tofile")
-        with open(self.path, "r") as f:
-            directive = f.readline().split(":")[1].rstrip("\r\n")
-            delt = etree.Element("directive")
-            elt.append(delt)
-            delt.text = directive
-            f.readline() # [items]
-            line = f.readline()
-            while line != '':
-                itid, text = line.rstrip("\r\n").split(":")
-                item_elt = etree.SubElement(elt, "item")
-                item_elt.set("id",itid)
-                item_elt.text = text
+        try:
+            with open(self.path, "r") as f:
+                directive = f.readline().split(":")[1].rstrip("\r\n")
+                delt = etree.Element("directive")
+                elt.append(delt)
+                delt.text = directive
+                f.readline() # [items]
                 line = f.readline()
+                while line != '':
+                    itid, text = line.rstrip("\r\n").split(":")
+                    item_elt = etree.SubElement(elt, "item")
+                    item_elt.set("id",itid)
+                    item_elt.text = text
+                    line = f.readline()
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                raise
         return elt
 
     def from_xml(self, elt):
@@ -98,6 +118,8 @@ class pretend_db(object):
                 raise
 
     def clear(self):
+        for f in os.listdir(self.datadir):
+            os.unlink(os.path.join(self.datadir,f))
         try:
             os.remove(self.start)
         except OSError as e:

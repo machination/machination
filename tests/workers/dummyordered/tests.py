@@ -7,8 +7,11 @@ from workers import dummyordered
 class TestInstantiation(unittest.TestCase):
 
     def setUp(self):
-        self.do = DummyOrdered(etree.parse("desired-status1.xml").getroot())
+        self.w = dummyordered.worker()
         
 
     def test_desired(self):
-        self.assertTrue(self.do.desired.tag == "worker")
+        self.assertTrue(self.w.desired.tag == "worker")
+
+if __name__ == '__main__':
+    unittest.main()

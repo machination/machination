@@ -98,7 +98,7 @@ class worker(object):
         else:
             self.datadir = os.path.join(context.cache_dir(),"dummyordered")
 
-    def generate_status(self,desired):
+    def generate_status(self, desired):
         w_elt = etree.Element("worker")
         w_elt.set("id","dummyordered")
 
@@ -130,7 +130,7 @@ class worker(object):
 
         return w_elt
 
-    def do_work(self,wus):
+    def do_work(self, wus, desired):
         pass
 
     # methods to manipulate the status outside of do_work for testing

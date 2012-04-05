@@ -7,13 +7,17 @@ most places where Machination uses XML. These restrictions are:
 
 #. No mixed content: an element may contain either other elements or
    text, not both.
+
 #. Wherever sibling elements with the same tag are
    allowed (for example, where they represent the items in a list),
    those elements *must* be labelled with an 'id' attribute, even if
    there is currently only one (for example, the list currently
    contains only one item).
+   
 #. 'id' attributes must be unique amongst all sibling elements with
-   the same tag, but need not be globally unique.
+   the same tag, but need not be otherwise unique (i.e. ancestors or
+   descendents may have the same id, only similarly named siblings may
+   not).
 
 """
 from lxml import etree
@@ -205,3 +209,58 @@ class mrxpath(object):
         """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
     
+class status(object):
+    """Encapsulate a status XML element and functionality to manipulate it"""
+
+    def __init__(self, status):
+        if isinstance(status, str):
+            status = etree.fromstring(status)
+        if not isinstance(status, etree._Element):
+            raise Exception("constructor must be called with an Element or a string with valid XML")
+        if status.tag != "status":
+            raise Exception("status must have the tag 'status', not " + status.tag)
+        self.status = status
+
+    def order_like(self, template, mrx=None):
+        """order status elements like those in template"""
+        if mrx is None:
+            elt = self.status
+        else:
+            mrx = mrxpath(mrx)
+            elts = self.status.xpath(mrx.to_xpath())
+            if len(elts) > 1:
+                raise Exception("The mrxpath 'mrx' must reference only one element")
+            elt = elts[0]
+
+    def apply_wu(self, wu):
+        """Apply a work unit to self.status"""
+        pass
+
+    def apply_wus(self,wus):
+        """Iterate over wus, applying them to self.status"""
+        for wub in wus:
+            self.apply_wu(wu)
+
+    def add(self, elt, mrx, postag = ["SAME"], posid = ["LAST"]):
+        """Add an element to parent specified by mrx
+
+        postag should either be the tag (as a string) of the
+        sibling to be placed after or one of:
+
+          * ["SAME"] = the same tag as elt.
+          * ["ANY"] = any tag.
+
+        posid should be the id of the element (with tag 'postag') elt
+        is to be placed after or one of:
+
+          * ["LAST"] = after last 'postag' element.
+            * If postag is ["ANY"] this means parent.append(elt)
+          * ["FIRST"] = as first child before first existing 'postag' element
+            * If postag is ["ANY"] this means parent.insert(0,elt)
+
+        """
+        pass
+
+    def order_after(self, mrx , afterid = ["LAST"]):
+        """place element specified by mrx after sibling with id"""
+        pass

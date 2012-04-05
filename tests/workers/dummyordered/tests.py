@@ -15,8 +15,7 @@ class WorkerTestCase(unittest.TestCase):
         self.w = dummyordered.worker(datadir = os.path.join(mydir,"testdata"))
 
     def tearDown(self):
-#        self.w.clear_data()
-        pass
+        self.w.clear_data()
 
     def test_desired(self):
         self.assertEqual(self.w.end_desired.tag, "worker")

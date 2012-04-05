@@ -4,11 +4,92 @@
 
 from lxml import etree
 from machination import context
-import os
+import os, shutil
 import errno
 
 class worker(object):
-    "Test of order preservation"
+    """Test of order preservation
+
+    This worker is designed to illustrate the various ways in which a
+    worker might need to care about ordering of elements in its status
+    and how one might deal with them.
+
+    example status:
+    .. code-block:: xml
+      <status>
+        <sysitem id="a">atext</sysitem>
+        <sysitem id="b">btext</sysitem>
+        <tofile>
+          <directive>something</directive>
+          <item id="a">atext</item>
+          <item id="b">btext</item>
+        </tofile>
+        <notordered id="a">atext</notordered>
+        <notordered id="a">btext</notordered>
+      </status>
+
+    #. XML represents a configuration file.
+
+       Illustrated by contents of <tofile> element
+
+       In this case the XML in some part of status represents a
+       configuration file or perhaps some other entity that will be
+       constructed in its entirety each time from the XML. Most
+       configuration information in UNIX-like systems is changed this
+       way.
+
+       In do_work() the strategy is to apply all wuwus and make sure
+       the resultant working status Element is correct. Then we
+       translate to the target file format and write out the results.
+
+       ``utils.apply_wus(wulist,start_status,desired_status)`` will
+       take care of updating the XML.
+
+    #. System settings altered via an API.
+
+       Illustrated by <sysitem> elements.
+
+       Here we imagine that some system settings are to be altered via
+       an API of some kind. Most configuration information in Windows
+       is changed this way for example (usually via WMI or some other
+       COM interface).
+
+       In this case we can't consume all wuwus to construct our
+       working status Element first and then alter the system. Often
+       when making those external API calls we'll need to know things
+       like which list index a new item is to be inserted at, which id
+       it should be inserted after or where it should be re-ordered
+       to. There are functions in utils which will tell us this
+       information if we are careful to update a working status
+       Element in lock step with performing actions on the system.
+
+       ``utils.apply_wu(wu, current_status, desired_status)`` may be
+       called each time an action is performed to track the system
+       status. If this is unreliable or if ``generate_status()`` is
+       cheap for your worker an alternative is to
+       ``generate_status()`` after each action instead of tracking
+       changes.
+
+    #. A subsection or tag where ordering isn't actually important.
+
+       Illustrated by <notordered> elements
+
+       A worker whose description file says it preserves order in its
+       description file must preserve order throughout its status or
+       else risk being invoked by update with extraneous wuwus.
+
+       Imagine that this worker also maintains some configuration
+       where order is not important. We should take care to reorder
+       our status report to result in least work - i.e. to look as
+       much like desired status as possible.
+
+       ``utils.order_as(our_status, template_status)`` will do that
+       for us, placing every element that exists in both our_status
+       and template_status in the same order as template_status and
+       placing any elements in our_status but not template_status at
+       the end.
+
+    """
 
     def __init__(self, datadir = None):
         self.desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
@@ -51,6 +132,14 @@ class worker(object):
 
     def do_work(self,wus):
         pass
+
+    # methods to manipulate the status outside of do_work for testing
+    # purposes
+
+    def clear_data(self):
+        shutil.rmtree(self.datadir)
+
+    def set_status(self):
 
 
 class pretend_config(object):

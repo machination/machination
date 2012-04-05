@@ -5,7 +5,7 @@ Welcome to Machination's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
 .. include:: /workers.rst
 .. include:: /dependencies.rst
@@ -18,6 +18,9 @@ Testing preformatted include:
 *********************
 Programming Reference
 *********************
+
+.. automodule:: workers.dummyordered
+   :members:
 
 .. automodule:: machination.workerdescription
    :members:

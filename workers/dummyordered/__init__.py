@@ -92,13 +92,13 @@ class worker(object):
     """
 
     def __init__(self, datadir = None):
-        self.desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
+        self.end_desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
         if datadir:
             self.datadir = datadir
         else:
             self.datadir = os.path.join(context.cache_dir(),"dummyordered")
 
-    def generate_status(self):
+    def generate_status(self,desired):
         w_elt = etree.Element("worker")
         w_elt.set("id","dummyordered")
 
@@ -123,7 +123,7 @@ class worker(object):
         for f in os.listdir(fpath):
             with open(os.path.join(fpath,f)) as fd:
                 dic[f] = fd.readline().rstrip("\r\n")
-        for key in sorted(dic.iterkeys()):
+        for key in dic:
             no_elt = w_elt.SubElement("notordered")
             no_elt.set("id", key)
             no_elt.text = dic[key]
@@ -137,10 +137,38 @@ class worker(object):
     # purposes
 
     def clear_data(self):
-        shutil.rmtree(self.datadir)
+        try:
+            shutil.rmtree(self.datadir)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
 
-    def set_status(self):
+    def set_status(self,status):
+        # make sure we start from scratch
+        self.clear_data()
 
+        # create our data directory
+        try:
+            os.makedirs(self.datadir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        
+        # fill the database
+        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
+        for item in status.xpath("sysitem"):
+            # always append since we start from empty
+            pdb.append(item.get("id"), item.text)
+
+        # create the conf file
+        pcfg = pretend_config(os.path.join(self.datadir,"conf.txt"))
+        pcfg.from_xml(status.xpath("tofile")[0])
+
+        # create the unordered files
+        os.makedirs(os.path.join(self.datadir,"files"))
+        for elt in status.xpath("notordered"):
+            with open(os.path.join(self.datadir,"files",elt.get("id")), "w") as f:
+                f.write(elt.text + "\n")
 
 class pretend_config(object):
     """adaptor to a pretend config file format::
@@ -186,7 +214,7 @@ class pretend_config(object):
             f.write("directive:" + delt.text + "\n")
             f.write("[items]\n")
             for item in items:
-                f.write("{}:{}".format(item.get("id"),item.text))
+                f.write("{}:{}\n".format(item.get("id"),item.text))
 
 class pretend_db(object):
     "a pretend database where the the items 'sysitem' elements represent go"

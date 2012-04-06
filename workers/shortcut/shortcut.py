@@ -10,6 +10,7 @@ import os
 import shutil
 import stat
 
+
 class shortcut(object):
     logger = None
     shell = None
@@ -46,18 +47,20 @@ class shortcut(object):
     def __add(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
-        
+
         # Parse out shortcut properties from XML
-        id = work[0].attrib["id"];
+        id = work[0].attrib["id"]
         for elem in work[0]:
             s_props[elem.tag] = elem.text
-        
+
         s_props["iconFile"] = s_props["target"] if (not s_props["iconFile"])
         s_props["iconNumber"] = "0" if not s_props["iconFile"]
-        s_props["icon"] = ",".join(s_props["iconFile"],s_props["iconNumber"])
+        s_props["icon"] = ",".join(s_props["iconFile"],
+                                   s_props["iconNumber"])
         s_props["name"] += ".lnk"
-        s_props["window"] = windowstyle[windowStyleName] if s_props["WindowStyleName"]
-        
+        if s_props["WindowStyleName"]:
+            s_props["window"] = windowstyle[windowStyleName]
+
         if not target:
             msg = "Must provide shortcut for target"
             res.attrib["status"] = "error"
@@ -96,39 +99,38 @@ class shortcut(object):
     def __remove(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
-        
-        id = work[0].attrib["id"];
+
+        id = work[0].attrib["id"]
         try:
             keepfolder = work[0].attrib["keepfolder"]
         except:
             keepfolder = true
-        
+
         for elem in work[0]:
             s_props[elem.tag] = elem.text
-            
+
         s_props["name"] += ".lnk"
 
         dest = shell.SpecialFolders(s_props["destination"])
         if s_props["folderName"]:
             dest = os.path.join(dest, s_props["folderName"])
-        filename = os.path.join(dest, s_props["name"]
-        
+        filename = os.path.join(dest, s_props["name"])
+
         os.remove(filename)
-        
+
         res.attrib["status"] = success
-        
+
         if not keepfolder:
             shutil.rmtree(dest,
                           ignore_errors=false,
                           onerror=self.handleRemoveReadonly)
-        
+
         return res
-        
 
     def handleRemoveReadOnly(self, func, path, exc):
         excvalue = exc[1]
         if func in (os.rmdir, os.remove) and excvalue.errno == errno.EACCESS:
-            os.chmod(path, stat.S_IRWXU| stat.S_IRWXG| stat.IRWXO)
+            os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.IRWXO)
             func(path)
         else:
             raise

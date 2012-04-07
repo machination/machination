@@ -1,0 +1,87 @@
+<element name="worker"
+xmlns="http://relaxng.org/ns/structure/1.0"
+xmlns:wu="https://github.com/machination/ns/workunit"
+xmlns:gui="https://github.com/machination/ns/guihint"
+xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+xmlns:secret="https://github.com/machination/ns/secrets"
+xmlns:plat="https://github.com/machination/ns/platforms"
+
+gui:icon="shortcut.svg"
+gui:title="Shortcut worker"
+gui:shorthelp="Creates windows shortcuts"
+gui:longhelp="longhelp.txt"
+gui:doc="documentation.html"
+>
+    <attribute name="id">
+        <value>shortcut-1</value>
+    </attribute>
+    <plat:platforms>
+        <plat:platform id="winXP_32"/>
+        <plat:platform id="winXP_64"/>
+        <plat:platform id="win7_32"/>
+        <plat:platform id="win7_64"/>
+    </plat:platforms>
+    <oneOrMore>
+        <element name="shortcut" wu:wu="1">
+            <attribute name="id">
+                <text/>
+            </attribute>
+            <attribute name="keepfolder">
+                <choice>
+                    <value>true</value>
+                    <value>false</value>
+                </choice>
+            </attribute>
+            <element name="name">
+                <text/>
+            </element>
+            <element name="target">
+                <text/>
+            </element>
+            <element name="destination">
+                <choice>
+                    <value>AllUsersDesktop</value>
+                    <value>AllUsersStartMenu</value>
+                    <value>AllUsersPrograms</value>
+                    <value>AllUsersStartup</value>
+                    <value>Desktop</value>
+                    <value>Favorites</value>
+                    <value>Fonts</value>
+                    <value>MyDocuments</value>
+                    <value>NetHood</value>
+                    <value>PrintHood</value>
+                    <value>Programs</value>
+                    <value>Recent</value>
+                    <value>SendTo</value>
+                    <value>StartMenu</value>
+                    <value>Startup</value>
+                    <value>Templates</value>
+                </choice>
+            </element>
+            <zeroOrMore>
+                <element name="arguments">
+                    <text/>
+                </element>
+                <element name="descrption">
+                    <text/>
+                </element>
+                <element name="folderName">
+                    <text/>
+                </element>
+                <element name="iconFile">
+                    <text/>
+                </element>
+                <element name="iconNumber">
+                    <text/>
+                </element>
+                <element name="windowStyle">
+                    <choice>
+                        <value>max</value>
+                        <value>normal</value>
+                        <value>min</value>
+                    </choice>
+                </element>
+            </zeroOrMore>
+        </element>
+    </oneOrMore>
+</element>

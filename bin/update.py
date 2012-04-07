@@ -70,8 +70,8 @@ def main(args):
         if(first):
             first = False
             i_workset = i_workset.union(find_nodeps(xmlcmp.worklist, wudeps))
-        
-        # fether: downloads and workers: do_work
+
+        # fetcher: downloads and workers: do_work
         # parallelisation perhaps?
         results = spawn_work(parcel_work(i_workset, previous_failures))
 
@@ -79,6 +79,23 @@ def main(args):
         previous_failures = previous_failures.union(results.failures())
 
     # gather resultant_status
+
+def spawn_work(parcels):
+    """Take a work parcels dictionary and do the work"""
+    for workername in parcels:
+        workerdesc = workerdescription.WorkerDescription(os.path.join(context.status_dir(), "workers", workername, "description.xml"))
+
+        # if the worker is ordered:
+        # get copy of worker's current status (working_status)
+        # apply removes and mods to working status
+        # copy final desired_status to cur_des_status
+        # loop over siblings at wu level in cur_des_status:
+          # if sibling not in cur_des_st and is not to be added:
+            # drop from cur_des_st
+          # if sibling not in cur_des_st but is to be added:
+            # find position arg for add
+          # if sibling in both but wrong position:
+            # find correct move/reorder instruction
 
 def get_worker(welt):
     wid = welt.get("id")

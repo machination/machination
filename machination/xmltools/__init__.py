@@ -241,14 +241,15 @@ class status(object):
         for wub in wus:
             self.apply_wu(wu)
 
-    def add(self, elt, mrx, postag = ["SAME"], posid = ["LAST"]):
+    def add(self, elt, mrx, position = "$SAME$LAST"):
         """Add an element to parent specified by mrx
 
-        postag should either be the tag (as a string) of the
-        sibling to be placed after or one of:
+        position should normally be a single element mrxpath like:
 
-          * ["SAME"] = the same tag as elt.
-          * ["ANY"] = any tag.
+          * name or
+          * name[id]
+
+        in which case the new element will be added 
 
         posid should be the id of the element (with tag 'postag') elt
         is to be placed after or one of:

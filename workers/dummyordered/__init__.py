@@ -4,6 +4,7 @@
 
 from lxml import etree
 from machination import context
+from machination import xmltools
 import os, shutil
 import errno
 
@@ -42,8 +43,9 @@ class worker(object):
        the resultant working status Element is correct. Then we
        translate to the target file format and write out the results.
 
-       ``utils.apply_wus(wulist,start_status,desired_status)`` will
-       take care of updating the XML.
+       ``status.apply_wus(wulist)`` where status is a
+       ``machination.xmltools.status`` object will take care of
+       updating the XML.
 
     #. System settings altered via an API.
 
@@ -55,20 +57,11 @@ class worker(object):
        COM interface).
 
        In this case we can't consume all wuwus to construct our
-       working status Element first and then alter the system. Often
-       when making those external API calls we'll need to know things
-       like which list index a new item is to be inserted at, which id
-       it should be inserted after or where it should be re-ordered
-       to. There are functions in utils which will tell us this
-       information if we are careful to update a working status
-       Element in lock step with performing actions on the system.
-
-       ``utils.apply_wu(wu, current_status, desired_status)`` may be
-       called each time an action is performed to track the system
-       status. If this is unreliable or if ``generate_status()`` is
-       cheap for your worker an alternative is to
-       ``generate_status()`` after each action instead of tracking
-       changes.
+       working status Element first and then alter the system, we must
+       alter the system directly as we evaluate each work unit. Most
+       of the time this is fine - just do the work in order and
+       (possibly) ``generate_status()`` at the end to make sure the
+       new state is fine.
 
     #. A subsection or tag where ordering isn't actually important.
 
@@ -83,11 +76,14 @@ class worker(object):
        our status report to result in least work - i.e. to look as
        much like desired status as possible.
 
-       ``utils.order_as(our_status, template_status)`` will do that
-       for us, placing every element that exists in both our_status
+       ``status.order_like(template_status)`` will do that
+       for us, placing every element that exists in both status.status
        and template_status in the same order as template_status and
-       placing any elements in our_status but not template_status at
+       placing any elements in status.status but not template_status at
        the end.
+
+       An optional mrxpath argument allows for ordering branches of
+       the XML tree.
 
     """
 
@@ -127,10 +123,11 @@ class worker(object):
             no_elt = w_elt.SubElement("notordered")
             no_elt.set("id", key)
             no_elt.text = dic[key]
+        
 
         return w_elt
 
-    def do_work(self, wus, desired):
+    def do_work(self, wus):
         pass
 
     # methods to manipulate the status outside of do_work for testing

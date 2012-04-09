@@ -1,5 +1,9 @@
 """Worker description file handling"""
 from lxml import etree
+from machination import context
+from machination import xmltools
+import os
+import errno
 
 
 class WorkerDescription:
@@ -103,14 +107,24 @@ class WorkerDescription:
         'rng': 'http://relaxng.org/ns/structure/1.0',
         'wu': 'https://github.com/machination/ns/workunit'}
 
-    def __init__(self, description=None):
+    def __init__(self, workername=None):
         """WorkerDescription init
 
-        Calls self.load(description) if description is provided"""
+        """
 
         self.__clear()
-        if description:
-            self.load(description)
+        
+        if workername is not None:
+            self.workername = workername
+            # try to find the description file
+            descfile = os.path.join(context.status_dir(), "workers", workername, "description.xml")
+            try:
+                self.desc = etree.parse(workername)
+            except IOError:
+                # carry on with defaults if descfile doesn't exist,
+                # but if it does...
+                if os.path.isfile(descfile):
+                    raise
 
     def __clear(self):
         """Clear all cache attributes"""
@@ -118,18 +132,6 @@ class WorkerDescription:
         self.desc = None
         self.wucache = None
 
-    def load(self, description):
-        """load worker description
-
-        description should be either something lxml.etree.parse will
-        accept (file like object, path to a file) or an lxml
-        ElementTree or Element object.
-        """
-
-        # clear everything when loading a new description
-        self.__clear()
-        
-        self.desc = etree.parse(description)
 
     def workunits(self):
         """return a set of valid work unit xpaths
@@ -167,7 +169,16 @@ class WorkerDescription:
     def is_workunit(self, xpath):
         """True if xpath is a valid workunit, False otherwise"""
 
-        return xpath in self.workunits()
+        if self.desc:
+            return xpath in self.workunits()
+        else:
+            mrx = xmltools.mrxpath(xpath)
+            # xpath should be /worker/something
+            if mrx.length() == 2:
+                return True
+            else:
+                return False
+
 
     def _describes_path(self,element):
         """Return path in the final document which 'element' describes

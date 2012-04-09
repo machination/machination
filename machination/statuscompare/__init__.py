@@ -59,13 +59,13 @@ class XMLCompare(object):
             r = self.rightxml.xpath(xpath)
 
             # l[0] or r[0] can be element objects, or attr strings
-            # Try to get the tag - if it fails, its an attribute
+            # Try to get the text - if it fails, its an attribute
             lval = ""
             rval = ""
 
             try:
-                lval = l[0].tag
-                rval = r[0].tag
+                lval = l[0].text
+                rval = r[0].text
             except AttributeError:
                 lval = l[0]
                 rval = r[0]

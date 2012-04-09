@@ -34,6 +34,12 @@ class XMLCompare(object):
             'childdiff': 'modify'
             }
 
+        self.compare()
+
+    def action_list(self):
+        """return list of (xpath, action) tuples"""
+        return [(xpath, self.diff_to_action[self.bystate[xpath] for xpath in self.worklist])]
+
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
 
@@ -51,6 +57,7 @@ class XMLCompare(object):
             self.byxpath[xpath] = 'right'
 
         self.find_diffs(self.leftset.intersection(self.rightset))
+        self.find_work()
 
     def find_diffs(self, xpathlist):
         """Find differing values in the intersection set"""
@@ -229,8 +236,5 @@ if __name__ == "__main__":
     rightxml = etree.parse(rightfile)
 
     xmlcmp = XMLCompare(leftxml, rightxml, descfile)
-    xmlcmp.compare()
     pp.pprint(xmlcmp.byxpath)
-
-    xmlcmp.find_work()
     pp.pprint(xmlcmp.worklist)

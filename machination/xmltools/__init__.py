@@ -21,6 +21,8 @@ most places where Machination uses XML. These restrictions are:
 
 """
 from lxml import etree
+from lxml.builder import E
+import copy
 import re
 
 class mrxpath(object):
@@ -35,6 +37,8 @@ class mrxpath(object):
 
     /a/b[id1]/c
     /a/d/e[id1]/@att1
+
+    TODO(colin): relative xpaths
 
     """
 
@@ -62,7 +66,7 @@ class mrxpath(object):
             self.set_path(mpath)
     
     def set_path(self, path, att = None):
-        """Return a represntation based on ``path``
+        """Set representation based on ``path``
         
         calling options, elements::
           set_path(another_mrxpath_object)
@@ -193,6 +197,11 @@ class mrxpath(object):
             p = p.parent()
         return a
 
+    def length(self):
+        """return the length in elements"""
+        return len(self.rep) - 1
+        
+
     def to_xpath(self):
         """return xpath string"""
         return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
@@ -212,16 +221,17 @@ class mrxpath(object):
 class status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
-    def __init__(self, status):
-        if isinstance(status, str):
-            status = etree.fromstring(status)
-        if not isinstance(status, etree._Element):
-            raise Exception("constructor must be called with an Element or a string with valid XML")
-        if status.tag != "status":
-            raise Exception("status must have the tag 'status', not " + status.tag)
-        self.status = status
+    def __init__(self, statin):
+        if isinstance(statin, str):
+            self.status = etree.fromstring(statin)
+        elif isinstance(statin, etree._Element):
+            self.status = statin
+        elif isinstance(statin, status):
+            self.status = copy.deepcopy(statin.status)
+        else:
+            raise Exception("Don't know how to initialise from a " + type(statin))
 
-    def order_like(self, template, mrx=None):
+    def order_like(self, template):
         """order status elements like those in template"""
         if mrx is None:
             elt = self.status
@@ -232,13 +242,71 @@ class status(object):
                 raise Exception("The mrxpath 'mrx' must reference only one element")
             elt = elts[0]
 
+    def desired_and_wus(self, working, template, actions, workerdesc, orderstyle="move"):
+        wus = []
+
+        # removes
+        for rx in actions[remove]:
+            # every action should be a valid work unit
+            if not workerdes.is_workunit(rx):
+                raise Exception("found a remove action that is not " +
+                                "a valid workunit: " + rx)
+            
+            # TODO(colin): make rx relative to working element
+
+            element_remove(working)
+            # <wu op="remove" id="rx"/>
+            wus.append(E.wu(op="remove", id=rx))
+
+        # modifies
+        for mx in actions[modify]:
+            # every action should be a valid work unit
+            if not workerdes.is_workunit(mx):
+                raise Exception("found a remove action that is not " +
+                                "a valid workunit: " + mx)
+            
+            # TODO(colin): make mx relative to working element
+
+            for e in working.xpath(mx):
+                # alter the working XML
+                pass
+
+    def element_remove(working, xpath):
+        for e in working.xpath(xpath):
+            e.getparent().remove(e)
+
+    def find_temp_desired(self, wus, template):
+        working = status(self)
+        working.apply_wus(wus)
+        working.order_like(template)
+        return working
+
+    def find_ordered_wus(self, adds, template, workerdesc, orderstyle="move"):
+        """Return a list of workunits which will recreate the order in template.
+
+        Args:
+          adds: set of mrxpaths to be added.
+          template: an etree.Element with the same tag as self.status to
+            be used as a template for ordering. i.e. it has the reulting
+            elements in the desired order. Usually the appropriate element
+            from final desired_status.
+          orderstyle: control what kind of ordering wus are generated:
+            move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
+            removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
+            swap: swap(tag1[id1],tag2[id2]).
+
+        Returns:
+          TODO(colin.higgs@ed.ac.uk): define returns
+        """
+        pass
+
     def apply_wu(self, wu):
         """Apply a work unit to self.status"""
         pass
 
     def apply_wus(self,wus):
         """Iterate over wus, applying them to self.status"""
-        for wub in wus:
+        for wu in wus:
             self.apply_wu(wu)
 
     def add(self, elt, mrx, position = "$SAME$LAST"):

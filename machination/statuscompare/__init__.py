@@ -23,7 +23,7 @@ class XMLCompare(object):
         self.bystate = {'left': set(),
                         'right': set(),
                         'datadiff': set(),
-                        'structdiff': set()}
+                        'childdiff': set()}
         self.byxpath = {}
         self.worklist = set()
         self.wd = workerdescription.WorkerDescription(descfile)
@@ -31,7 +31,7 @@ class XMLCompare(object):
             'left': 'remove',
             'right': 'add',
             'datadiff': 'modify',
-            'structdiff': 'modify'
+            'childdiff': 'modify'
             }
 
     def compare(self):
@@ -74,8 +74,8 @@ class XMLCompare(object):
                 self.bystate['datadiff'].add(xpath)
                 self.byxpath[xpath] = 'datadiff'
                 for a in xmltools.mrxpath(xpath).ancestors():
-                    self.bystate['structdiff'].add(a.to_xpath())
-                    self.byxpath[a.to_xpath()] = 'structdiff'
+                    self.bystate['childdiff'].add(a.to_xpath())
+                    self.byxpath[a.to_xpath()] = 'childdiff'
 
     def make_xpath(self, xpathset, elt, current="/"):
         """Recursively construct xpaths for all elements."""
@@ -108,12 +108,11 @@ class XMLCompare(object):
     def find_parent_workunit(self, xpath):
         """Recurse up an xpath, return the first parent that is a workunit."""
 
-#        parentxpath = '/'.join(xpath.split('/')[:-1])
         mrx = mrxpath(xpath)
         pmrx = mrx.parent()
         if pmrx:
             parentxpath = pmrx.to_xpath()
-            
+
         if self.wd.is_workunit(parentxpath):
             return parentxpath
 
@@ -154,7 +153,7 @@ class XMLCompare(object):
             # build a list of deps for topological sort just now
             # might change to generator approach later
             topdeps = []
-            
+
             # translate src and tgt state xpaths to wu xpaths
             src_wu = self.find_parent_workunit(sdep.get("src"))
             tgt_wu = self.find_parent_workunit(sdep.get("tgt"))
@@ -197,7 +196,7 @@ class XMLCompare(object):
                     # src_action == remove and tgt_action != remove
                     # OR src_action == none
                     continue
-                
+
             elif sdep.get("op") == "excludes":
                 if src_action == "add" or src_action == "modify":
 

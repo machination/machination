@@ -37,9 +37,10 @@ class XMLCompare(object):
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
 
-        self.make_xpath(self.leftset, self.leftxml.getroot())
-
-        self.make_xpath(self.rightset, self.rightxml.getroot())
+        for elt in self.leftxml.getroot().iter():
+            self.leftset.add(mrxpath(elt).to_xpath())
+        for elt in self.rightxml.getroot().iter():
+            self.rightset.add(mrxpath(elt).to_xpath())
 
         for xpath in self.leftset.difference(self.rightset):
             self.bystate['left'].add(xpath)
@@ -76,24 +77,6 @@ class XMLCompare(object):
                 for a in xmltools.mrxpath(xpath).ancestors():
                     self.bystate['childdiff'].add(a.to_xpath())
                     self.byxpath[a.to_xpath()] = 'childdiff'
-
-    def make_xpath(self, xpathset, elt, current="/"):
-        """Recursively construct xpaths for all elements."""
-
-        id = ""
-        if elt.attrib.get("id"):
-            id = "[@id='%s']" % (elt.attrib.get("id"))
-
-        xpath = "%s%s%s" % (current, elt.tag, id)
-        xpathset.add(xpath)
-
-        for attr in elt.attrib:
-            attr_path = "%s/@%s" % (xpath, attr)
-            xpathset.add(attr_path)
-
-        current = xpath + "/"
-        for childelt in elt:
-            self.make_xpath(xpathset, childelt, current)
 
     def find_work(self):
         """Check which xpaths are work_units and return these."""

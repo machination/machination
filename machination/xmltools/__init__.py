@@ -38,7 +38,9 @@ class mrxpath(object):
     /a/b[id1]/c
     /a/d/e[id1]/@att1
 
-    TODO(colin): relative xpaths
+    relative xpaths also allowed:
+
+    b[id1]/c
 
     """
 
@@ -87,7 +89,11 @@ class mrxpath(object):
             # a string, break it up and store the pieces
             rep = []
             tokens, remainder = mrxpath.scanner.scan(path)
-            working = [('NAME','')]
+            if tokens[0][0] == "SEP":
+                # rooted xpath, need an empty name to start
+                working = [('NAME','')]
+            else:
+                working = []
             for token in tokens:
                 if token[0] == "SEP":
                     rep.append(self.tokens_to_rep(working,rep))
@@ -167,19 +173,28 @@ class mrxpath(object):
 
     def is_attribute(self, rep = None):
         """True if self represents an attribute, False otherwise"""
-        if len(self.rep) < 2:
+        if self.is_rooted() and len(self.rep) < 2:
             # Not anything (first item in rep is always [''])
             return False
-        if self.rep[-1][0][0] == "@":
+        if len(self.rep) > 0 and self.rep[-1][0][0] == "@":
             return True
         return False
 
     def is_element(self):
         """True if self represents an element, False otherwise"""
-        if len(self.rep) < 2:
+        if self.is_rooted() and len(self.rep) < 2:
             # Not anything (first item in rep is always [''])
             return False
-        return not self.is_attribute()
+        if len(self.rep) > 0:
+            return not self.is_attribute()
+        return False
+
+    def is_rooted(self):
+        """True if xpath begins with "/", False otherwise"""
+        if len(self.rep) >= 1 and self.rep[0][0] == '':
+            return True
+        else:
+            return False
 
     def parent(self):
         """return mrxpath of parent element of rep or self.rep"""
@@ -199,8 +214,10 @@ class mrxpath(object):
 
     def length(self):
         """return the length in elements"""
-        return len(self.rep) - 1
-        
+        if self.is_rooted():
+            return len(self.rep) - 1
+        else:
+            return len(self.rep)
 
     def to_xpath(self):
         """return xpath string"""

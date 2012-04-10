@@ -1,0 +1,21 @@
+<status>
+  <directories status="{dsdir}"
+               cache="{dsdir}"
+               />
+  <worker id="test">
+    <iniFile>
+      <section id="section1">
+        <keyvalue id="splat">splot</keyvalue>
+        <keyvalue id="frog">toad</keyvalue>
+      </section>
+    </iniFile>
+    <orderedItems>
+      <item id="1">o-one</item>
+      <item id="2">o-two</item>
+    </orderedItems>
+    <unordered>
+      <item id="1">u-one</item>
+      <item id="2">u-two</item>
+    </unordered>
+  </worker>
+</status>

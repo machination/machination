@@ -1,0 +1,52 @@
+<element name="worker"
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:info="https://github.com/machination/ns/info"
+    xmlns:wu="https://github.com/machination/ns/workunit"
+
+    info:ordered="0"
+    >
+
+  <attribute name="id">
+    <value>test</value>
+  </attribute>
+  <interleave>
+    
+    <element name="orderedItems" info:ordered="1">
+      <oneOrMore>
+
+        <element name="item" wu:wu="1">
+          <attribute name="id"/>
+          <text/>
+        </element>
+      </oneOrMore>
+    </element>
+
+    <element name="iniFile" info:ordered="1" wu:wu="1">
+
+      <oneOrMore>
+
+        <element name="section">
+          <attribute name="id"/>
+          <zeroOrMore>
+            
+            <element name="keyvalue">
+              <attribute name="id"/>
+              <text/>
+            </element>
+          </zeroOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+
+    <element name="unordered" info:ordered="0">
+
+      <oneOrMore>
+
+        <element name="item" wu:wu="1">
+          <attribute name="id"/>
+          <text/>
+        </element>
+      </oneOrMore>
+    </element>
+  </interleave>
+</element>

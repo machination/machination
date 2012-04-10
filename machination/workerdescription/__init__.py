@@ -164,7 +164,7 @@ class WorkerDescription:
 
         # add all 'element' elements which would be direct children of
         # the /worker element or where wu:wu=1
-        for elt in self.desc.getroot().iter("{%s}element" % self.nsmap["rng"]):
+        for elt in self.desc.iter("{%s}element" % self.nsmap["rng"]):
             path = self.describes_path(elt)
 
             # len(path) == 3 comes from the fact that a direct child of
@@ -196,7 +196,7 @@ class WorkerDescription:
           False otherwise
         """
 
-        if self.desc:
+        if self.desc is not None:
             return xmltools.mrxpath(xpath).to_noid_path() in self.workunits()
         else:
             mrx = xmltools.mrxpath(xpath)

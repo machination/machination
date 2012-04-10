@@ -1,0 +1,45 @@
+<testinfo>
+  <actionsets id="1">
+    <add id="/worker/orderedItems/item[2]"/>
+    <remove id="/worker/orderedItems/item[3]"/>
+    <modify id="/worker/iniFile"/>
+  </actionsets>
+  <status id="start">
+    <worker id="test">
+      <orderedItems>
+        <item id="3">o-three</item>
+        <item id="1">o-one</item>
+      </orderedItems>
+      <iniFile>
+        <section id="section1">
+          <keyvalue id="frog">frog</keyvalue>
+          <keyvalue id="removeme">remove</keyvalue>
+        </section>
+      </iniFile>
+      <unordered>
+        <item id="2">u-two</item>
+        <item id="1">u-one</item>
+      </unordered>
+    </worker>
+  </status>
+  <status id="desired">
+    <worker id="test">
+      <iniFile>
+        <section id="section1">
+          <keyvalue id="extra">extra</keyvalue>
+          <keyvalue id="splat">splot</keyvalue>
+          <keyvalue id="frog">toad</keyvalue>
+        </section>
+      </iniFile>
+      <orderedItems>
+        <item id="1">o-one</item>
+        <item id="2">o-two</item>
+      </orderedItems>
+      <unordered>
+        <item id="1">u-one</item>
+        <item id="2">u-two</item>
+      </unordered>
+    </worker>
+  </status>
+</testinfo>
+

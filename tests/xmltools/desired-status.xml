@@ -5,6 +5,7 @@
   <worker id="test">
     <iniFile>
       <section id="section1">
+        <keyvalue id="extra">extra</keyvalue>
         <keyvalue id="splat">splot</keyvalue>
         <keyvalue id="frog">toad</keyvalue>
       </section>

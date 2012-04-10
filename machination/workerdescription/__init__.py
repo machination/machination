@@ -105,7 +105,8 @@ class WorkerDescription:
 
     nsmap = {
         'rng': 'http://relaxng.org/ns/structure/1.0',
-        'wu': 'https://github.com/machination/ns/workunit'}
+        'wu': 'https://github.com/machination/ns/workunit',
+        'info': 'https://github.com/machination/ns/info'}
 
     def __init__(self, workername=None):
         """WorkerDescription init
@@ -114,22 +115,28 @@ class WorkerDescription:
 
         self.__clear()
         
-        if workername is not None:
+        if isinstance(workername,str):
             self.workername = workername
             # try to find the description file
             descfile = os.path.join(context.status_dir(), "workers", workername, "description.xml")
             try:
-                self.desc = etree.parse(workername)
+                self.desc = etree.parse(workername).getroot()
             except IOError:
                 # carry on with defaults if descfile doesn't exist,
                 # but if it does...
                 if os.path.isfile(descfile):
                     raise
+        elif isinstance(workername, etree._Element):
+            # this constructor path allows us to instantiate directly from
+            # an element for debugging purposes
+            self.desc = workername
+            self.workername = self.desc.xpath("/rng:element/rng:attribute[@name='id']/rng:value", namespaces=self.nsmap)[0].text
 
     def __clear(self):
         """Clear all cache attributes"""
 
         self.desc = None
+        self.workername = None
         self.wucache = None
 
 
@@ -158,7 +165,7 @@ class WorkerDescription:
         # add all 'element' elements which would be direct children of
         # the /worker element or where wu:wu=1
         for elt in self.desc.getroot().iter("{%s}element" % self.nsmap["rng"]):
-            path = self._describes_path(elt)
+            path = self.describes_path(elt)
 
             # len(path) == 3 comes from the fact that a direct child of
             # worker will end up with a path like ["","worker","Name"]
@@ -166,8 +173,28 @@ class WorkerDescription:
                 self.wucache.add("/".join(path))
         return self.wucache
 
+    def get_description(self, xpath):
+        """return the description element for xpath"""
+        # remove any ids from xpath
+        xpath = xmltools.mrxpath(xpath).to_noid_path()
+        for el in self.desc.iter("{%s}element" % self.nsmap["rng"]):
+            if "/".join(self.describes_path(el)) == xpath:
+                return el
+        return None
+
     def is_workunit(self, xpath):
-        """True if xpath is a valid workunit, False otherwise"""
+        """True if xpath is a valid workunit, False otherwise
+
+        Indicated by:
+          attribute wu:wu="1"
+        
+        Default no indicator:
+          False
+        
+        Default no description:
+          True for immediate children of /worker
+          False otherwise
+        """
 
         if self.desc:
             return xmltools.mrxpath(xpath).to_noid_path() in self.workunits()
@@ -179,13 +206,31 @@ class WorkerDescription:
             else:
                 return False
 
+    def is_ordered(self, xpath):
+        """True if xpath preserves order, False otherwise
 
-    def _describes_path(self,element):
+        Indicated by:
+          attribute info:ordered="1"
+        
+        Default no indicator:
+          False
+        
+        Default no description:
+          False
+        """
+        desc = self.get_description(xpath)
+        if desc.get("{%s}ordered" % self.nsmap["info"]) == "1":
+            return True
+        else:
+            return False
+
+
+    def describes_path(self,element):
         """Return path in the final document which 'element' describes
         """
 
         if element.tag != "{%s}element" % self.nsmap['rng']:
-            raise TypeError("The element passed to _describes_path must have tag 'element'")
+            raise TypeError("The element passed to describes_path must have tag 'element'")
         path = []
         current = element
         while current.getparent() is not None:

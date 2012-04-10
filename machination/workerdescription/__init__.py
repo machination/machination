@@ -170,7 +170,7 @@ class WorkerDescription:
         """True if xpath is a valid workunit, False otherwise"""
 
         if self.desc:
-            return xpath in self.workunits()
+            return xmltools.mrxpath(xpath).to_noid_path() in self.workunits()
         else:
             mrx = xmltools.mrxpath(xpath)
             # xpath should be /worker/something

@@ -347,9 +347,45 @@ class status(object):
             tmrx = mrxpath(te)
             welts = working.xpath(tmrx.to_xpath())
             if welts:
-                # there is a corresponding element in working, check for
-                # reordering
-                pass
+                # there is a corresponding element in working, check if it
+                # is in the right position
+
+                # don't do the root element (/worker)
+                if tmrx.to_noid_path() == "/worker":
+                    continue
+
+                # don't bother generating order wus if order is unimportant
+                # (parent not flagged as ordered)
+                if not workerdesc.is_ordered(tmrx.parent().to_noid_path()):
+                    continue
+
+                # find the first previous element that also exists in working
+                prev = te.getprevious()
+                wprevs = working.xpath(mrxpath(prev).to_xpath())
+                while prev and not wprevs:
+                    prev = prev.getprevious()
+                    wprevs = working.xpath(mrxpath(prev).to_xpath())
+
+                # find the parent from working
+                wparent = working.xpath(tmrx.parent().to_xpath())[0]
+                if prev is None:
+                    # move to first child
+                    wparent.insert(0, welts[0])
+                    # remember position for wu
+                    pos = "<first>"
+                else:
+                    # insert after wprev[0]
+                    wparent.insert(wparent.index(wprevs[0] + 1), welts[0])
+                    pos = mrxpath(wprev[0]).last_item().to_xpath()
+                    
+                # generate a work unit
+                # TODO(colin): support other order wu styles
+                wus.append(
+                    E.wu(op="move",
+                         id=tmrx.to_xpath(),
+                         pos=pos)
+                    )
+                
             else:
                 # there is not a corresponding element in working, add
                 # if there is an add in actions, otherwise the

@@ -80,7 +80,7 @@
     <value>tweaks-1</value>
   </attribute>
   <interleave>
-    <element name="Time">
+    <element name="Time" info:ordered="1">
       <interleave>
         <element name="NtpEnabled"
                      wu:wu="1"

@@ -432,33 +432,11 @@ class status(object):
                          pos=pos)
                     )
 
-                    
-                
-
     def find_temp_desired(self, wus, template):
         working = status(self)
         working.apply_wus(wus)
         working.order_like(template)
         return working
-
-    def find_ordered_wus(self, adds, template, workerdesc, orderstyle="move"):
-        """Return a list of workunits which will recreate the order in template.
-
-        Args:
-          adds: set of mrxpaths to be added.
-          template: an etree.Element with the same tag as self.status to
-            be used as a template for ordering. i.e. it has the reulting
-            elements in the desired order. Usually the appropriate element
-            from final desired_status.
-          orderstyle: control what kind of ordering wus are generated:
-            move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
-            removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
-            swap: swap(tag1[id1],tag2[id2]).
-
-        Returns:
-          TODO(colin.higgs@ed.ac.uk): define returns
-        """
-        pass
 
     def apply_wu(self, wu):
         """Apply a work unit to self.status"""
@@ -469,7 +447,7 @@ class status(object):
         for wu in wus:
             self.apply_wu(wu)
 
-    def add(self, elt, mrx, position = "$SAME$LAST"):
+    def add(self, elt, mrx, position = "<last>"):
         """Add an element to parent specified by mrx
 
         position should normally be a single element mrxpath like:

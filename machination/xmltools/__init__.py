@@ -239,7 +239,7 @@ class MRXpath(object):
         """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
     
-class status(object):
+class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
     def __init__(self, statin):
@@ -247,7 +247,7 @@ class status(object):
             self.status = etree.fromstring(statin)
         elif isinstance(statin, etree._Element):
             self.status = statin
-        elif isinstance(statin, status):
+        elif isinstance(statin, Status):
             self.status = copy.deepcopy(statin.status)
         else:
             raise Exception("Don't know how to initialise from a " + type(statin))
@@ -449,7 +449,7 @@ class status(object):
         return wus
 
     def find_temp_desired(self, wus, template):
-        working = status(self)
+        working = Status(self)
         working.apply_wus(wus)
         working.order_like(template)
         return working

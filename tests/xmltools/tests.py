@@ -9,7 +9,7 @@ mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
 os.environ['MACHINATION_BOOTSTRAP_DIR'] = mydir
 from machination import context
 from machination.workerdescription import WorkerDescription
-from machination.xmltools import mrxpath
+from machination.xmltools import MRXpath
 from machination.xmltools import status
 
 class XMLTestCase(unittest.TestCase):
@@ -40,7 +40,7 @@ class Testinfo1Case(unittest.TestCase):
 
     def populate_actions(self, setid):
         for a in self.tinfo.xpath("actionsets[@id='%s']" % setid)[0]:
-            self.actions[a.tag].add(mrxpath(a.get("id")).to_xpath())
+            self.actions[a.tag].add(MRXpath(a.get("id")).to_xpath())
         
     def test_010_statuses_valid(self):
         self.rng.assertValid(self.start)

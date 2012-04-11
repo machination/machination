@@ -82,7 +82,7 @@ class worker(object):
        placing any elements in status.status but not template_status at
        the end.
 
-       An optional mrxpath argument allows for ordering branches of
+       An optional MRXpath argument allows for ordering branches of
        the XML tree.
 
     """

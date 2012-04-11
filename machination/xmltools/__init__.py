@@ -25,7 +25,7 @@ from lxml.builder import E
 import copy
 import re
 
-class mrxpath(object):
+class MRXpath(object):
     """Manipulate Machination restricted xpaths.
 
     Machination xpaths are of the form::
@@ -71,7 +71,7 @@ class mrxpath(object):
         """Set representation based on ``path``
         
         calling options, elements::
-          set_path(another_mrxpath_object)
+          set_path(another_MRXpath_object)
           set_path("/standard/form[@id='frog']/xpath")
           set_path("/abbreviated/form[frog]/xpath")
           set_path(etree_element)
@@ -82,13 +82,13 @@ class mrxpath(object):
         """
         if isinstance(path, list):
             self.rep = copy.deepcopy(path)
-        elif isinstance(path, mrxpath):
-            # clone another mrxpath
+        elif isinstance(path, MRXpath):
+            # clone another MRXpath
             self.rep = path.clone_rep()
         elif isinstance(path, str):
             # a string, break it up and store the pieces
             rep = []
-            tokens, remainder = mrxpath.scanner.scan(path)
+            tokens, remainder = MRXpath.scanner.scan(path)
             if tokens[0][0] == "SEP":
                 # rooted xpath, need an empty name to start
                 working = [('NAME','')]
@@ -197,14 +197,14 @@ class mrxpath(object):
             return False
 
     def parent(self):
-        """return mrxpath of parent element of rep or self.rep"""
+        """return MRXpath of parent element of rep or self.rep"""
         if len(self.rep) == 2: return None
         p = self.clone_rep()
         p.pop()
-        return mrxpath(p)
+        return MRXpath(p)
 
     def ancestors(self):
-        """return a list of ancestors as mrxpath objects (parent first)"""
+        """return a list of ancestors as MRXpath objects (parent first)"""
         a = []
         p = self.parent()
         while p:
@@ -220,8 +220,8 @@ class mrxpath(object):
             return len(self.rep)
 
     def last_item(self):
-        """return mrxpath object representing the last item in this rep"""
-        return mrxpath([self.rep[-1]])
+        """return MRXpath object representing the last item in this rep"""
+        return MRXpath([self.rep[-1]])
 
     def to_xpath(self):
         """return xpath string"""
@@ -257,28 +257,27 @@ class status(object):
         if mrx is None:
             elt = self.status
         else:
-            mrx = mrxpath(mrx)
+            mrx = MRXpath(mrx)
             elts = self.status.xpath(mrx.to_xpath())
             if len(elts) > 1:
-                raise Exception("The mrxpath 'mrx' must reference only one element")
+                raise Exception("The MRXpath 'mrx' must reference only one element")
             elt = elts[0]
 
-    def generate_wus(self, working, template, actions, workerdesc, orderstyle="move"):
+    def generate_wus(self, comp, orderstyle="move"):
         """Return a list of workunits from actions guided by template.
 
         Args:
-          working: ``an etree.Element``. This should a copy of the current
-            status element and it will be updated to be as close to the
-            ``template`` status element as ``actions`` allow. 
-          template: an etree.Element with the same tag as self.status to
-            be used as a template for changes. for ordered workers it should
-            have the resulting elements in the desired order. Usually the
-            appropriate element from final desired_status.
-          actions: dictionary in the form:
-            actions = { 'remove': {set of remove xpaths},
-                        'modify': {set of modify xpaths},
-                        'add': {set of add xpaths}
-                      }
+          comp: an XMLCompare object initialised as:
+            XMLCompare(working, template, workerdesc)
+              working: ``an etree.Element``. This should a copy of the
+                current status element and it will be updated to be as
+                close to the ``template`` status element as
+                ``actions`` allow.
+              template: an etree.Element with the same tag as
+                self.status to be used as a template for changes. for
+                ordered workers it should have the resulting elements
+                in the desired order. Usually the appropriate element
+                from final desired_status.
           orderstyle: control what kind of ordering wus are generated:
             move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
             removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
@@ -292,12 +291,16 @@ class status(object):
           ``actions`` will allow. This is usually the desired status within
           the current independent work set.
         """
+
+        working = comp.leftxml
+        template = comp.rightxml
+        wd = comp.wd
         wus = []
 
         # removes
         for rx in actions["remove"]:
             # every action should be a valid work unit
-            if not workerdesc.is_workunit(rx):
+            if not wd.is_workunit(rx):
                 raise Exception("found a remove action that is not " +
                                 "a valid workunit: " + rx)
             for e in working.xpath(rx):
@@ -308,7 +311,7 @@ class status(object):
         # modifies
         for mx in actions["modify"]:
             # every action should be a valid work unit
-            if not workerdesc.is_workunit(mx):
+            if not wd.is_workunit(mx):
                 raise Exception("found a modify action that is not " +
                                 "a valid workunit: " + mx)
             # alter the working XML
@@ -325,7 +328,7 @@ class status(object):
             for se in e.iter():
                 # find equivalent element from template.
                 try:
-                    ste = template.xpath(mrxpath(se).to_xpath())[0]
+                    ste = template.xpath(MRXpath(se).to_xpath())[0]
                 except IndexError:
                     # xpath doesn't exist in template, must be a remove
                     # somewhere in the future
@@ -342,7 +345,7 @@ class status(object):
                     # the first element will be e itself
                     first = False
                     continue
-                if workerdesc.is_workunit(mrxpath(se).to_noid_path()):
+                if wd.is_workunit(MRXpath(se).to_noid_path()):
                     # is a workunit: remove
                     se.getparent().remove(se)
             # generate a wu
@@ -354,7 +357,7 @@ class status(object):
         # iterate over elements in template and see if working needs them
         # added or moved.
         for te in template.iter():
-            tmrx = mrxpath(te)
+            tmrx = MRXpath(te)
             welts = working.xpath(tmrx.to_xpath())
             if welts:
                 # there is a corresponding element in working, check if it
@@ -366,15 +369,15 @@ class status(object):
 
                 # don't bother generating order wus if order is unimportant
                 # (parent not flagged as ordered)
-                if not workerdesc.is_ordered(tmrx.parent().to_noid_path()):
+                if not wd.is_ordered(tmrx.parent().to_noid_path()):
                     continue
 
                 # find the first previous element that also exists in working
                 prev = te.getprevious()
-                wprevs = working.xpath(mrxpath(prev).to_xpath())
+                wprevs = working.xpath(MRXpath(prev).to_xpath())
                 while prev and not wprevs:
                     prev = prev.getprevious()
-                    wprevs = working.xpath(mrxpath(prev).to_xpath())
+                    wprevs = working.xpath(MRXpath(prev).to_xpath())
 
                 # find the parent from working
                 wparent = working.xpath(tmrx.parent().to_xpath())[0]
@@ -386,7 +389,7 @@ class status(object):
                 else:
                     # insert after wprev[0]
                     wparent.insert(wparent.index(wprevs[0] + 1), welts[0])
-                    pos = mrxpath(wprev[0]).last_item().to_xpath()
+                    pos = MRXpath(wprev[0]).last_item().to_xpath()
                     
                 # generate a work unit
                 # TODO(colin): support other order wu styles
@@ -414,16 +417,16 @@ class status(object):
                 add_elt = copy.deepcopy(te)
                 # strip out any sub work units - they should be added later
                 for subadd in add_elt.iter():
-                    if workerdesc.is_workunit(mrxpath(subadd).no_noid_path()):
+                    if wd.is_workunit(MRXpath(subadd).no_noid_path()):
                         # is a workunit: remove
                         subadd.getparent().remove(subadd)
 
                 # find the first previous element that also exists in working 
                 prev = te.getprevious()
-                wprevs = working.xpath(mrxpath(prev).to_xpath())
+                wprevs = working.xpath(MRXpath(prev).to_xpath())
                 while prev and not wprevs:
                     prev = prev.getprevious()
-                    wprevs = working.xpath(mrxpath(prev).to_xpath())
+                    wprevs = working.xpath(MRXpath(prev).to_xpath())
 
                 if prev is None:
                     # add as first child
@@ -432,7 +435,7 @@ class status(object):
                 else:
                     # add after wprev[0]
                     wparent.insert(wparent.index(wprevs[0] + 1), add_elt)
-                    pos = mrxpath(wprev[0]).last_item().to_xpath()
+                    pos = MRXpath(wprev[0]).last_item().to_xpath()
                     
                 # generate a work unit
                 wus.append(
@@ -463,7 +466,7 @@ class status(object):
     def add(self, elt, mrx, position = "<last>"):
         """Add an element to parent specified by mrx
 
-        position should normally be a single element mrxpath like:
+        position should normally be a single element MRXpath like:
 
           * name or
           * name[id]

@@ -1,7 +1,7 @@
 """Worker description file handling"""
 from lxml import etree
 from machination import context
-from machination import xmltools
+from machination.xmltools import MRXpath
 import os
 import errno
 
@@ -176,7 +176,7 @@ class WorkerDescription:
     def get_description(self, xpath):
         """return the description element for xpath"""
         # remove any ids from xpath
-        xpath = xmltools.mrxpath(xpath).to_noid_path()
+        xpath = MRXpath(xpath).to_noid_path()
         for el in self.desc.iter("{%s}element" % self.nsmap["rng"]):
             if "/".join(self.describes_path(el)) == xpath:
                 return el
@@ -197,9 +197,9 @@ class WorkerDescription:
         """
 
         if self.desc is not None:
-            return xmltools.mrxpath(xpath).to_noid_path() in self.workunits()
+            return MRXpath(xpath).to_noid_path() in self.workunits()
         else:
-            mrx = xmltools.mrxpath(xpath)
+            mrx = MRXpath(xpath)
             # xpath should be /worker/something
             if mrx.length() == 2:
                 return True

@@ -10,7 +10,7 @@ based on differences between the 'local' status.xml and the downloaded profile.
 
 from lxml import etree
 from machination import workerdescription
-from machination import xmltools
+from machination.xmltools import MRXpath
 
 
 class XMLCompare(object):
@@ -52,9 +52,9 @@ class XMLCompare(object):
         """Compare the xpath sets and generate a diff dict"""
 
         for elt in self.leftxml.iter():
-            self.leftset.add(mrxpath(elt).to_xpath())
+            self.leftset.add(MRXpath(elt).to_xpath())
         for elt in self.rightxml.iter():
-            self.rightset.add(mrxpath(elt).to_xpath())
+            self.rightset.add(MRXpath(elt).to_xpath())
 
         for xpath in self.leftset.difference(self.rightset):
             self.bystate['left'].add(xpath)
@@ -89,7 +89,7 @@ class XMLCompare(object):
             if lval != rval:
                 self.bystate['datadiff'].add(xpath)
                 self.byxpath[xpath] = 'datadiff'
-                for a in xmltools.mrxpath(xpath).ancestors():
+                for a in MRXpath(xpath).ancestors():
                     self.bystate['childdiff'].add(a.to_xpath())
                     self.byxpath[a.to_xpath()] = 'childdiff'
 
@@ -106,7 +106,7 @@ class XMLCompare(object):
     def find_parent_workunit(self, xpath):
         """Recurse up an xpath, return the first parent that is a workunit."""
 
-        mrx = mrxpath(xpath)
+        mrx = MRXpath(xpath)
         pmrx = mrx.parent()
         if pmrx:
             parentxpath = pmrx.to_xpath()

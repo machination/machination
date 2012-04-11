@@ -14,8 +14,16 @@ from machination import xmltools
 
 
 class XMLCompare(object):
+    """Compare two etree Elements and store the results"""
 
-    def __init__(self, leftxml, rightxml, descfile):
+    def __init__(self, leftxml, rightxml, workerdesc):
+        """XMLCompare constructor
+
+        Args:
+          leftxml: an etree Element
+          rightxml: an etree Element
+          workerdesc: passed to the WorkerDescription constructor
+        """
         self.leftxml = leftxml
         self.rightxml = rightxml
         self.leftset = set()
@@ -26,7 +34,7 @@ class XMLCompare(object):
                         'childdiff': set()}
         self.byxpath = {}
         self.worklist = set()
-        self.wd = workerdescription.WorkerDescription(descfile)
+        self.wd = workerdescription.WorkerDescription(workerdesc)
         self.diff_to_action = {
             'left': 'remove',
             'right': 'add',
@@ -43,9 +51,9 @@ class XMLCompare(object):
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
 
-        for elt in self.leftxml.getroot().iter():
+        for elt in self.leftxml.iter():
             self.leftset.add(mrxpath(elt).to_xpath())
-        for elt in self.rightxml.getroot().iter():
+        for elt in self.rightxml.iter():
             self.rightset.add(mrxpath(elt).to_xpath())
 
         for xpath in self.leftset.difference(self.rightset):

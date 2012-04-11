@@ -34,8 +34,8 @@ class Testinfo1Case(unittest.TestCase):
         self.wdesc = WorkerDescription(self.wschema.getroot())
         self.rng = etree.RelaxNG(self.wschema)
         self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
-        self.start = self.tinfo.xpath("status[@id='start']/worker")[0]
-        self.desired = self.tinfo.xpath("status[@id='desired']/worker")[0]
+        self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']/worker")[0])
+        self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']/worker")[0])
         self.actions = {'add': set(), 'remove': set(), 'modify': set()}
 
     def populate_actions(self, setid):

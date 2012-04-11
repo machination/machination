@@ -313,13 +313,23 @@ class status(object):
                                 "a valid workunit: " + mx)
             # alter the working XML
             # find the element to modify
-            e = working.xpath(mx)[0]
-            te = template.xpath(mx)[0]
+            try:
+                e = working.xpath(mx)[0]
+                te = template.xpath(mx)[0]
+            except IndexError:
+                # no results
+                raise Exception("could not find %s in working or template " %
+                                mx)
+                
             first = True
             for se in e.iter():
                 # find equivalent element from template.
-                # it should exist since this is a modify action
-                ste = template.xpath(mrxpath(se).to_xpath())
+                try:
+                    ste = template.xpath(mrxpath(se).to_xpath())[0]
+                except IndexError:
+                    # xpath doesn't exist in template, must be a remove
+                    # somewhere in the future
+                    continue
                 # change any different attributes
                 for se_att in se.keys():
                     if se_att not in ste.keys():
@@ -431,6 +441,9 @@ class status(object):
                          id=tmrx.to_xpath(),
                          pos=pos)
                     )
+
+        # these are the droids you are looking for...
+        return wus
 
     def find_temp_desired(self, wus, template):
         working = status(self)

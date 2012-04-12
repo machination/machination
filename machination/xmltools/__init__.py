@@ -26,6 +26,7 @@ import copy
 import os
 import errno
 import re
+import functools
 from machination import context
 
 class MRXpath(object):
@@ -224,7 +225,30 @@ class MRXpath(object):
 
     def last_item(self):
         """return MRXpath object representing the last item in this rep"""
-        return MRXpath([self.rep[-1]])
+        return MRXpath(self.rep[-1])
+
+    def item(self,n):
+        """return MRXpath object representing item n in the rep"""
+        return MRXpath(self.rep[0:n+1])
+
+    def name(self):
+        """return the name of the object"""
+        if self.is_attribute():
+            return self.rep[-1][0][1:]
+        if len(self.rep) > 0:
+            return self.rep[-1][0]
+        return None
+
+    def id(self):
+        """return id of the object or None"""
+        if self.is_attribute():
+            raise Exception("an attribute may not have an id")
+        if self.is_element():
+            if len(self.rep[-1]) > 0:
+                return self.rep[-1][1]
+            else:
+                return None
+        return None
 
     def to_xpath(self):
         """return xpath string"""
@@ -670,6 +694,9 @@ class WorkerDescription:
     def is_workunit(self, xpath):
         """True if xpath is a valid workunit, False otherwise
 
+        Args:
+          xpath: an xpath string or MRXpath object
+
         Indicated by:
           attribute wu:wu="1"
         
@@ -725,6 +752,28 @@ class WorkerDescription:
         path.append("")
         path.reverse()
         return path
+
+    def find_workunit(self, xpath):
+        """return nearest workunit: xpath or nearest wu ancestor."""
+
+        mrx = MRXpath(xpath)
+        if self.is_workunit(mrx):
+            return mrx.to_xpath()
+
+        # xpath is not a workunit - travel up ancestors until we find one
+        mrx = mrx.parent()
+        while mrx:
+            if self.is_workunit(mrx):
+                return mrx.to_xpath()
+            mrx = mrx.parent()
+
+        # got to the root without finding a workunit
+        raise Exception("No work unit ancestors found!")
+
+    def find_work(self, xpset):
+        """return the set of workunits for a set of xpaths"""
+        return {self.find_workunit(x) for x in xpset}
+
         
 class XMLCompare(object):
     """Compare two etree Elements and store the results
@@ -734,13 +783,12 @@ class XMLCompare(object):
     the downloaded profile.
     """
 
-    def __init__(self, leftxml, rightxml, workerdesc):
+    def __init__(self, leftxml, rightxml):
         """XMLCompare constructor
 
         Args:
           leftxml: an etree Element
           rightxml: an etree Element
-          workerdesc: passed to the WorkerDescription constructor
         """
         self.leftxml = leftxml
         self.rightxml = rightxml
@@ -751,20 +799,18 @@ class XMLCompare(object):
                         'datadiff': set(),
                         'childdiff': set()}
         self.byxpath = {}
-        self.worklist = set()
-        self.wd = WorkerDescription(workerdesc)
         self.diff_to_action = {
             'left': 'remove',
             'right': 'add',
             'datadiff': 'modify',
             'childdiff': 'modify'
             }
-
+        self.workcache = None
         self.compare()
 
-    def action_list(self):
+    def action_list(self, diffs):
         """return list of (xpath, action) tuples"""
-        return [(xpath, self.diff_to_action[self.bystate[xpath] for xpath in self.worklist])]
+        return [(xpath, self.diff_to_action[self.bystate[xpath]]) for xpath in self.find_work()]
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -783,7 +829,7 @@ class XMLCompare(object):
             self.byxpath[xpath] = 'right'
 
         self.find_diffs(self.leftset.intersection(self.rightset))
-        self.find_work()
+#        self.worklist = self.find_work(self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right'])
 
     def find_diffs(self, xpathlist):
         """Find differing values in the intersection set"""
@@ -811,33 +857,27 @@ class XMLCompare(object):
                     self.bystate['childdiff'].add(a.to_xpath())
                     self.byxpath[a.to_xpath()] = 'childdiff'
 
-    def find_work(self):
-        """Check which xpaths are work_units and return these."""
+    @functools.lru_cache(maxsize=100)
+    def find_work(self, prefix = "/status"):
+        """return a set of all wus for all workers
 
-        for xpath in self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']:
-            if self.wd.is_workunit(xpath):
-                self.worklist.add(xpath)
-            else:
-                parent = self.find_parent_workunit(xpath)
-                self.worklist.add(parent)
+        Args:
+          prefix: xpath prefix to parent of worker elements.
+        """
 
-    def find_parent_workunit(self, xpath):
-        """Recurse up an xpath, return the first parent that is a workunit."""
+        # find all the workers that are mentioned
+        wnames = {w.get("id") for w in self.leftxml.xpath(prefix + "/worker")} | {w.get("id") for w in self.rightxml.xpath(prefix + "/worker")}
 
-        mrx = MRXpath(xpath)
-        pmrx = mrx.parent()
-        if pmrx:
-            parentxpath = pmrx.to_xpath()
+        # create a dictionary of WorkerDescriptions
+        wds = {n: WorkerDescription(n) for n in names}
 
-        if self.wd.is_workunit(parentxpath):
-            return parentxpath
+        diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
 
-        else:
-            if parentxpath:
-                return self.find_parent_workunit(parentxpath)
-            else:
-                raise Exception("No work unit ancestors found!")
-                pass
+        w = set()
+        for x in diffs:
+#            if wds[]
+            w.append(x)
+            
 
     def dependencies_state_to_wu(self, deps, worklist, byxpath):
         """Combine state dependencies with worklist to find work dependencies.

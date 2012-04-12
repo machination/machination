@@ -873,10 +873,12 @@ class XMLCompare(object):
 
         diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
 
-        w = set()
-        for x in diffs:
-#            if wds[]
-            w.append(x)
+#        w = set()
+#        wi = MRXpath(prefix).length() + 1
+#        for x in diffs:
+#            w.add(wds[MRXpath(x).item(wi).id()].find_workunit(x))
+
+        return {wds[MRXpath(x).item(wi).id()].find_workunit(x) for x in diffs}
             
 
     def dependencies_state_to_wu(self, deps, worklist, byxpath):

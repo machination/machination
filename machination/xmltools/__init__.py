@@ -13,7 +13,7 @@ most places where Machination uses XML. These restrictions are:
    those elements *must* be labelled with an 'id' attribute, even if
    there is currently only one (for example, the list currently
    contains only one item).
-   
+
 #. 'id' attributes must be unique amongst all sibling elements with
    the same tag, but need not be otherwise unique (i.e. ancestors or
    descendents may have the same id, only similarly named siblings may
@@ -70,10 +70,10 @@ class MRXpath(object):
         self.rep = []
         if(mpath is not None):
             self.set_path(mpath)
-    
+
     def set_path(self, path, att = None):
         """Set representation based on ``path``
-        
+
         calling options, elements::
           set_path(another_MRXpath_object)
           set_path("/standard/form[@id='frog']/xpath")
@@ -131,7 +131,7 @@ class MRXpath(object):
         if tokens[0][0] == "NAME":
             name = tokens[0][1]
             if len(tokens) == 1:
-                # expecting: 
+                # expecting:
                 #  [NAME]
                 # just an element
                 return [name]
@@ -167,7 +167,7 @@ class MRXpath(object):
         elif tokens[0][0] == "AT":
             # an attribute, the next token should be the name
             return ["@" + tokens[1][1]]
-            
+
     def clone_rep(self):
         """Return a clone of representation"""
 #        new = []
@@ -261,11 +261,11 @@ class MRXpath(object):
     def to_noid_path(self):
         """return xpath with no ids"""
         return "/".join([e[0] for e in self.rep])
-       
+
     def to_xpath_list(self):
         """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
-    
+
 class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
@@ -350,7 +350,7 @@ class Status(object):
                 # no results
                 raise Exception("could not find %s in working or template " %
                                 mx)
-                
+
             first = True
             for se in e.iter():
                 # find equivalent element from template.
@@ -417,7 +417,7 @@ class Status(object):
                     # insert after wprev[0]
                     wparent.insert(wparent.index(wprevs[0] + 1), welts[0])
                     pos = MRXpath(wprev[0]).last_item().to_xpath()
-                    
+
                 # generate a work unit
                 # TODO(colin): support other order wu styles
                 wus.append(
@@ -425,14 +425,14 @@ class Status(object):
                          id=tmrx.to_xpath(),
                          pos=pos)
                     )
-                
+
             else:
                 # there is not a corresponding element in working, add
                 # if there is an add in actions, otherwise the
                 # element should be added on a later run
                 if not tmrx.to_xpath() in actions["add"]:
                     continue
-                
+
                 # can't add to a parent that doesn't exist
                 try:
                     wparent = working.xpath(tmrx.parent().to_xpath())[0]
@@ -448,7 +448,7 @@ class Status(object):
                         # is a workunit: remove
                         subadd.getparent().remove(subadd)
 
-                # find the first previous element that also exists in working 
+                # find the first previous element that also exists in working
                 prev = te.getprevious()
                 wprevs = working.xpath(MRXpath(prev).to_xpath())
                 while prev and not wprevs:
@@ -463,7 +463,7 @@ class Status(object):
                     # add after wprev[0]
                     wparent.insert(wparent.index(wprevs[0] + 1), add_elt)
                     pos = MRXpath(wprev[0]).last_item().to_xpath()
-                    
+
                 # generate a work unit
                 wus.append(
                     E.wu(add_elt,
@@ -498,7 +498,7 @@ class Status(object):
           * name or
           * name[id]
 
-        in which case the new element will be added 
+        in which case the new element will be added
 
         posid should be the id of the element (with tag 'postag') elt
         is to be placed after or one of:
@@ -623,7 +623,7 @@ class WorkerDescription:
         """
 
         self.__clear()
-        
+
         if isinstance(workername,str):
             self.workername = workername
             # try to find the description file
@@ -699,10 +699,10 @@ class WorkerDescription:
 
         Indicated by:
           attribute wu:wu="1"
-        
+
         Default no indicator:
           False
-        
+
         Default no description:
           True for immediate children of /worker
           False otherwise
@@ -723,10 +723,10 @@ class WorkerDescription:
 
         Indicated by:
           attribute info:ordered="1"
-        
+
         Default no indicator:
           False
-        
+
         Default no description:
           False
         """
@@ -774,7 +774,7 @@ class WorkerDescription:
         """return the set of workunits for a set of xpaths"""
         return {self.find_workunit(x) for x in xpset}
 
-        
+
 class XMLCompare(object):
     """Compare two etree Elements and store the results
 
@@ -869,17 +869,17 @@ class XMLCompare(object):
         wnames = {w.get("id") for w in self.leftxml.xpath(prefix + "/worker")} | {w.get("id") for w in self.rightxml.xpath(prefix + "/worker")}
 
         # create a dictionary of WorkerDescriptions
-        wds = {n: WorkerDescription(n) for n in names}
+        wds = {n: WorkerDescription(n) for n in wnames}
 
         diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
 
 #        w = set()
-#        wi = MRXpath(prefix).length() + 1
+        wi = MRXpath(prefix).length() + 1
 #        for x in diffs:
 #            w.add(wds[MRXpath(x).item(wi).id()].find_workunit(x))
 
         return {wds[MRXpath(x).item(wi).id()].find_workunit(x) for x in diffs}
-            
+
 
     def dependencies_state_to_wu(self, deps, worklist, byxpath):
         """Combine state dependencies with worklist to find work dependencies.

@@ -8,9 +8,9 @@ myfile = inspect.getfile(inspect.currentframe())
 mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
 os.environ['MACHINATION_BOOTSTRAP_DIR'] = mydir
 from machination import context
-from machination.workerdescription import WorkerDescription
+from machination.xmltools import WorkerDescription
 from machination.xmltools import MRXpath
-from machination.xmltools import status
+from machination.xmltools import Status
 
 class XMLTestCase(unittest.TestCase):
 
@@ -58,7 +58,7 @@ class Testinfo1Case(unittest.TestCase):
 
     def test_030_generate_wus(self):
         self.populate_actions(1)
-        start_st = status(self.start)
+        start_st = Status(self.start)
         working = copy.deepcopy(self.start)
         start_st.generate_wus(working, self.desired,self. actions, self.wdesc)
         

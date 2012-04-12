@@ -6,7 +6,7 @@
 
 import sys
 import itertools
-from machination import utils, statuscompare, workerdescription, fetcher, hierarchy, context
+from machination import utils, xmltools, fetcher, hierarchy, context
 import topsort
 from lxml import etree
 
@@ -83,7 +83,7 @@ def main(args):
 def spawn_work(parcels):
     """Take a work parcels dictionary and do the work"""
     for workername in parcels:
-        workerdesc = workerdescription.WorkerDescription(os.path.join(context.status_dir(), "workers", workername, "description.xml"))
+        workerdesc = xmltools.WorkerDescription(os.path.join(context.status_dir(), "workers", workername, "description.xml"))
 
         # if the worker is ordered:
         # get copy of worker's current status (working_status)

@@ -237,6 +237,15 @@ class MRXpath(object):
         else:
             return False
 
+    def reroot(self):
+        """root this xpath if it is not already rooted"""
+        if len(self.rep) > 0:
+            if self.rep[0][0] != '':
+                self.rep.insert(0,[''])
+        else:
+            self.rep = [['']]
+        return self
+
     def parent(self):
         """return MRXpath of parent element of rep or self.rep"""
         if len(self.rep) == 2: return None
@@ -654,9 +663,21 @@ class WorkerDescription:
         'wu': 'https://github.com/machination/ns/workunit',
         'info': 'https://github.com/machination/ns/info'}
 
-    def __init__(self, workername=None):
+    def __init__(self, workername, prefix = None):
         """WorkerDescription init
 
+        Args:
+
+          workername: the name of the worker. The description file
+            will be loaded from a standard location based on this
+            name. An etree Element may also be passed, in which case
+            the element will be used in place of the root of the
+            parsed description file. This is mostly useful for
+            debugging.
+
+          prefix(=None): the xpath prefix to worker elements. Used
+            when checking worker elements snipped from larger files
+            (like desired-status and current-status).
         """
 
         self.__clear()
@@ -678,36 +699,30 @@ class WorkerDescription:
             self.desc = workername
             self.workername = self.desc.xpath("/rng:element/rng:attribute[@name='id']/rng:value", namespaces=self.nsmap)[0].text
 
+        self.prefix = None
+        if prefix:
+            self.prefix = MRXpath(prefix)
+
     def __clear(self):
         """Clear all cache attributes"""
 
         self.desc = None
         self.workername = None
-        self.wucache = None
+#        self.wucache = None
 
-
+    # should provide the same answer every time...
+    @functools.lru_cache(maxsize=1)
     def workunits(self):
         """return a set of valid work unit xpaths
 
         namespace:     https://github.com/machination/ns/workunit
         common prefix: wu
 
-        side effects: maintains a cache of wu xpaths in the set
-        self.wucache. This cache is deleted when load() (or __clear())
-        is called.
-
         returns xpaths for all the elements in the worker description
         where the wu:wu attribute is set to '1' or which are direct
         children of the worker element.
         """
-
-        # self.wu exists: just return the keys
-        if self.wucache:
-            return self.wucache
-
-        # self.wu doesn't exist: construct it;
-        self.wucache = set()
-
+        wus = set()
         # add all 'element' elements which would be direct children of
         # the /worker element or where wu:wu=1
         for elt in self.desc.iter("{%s}element" % self.nsmap["rng"]):
@@ -716,18 +731,25 @@ class WorkerDescription:
             # len(path) == 3 comes from the fact that a direct child of
             # worker will end up with a path like ["","worker","Name"]
             if(len(path) == 3 or elt.get("{%s}wu" % self.nsmap["wu"]) == "1"):
-                self.wucache.add("/".join(path))
-        return self.wucache
+                wus.add("/".join(path))
+        return wus
 
+    @functools.lru_cache(maxsize=100)
     def get_description(self, xpath):
         """return the description element for xpath"""
-        # remove any ids from xpath
-        xpath = MRXpath(xpath).to_noid_path()
+        xpath = MRXpath(xpath)
+        if self.prefix:
+            # check that xpath actually begins with prefix
+            if self.prefix != xpath[:len(self.prefix)].reroot():
+                raise Exception("prefix is defined so " + str(xpath) + " should start with " + str(self.prefix))
+            # remove the prefix from xpath
+            xpath = xpath[len(self.prefix):].reroot()
         for el in self.desc.iter("{%s}element" % self.nsmap["rng"]):
-            if "/".join(self.describes_path(el)) == xpath:
+            if "/".join(self.describes_path(el)) == xpath.to_noid_path():
                 return el
         return None
 
+    @functools.lru_cache(maxsize=100)
     def is_workunit(self, xpath):
         """True if xpath is a valid workunit, False otherwise
 
@@ -746,7 +768,11 @@ class WorkerDescription:
         """
 
         if self.desc is not None:
-            return MRXpath(xpath).to_noid_path() in self.workunits()
+            desc = self.get_description(xpath)
+            if desc.get("{%s}wu" % self.nsmap["wu"]) == "1":
+                return True
+            else:
+                return False
         else:
             mrx = MRXpath(xpath)
             # xpath should be /worker/something
@@ -755,6 +781,7 @@ class WorkerDescription:
             else:
                 return False
 
+    @functools.lru_cache(maxsize=100)
     def is_ordered(self, xpath):
         """True if xpath preserves order, False otherwise
 

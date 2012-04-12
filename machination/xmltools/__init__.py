@@ -71,7 +71,7 @@ class MRXpath(object):
         if(mpath is not None):
             self.set_path(mpath)
 
-    def set_path(self, path, att = None):
+    def set_path(self, path, att = None, prefix = None):
         """Set representation based on ``path``
 
         calling options, elements::
@@ -170,10 +170,47 @@ class MRXpath(object):
 
     def clone_rep(self):
         """Return a clone of representation"""
-#        new = []
-#        for el in self.rep:
-#            new.append(el)
         return copy.deepcopy(self.rep)
+
+    def __repr__(self):
+        return self.to_xpath()
+
+    def __str__(self):
+        return self.to_xpath()
+
+    def __eq__(self, other):
+        return self.to_abbrev_xpath() == other.to_abbrev_xpath()
+    def __ne__(self, other):
+        return self.to_abbrev_xpath() != other.to_abbrev_xpath()
+
+    def __len__(self):
+        return self.length()
+
+    def __getitem__(self, key):
+        if self.is_rooted():
+            rep = self.rep[1:]
+        else:
+            rep = self.rep
+        if isinstance(key, int):
+            return MRXpath([rep[key]])
+        else:
+            return MRXpath(rep[key])
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            if self.is_rooted():
+                key += 1
+            del self.rep[key]
+        elif isinstance(key, slice):
+            if self.is_rooted():
+                key = slice(key.start + 1, key.stop +1, key.step)
+            del self.rep[key]
+            key = key.start
+        else:
+            raise Exception("don't understand key type " + str(type(key)))
+        for item in MRXpath(value).rep:
+            self.rep.insert(key, item)
+            key += 1
 
     def is_attribute(self, rep = None):
         """True if self represents an attribute, False otherwise"""

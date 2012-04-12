@@ -55,7 +55,7 @@ def main(args):
     
 
     # find work
-    xmlcmp = statuscompare.XMLCompare(dst_elt,cst_elt,workerdesc)
+    xmlcmp = xmltools.XMLCompare(dst_elt,cst_elt,workerdesc)
     xmlcmp.compare()
     xmlcmp.find_work()
     stdeps = dst_elt.xpath("/status/deps/dep")

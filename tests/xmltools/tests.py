@@ -15,47 +15,57 @@ from machination.xmltools import Status
 class MRXpathTestCase(unittest.TestCase):
 
     def test_constructor_strxpath(self):
-        mrx = MRXpath("/a/b/c[@id='/d/e[@id=\"1\"']")
-        self.assertEqual('/a/b/c[\'/d/e[@id="1"\']', mrx.to_abbrev_xpath())
+        mrx = MRXpath("/a/b/c[@id='/d/e[@id=\"1\"]']")
+        self.assertEqual('/a/b/c[\'/d/e[@id="1"]\']', mrx.to_abbrev_xpath())
 
     def test_constructor_strabbrevxpath(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
-        self.assertEqual("/a/b/c[@id='/d/e[@id=\"1\"']", mrx.to_xpath())
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
+        self.assertEqual("/a/b/c[@id='/d/e[@id=\"1\"]']", mrx.to_xpath())
 
     def test_constructor_list(self):
-        mrx = MRXpath([[''], ['a'], ['b'], ['c', '/d/e[@id="1"']])
-        self.assertEqual('/a/b/c[\'/d/e[@id="1"\']', mrx.to_abbrev_xpath())
+        mrx = MRXpath([[''], ['a'], ['b'], ['c', '/d/e[@id="1"]']])
+        self.assertEqual('/a/b/c[\'/d/e[@id="1"]\']', mrx.to_abbrev_xpath())
 
     def test_constructor_mrxpath(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
         mrx2 = MRXpath(mrx)
         self.assertEqual(mrx, mrx2)
 
     def test_sequence_getone(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
         self.assertEqual(str(mrx[0]),"a")
-        self.assertEqual(str(mrx[2]),'c[@id=\'/d/e[@id="1"\']')
+        self.assertEqual(str(mrx[2]),'c[@id=\'/d/e[@id="1"]\']')
 
     def test_sequence_getslice(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
         self.assertEqual(mrx[:2], MRXpath("/a/b"))
-        self.assertEqual(mrx[1:], MRXpath('b/c[@id=\'/d/e[@id="1"\']'))
+        self.assertEqual(mrx[1:], MRXpath('b/c[@id=\'/d/e[@id="1"]\']'))
         self.assertEqual(mrx[1:2].reroot(), MRXpath("/b"))
 
     def test_sequence_setslice(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
         mrx[0] = "splat"
         self.assertEqual(str(mrx[0]), "splat")
         mrx[:2] = "frog/mince[1]"
-        self.assertEqual(str(mrx), "/frog/mince[@id='1']/c[@id='/d/e[@id=\"1\"']")
+        self.assertEqual(str(mrx), "/frog/mince[@id='1']/c[@id='/d/e[@id=\"1\"]']")
 
     def test_tests(self):
-        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
         self.assertTrue(mrx.is_element())
         self.assertFalse(mrx.is_attribute())
+        self.assertTrue(mrx.is_rooted())
         mrx.append("@att")
         self.assertFalse(mrx.is_element())
         self.assertTrue(mrx.is_attribute())
+
+    def test_ancestors(self):
+        mrx = MRXpath("/a/b/c")
+        self.assertEqual(mrx.ancestors(), [MRXpath("/a/b"), MRXpath("/a")])
+
+    def test_name_id(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
+        self.assertEqual(mrx.name(), "c")
+        self.assertEqual(mrx.id(), '/d/e[@id="1"]')
 
 class WDTestCase(unittest.TestCase):
 

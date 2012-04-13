@@ -194,7 +194,10 @@ class MRXpath(object):
         if isinstance(key, int):
             return MRXpath([rep[key]])
         else:
-            return MRXpath(rep[key])
+            ret = MRXpath(rep[key])
+            if self.is_rooted() and not key.start:
+                ret.reroot()
+            return ret
 
     def __setitem__(self, key, value):
         if isinstance(key, int):
@@ -740,7 +743,7 @@ class WorkerDescription:
         xpath = MRXpath(xpath)
         if self.prefix:
             # check that xpath actually begins with prefix
-            if self.prefix != xpath[:len(self.prefix)].reroot():
+            if self.prefix != xpath[:len(self.prefix)]:
                 raise Exception("prefix is defined so " + str(xpath) + " should start with " + str(self.prefix))
             # remove the prefix from xpath
             xpath = xpath[len(self.prefix):].reroot()
@@ -800,7 +803,8 @@ class WorkerDescription:
         else:
             return False
 
-    def describes_path(self,element):
+    @functools.lru_cache(maxsize=100)
+    def describes_path(self, element):
         """Return path in the final document which 'element' describes
         """
 
@@ -817,6 +821,7 @@ class WorkerDescription:
         path.reverse()
         return path
 
+    @functools.lru_cache(maxsize=100)
     def find_workunit(self, xpath):
         """return nearest workunit: xpath or nearest wu ancestor."""
 

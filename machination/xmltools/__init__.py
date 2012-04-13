@@ -27,6 +27,7 @@ import os
 import errno
 import re
 import functools
+import pprint
 from machination import context
 
 class MRXpath(object):
@@ -177,6 +178,9 @@ class MRXpath(object):
 
     def __str__(self):
         return self.to_xpath()
+
+    def __hash__(self):
+        return str(self).__hash__()
 
     def __eq__(self, other):
         return self.to_abbrev_xpath() == other.to_abbrev_xpath()
@@ -329,7 +333,7 @@ class MRXpath(object):
 class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
-    def __init__(self, statin):
+    def __init__(self, statin, worker_prefix = None):
         if isinstance(statin, str):
             self.status = etree.fromstring(statin)
         elif isinstance(statin, etree._Element):
@@ -338,6 +342,19 @@ class Status(object):
             self.status = copy.deepcopy(statin.status)
         else:
             raise Exception("Don't know how to initialise from a " + type(statin))
+        self.wprefix = None
+        if worker_prefix is None:
+            self.wprefix = self.worker_prefix()
+        else:
+            self.wprefix = MRXpath(worker_prefix)
+
+    def worker_prefix(self):
+        """return self.worker_prefix or try to"""
+        if self.wprefix is None:
+            # divine from the last worker element we find
+            mrx = MRXpath(self.status.xpath("//worker")[-1])
+            self.wprefix = mrx.parent()
+        return self.wprefix
 
     def order_like(self, template):
         """order status elements like those in template"""
@@ -381,7 +398,8 @@ class Status(object):
 
         working = comp.leftxml
         template = comp.rightxml
-        wd = comp.wd
+        wds = comp.wds()
+        actions = comp.actions(comp.bystate['datadiff'])
         wus = []
 
         # removes
@@ -701,7 +719,7 @@ class WorkerDescription:
             # try to find the description file
             descfile = os.path.join(context.status_dir(), "workers", workername, "description.xml")
             try:
-                self.desc = etree.parse(workername).getroot()
+                self.desc = etree.parse(descfile).getroot()
             except IOError:
                 # carry on with defaults if descfile doesn't exist,
                 # but if it does...
@@ -781,6 +799,8 @@ class WorkerDescription:
           False otherwise
         """
 
+        xpath = MRXpath(xpath)
+
         if self.desc is not None:
             desc = self.get_description(xpath)
             if desc is not None and desc.get("{%s}wu" % self.nsmap["wu"]) == "1":
@@ -788,9 +808,9 @@ class WorkerDescription:
             else:
                 return False
         else:
-            mrx = MRXpath(xpath)
-            # xpath should be /worker/something
-            if mrx.length() == 2:
+            mrx = MRXpath(xpath)[len(self.prefix):].reroot()
+            # xpath should be /worker or /worker/something
+            if len(mrx) <= 2:
                 return True
             else:
                 return False
@@ -837,6 +857,7 @@ class WorkerDescription:
         """return nearest workunit: xpath or nearest wu ancestor."""
 
         mrx = MRXpath(xpath)
+
         if self.is_workunit(mrx):
             return mrx.to_xpath()
 
@@ -888,9 +909,10 @@ class XMLCompare(object):
         self.workcache = None
         self.compare()
 
-    def action_list(self, diffs):
-        """return list of (xpath, action) tuples"""
-        return [(xpath, self.diff_to_action[self.bystate[xpath]]) for xpath in self.find_work()]
+    def actions(self, diffs):
+        """return dictionary of sets action: xpaths"""
+#        return {xpath: self.diff_to_action[self.byxpath[xpath]] for xpath in self.find_work()}
+        return {self.diff_to_action[self.byxpath[x]]: {y for y in self.find_work() if self.diff_to_action[self.byxpath[x]] == self.diff_to_action[self.byxpath[y]]} for x in self.find_work()}
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -945,20 +967,19 @@ class XMLCompare(object):
           prefix: xpath prefix to parent of worker elements.
         """
 
+        diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
+
+        wi = len(MRXpath(prefix))
+
+        return {self.wds(prefix)[MRXpath(x)[wi].id()].find_workunit(x) for x in diffs}
+
+    def wds(self, prefix = "/status"):
+        """create a dictionary of WorkerDescriptions"""
+
         # find all the workers that are mentioned
         wnames = {w.get("id") for w in self.leftxml.xpath(prefix + "/worker")} | {w.get("id") for w in self.rightxml.xpath(prefix + "/worker")}
 
-        # create a dictionary of WorkerDescriptions
-        wds = {n: WorkerDescription(n, prefix) for n in wnames}
-
-        diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
-
-#        w = set()
-        wi = MRXpath(prefix).length() + 1
-#        for x in diffs:
-#            w.add(wds[MRXpath(x).item(wi).id()].find_workunit(x))
-
-        return {wds[MRXpath(x).item(wi).id()].find_workunit(x) for x in diffs}
+        return {n: WorkerDescription(n, prefix) for n in wnames}
 
 
     def dependencies_state_to_wu(self, deps, worklist, byxpath):

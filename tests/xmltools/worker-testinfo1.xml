@@ -40,6 +40,9 @@
         <item id="2">u-two</item>
       </unordered>
     </worker>
+    <worker id="test2">
+      <item id="splat">splot</item>
+    </worker>
   </status>
 </testinfo>
 

@@ -8,9 +8,10 @@ myfile = inspect.getfile(inspect.currentframe())
 mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
 os.environ['MACHINATION_BOOTSTRAP_DIR'] = mydir
 from machination import context
-from machination.xmltools import WorkerDescription
 from machination.xmltools import MRXpath
+from machination.xmltools import WorkerDescription
 from machination.xmltools import Status
+from machination.xmltools import XMLCompare
 
 class MRXpathTestCase(unittest.TestCase):
 
@@ -71,9 +72,8 @@ class WDTestCase(unittest.TestCase):
 
     def setUp(self):
         self.wdesired = context.desired_status.xpath("worker[@id='test']")[0]
-        self.wschema = etree.parse(os.path.join(mydir, "test-worker-description.xml"))
-        self.wdesc = WorkerDescription(self.wschema.getroot())
-        self.rng = etree.RelaxNG(self.wschema)
+        self.wdesc = WorkerDescription("test")
+        self.rng = etree.RelaxNG(self.wdesc.desc)
 
     def test_validate_wds(self):
         self.rng.assertValid(self.wdesired)
@@ -82,24 +82,52 @@ class WDTestCase(unittest.TestCase):
         self.assertEqual(self.wdesired.tag, "worker")
         self.assertEqual(self.wdesired.get("id"),"test")
 
+class XMLCompareTestCase(unittest.TestCase):
+    def setUp(self):
+        self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
+        self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
+        del self.start.attrib['id']
+        self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
+        del self.desired.attrib['id']
+        self.xmlc = XMLCompare(self.start, self.desired)
+
+    def test_constructor(self):
+        print()
+#        pprint.pprint(self.xmlc.byxpath)
+        self.assertIn("/status/worker[@id='test']/orderedItems/item[@id='2']", self.xmlc.bystate['right'])
+
+    def test_find_work(self):
+        work = self.xmlc.find_work()
+        print()
+        pprint.pprint(self.xmlc.actions(work))
+        self.assertIn('/status/worker[@id=\'test\']/iniFile' , work)
+        self.assertNotIn("/status/worker[@id='test']/orderedItems", work)
+
+        # quick memoization test
+        work2 = self.xmlc.find_work()
+        self.assertEqual(work, work2)
+
 class Testinfo1Case(unittest.TestCase):
 
     def setUp(self):
-        self.wschema = etree.parse(os.path.join(mydir, "test-worker-description.xml"))
-        self.wdesc = WorkerDescription(self.wschema.getroot())
-        self.rng = etree.RelaxNG(self.wschema)
+        self.wdesc = WorkerDescription('test')
+        self.rng = etree.RelaxNG(self.wdesc.desc)
         self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
-        self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']/worker")[0])
-        self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']/worker")[0])
         self.actions = {'add': set(), 'remove': set(), 'modify': set()}
+        self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
+        del self.start.attrib['id']
+        self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
+        del self.desired.attrib['id']
+        self.comp = XMLCompare(self.start, self.desired)
+
 
     def populate_actions(self, setid):
         for a in self.tinfo.xpath("actionsets[@id='%s']" % setid)[0]:
             self.actions[a.tag].add(MRXpath(a.get("id")).to_xpath())
 
     def test_010_statuses_valid(self):
-        self.rng.assertValid(self.start)
-        self.rng.assertValid(self.desired)
+        self.rng.assertValid(self.start.xpath("worker[@id='test']")[0])
+        self.rng.assertValid(self.desired.xpath("worker[@id='test']")[0])
 
     def test_020_wuwus_correct(self):
         self.assertFalse(self.wdesc.is_workunit("/worker"))
@@ -112,16 +140,18 @@ class Testinfo1Case(unittest.TestCase):
         self.assertTrue(self.wdesc.is_workunit("/worker/unordered/item"))
 
     def test_030_generate_wus(self):
-        self.populate_actions(1)
-        start_st = Status(self.start)
-        working = copy.deepcopy(self.start)
-        start_st.generate_wus(working, self.desired,self. actions, self.wdesc)
+#        self.populate_actions(1)
+        start_st = Status(self.start, worker_prefix='/status')
+        print()
+        print(start_st.worker_prefix())
+        start_st.generate_wus(self.comp)
 
 
 
 if __name__ == '__main__':
     mrxsuite = unittest.TestLoader().loadTestsFromTestCase(MRXpathTestCase)
+    xmlcomp_suite = unittest.TestLoader().loadTestsFromTestCase(XMLCompareTestCase)
     wdsuite = unittest.TestLoader().loadTestsFromTestCase(WDTestCase)
     testinfo1_suite = unittest.TestLoader().loadTestsFromTestCase(Testinfo1Case)
-    alltests = unittest.TestSuite([mrxsuite, wdsuite, testinfo1_suite])
+    alltests = unittest.TestSuite([mrxsuite, wdsuite, xmlcomp_suite, testinfo1_suite])
     unittest.TextTestRunner(verbosity=2).run(alltests)

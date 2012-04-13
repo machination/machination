@@ -206,7 +206,13 @@ class MRXpath(object):
             del self.rep[key]
         elif isinstance(key, slice):
             if self.is_rooted():
-                key = slice(key.start + 1, key.stop +1, key.step)
+                start = key.start
+                if start is None:
+                    start = 0
+                stop = key.stop
+                if stop is None:
+                    stop = len(self)
+                key = slice(start + 1, stop + 1, key.step)
             del self.rep[key]
             key = key.start
         else:
@@ -214,6 +220,13 @@ class MRXpath(object):
         for item in MRXpath(value).rep:
             self.rep.insert(key, item)
             key += 1
+
+    def append(self, val):
+        if self.is_attribute():
+            raise Exception("cannot append to an attribute")
+        val = MRXpath(val)
+        for i in val.rep:
+            self.rep.append(i)
 
     def is_attribute(self, rep = None):
         """True if self represents an attribute, False otherwise"""
@@ -250,11 +263,9 @@ class MRXpath(object):
         return self
 
     def parent(self):
-        """return MRXpath of parent element of rep or self.rep"""
+        """return MRXpath of parent element of rep or None"""
         if len(self.rep) == 2: return None
-        p = self.clone_rep()
-        p.pop()
-        return MRXpath(p)
+        return self[:len(self)-1]
 
     def ancestors(self):
         """return a list of ancestors as MRXpath objects (parent first)"""
@@ -772,7 +783,7 @@ class WorkerDescription:
 
         if self.desc is not None:
             desc = self.get_description(xpath)
-            if desc.get("{%s}wu" % self.nsmap["wu"]) == "1":
+            if desc is not None and desc.get("{%s}wu" % self.nsmap["wu"]) == "1":
                 return True
             else:
                 return False
@@ -928,7 +939,7 @@ class XMLCompare(object):
 
     @functools.lru_cache(maxsize=100)
     def find_work(self, prefix = "/status"):
-        """return a set of all wus for all workers
+        """return a set of all wus for all diff xpaths in all workers
 
         Args:
           prefix: xpath prefix to parent of worker elements.
@@ -938,7 +949,7 @@ class XMLCompare(object):
         wnames = {w.get("id") for w in self.leftxml.xpath(prefix + "/worker")} | {w.get("id") for w in self.rightxml.xpath(prefix + "/worker")}
 
         # create a dictionary of WorkerDescriptions
-        wds = {n: WorkerDescription(n) for n in wnames}
+        wds = {n: WorkerDescription(n, prefix) for n in wnames}
 
         diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
 

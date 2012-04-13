@@ -12,7 +12,52 @@ from machination.xmltools import WorkerDescription
 from machination.xmltools import MRXpath
 from machination.xmltools import Status
 
-class XMLTestCase(unittest.TestCase):
+class MRXpathTestCase(unittest.TestCase):
+
+    def test_constructor_strxpath(self):
+        mrx = MRXpath("/a/b/c[@id='/d/e[@id=\"1\"']")
+        self.assertEqual('/a/b/c[\'/d/e[@id="1"\']', mrx.to_abbrev_xpath())
+
+    def test_constructor_strabbrevxpath(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        self.assertEqual("/a/b/c[@id='/d/e[@id=\"1\"']", mrx.to_xpath())
+
+    def test_constructor_list(self):
+        mrx = MRXpath([[''], ['a'], ['b'], ['c', '/d/e[@id="1"']])
+        self.assertEqual('/a/b/c[\'/d/e[@id="1"\']', mrx.to_abbrev_xpath())
+
+    def test_constructor_mrxpath(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx2 = MRXpath(mrx)
+        self.assertEqual(mrx, mrx2)
+
+    def test_sequence_getone(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        self.assertEqual(str(mrx[0]),"a")
+        self.assertEqual(str(mrx[2]),'c[@id=\'/d/e[@id="1"\']')
+
+    def test_sequence_getslice(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        self.assertEqual(mrx[:2], MRXpath("/a/b"))
+        self.assertEqual(mrx[1:], MRXpath('b/c[@id=\'/d/e[@id="1"\']'))
+        self.assertEqual(mrx[1:2].reroot(), MRXpath("/b"))
+
+    def test_sequence_setslice(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        mrx[0] = "splat"
+        self.assertEqual(str(mrx[0]), "splat")
+        mrx[:2] = "frog/mince[1]"
+        self.assertEqual(str(mrx), "/frog/mince[@id='1']/c[@id='/d/e[@id=\"1\"']")
+
+    def test_tests(self):
+        mrx = MRXpath('/a/b/c[\'/d/e[@id="1"\']')
+        self.assertTrue(mrx.is_element())
+        self.assertFalse(mrx.is_attribute())
+        mrx.append("@att")
+        self.assertFalse(mrx.is_element())
+        self.assertTrue(mrx.is_attribute())
+
+class WDTestCase(unittest.TestCase):
 
     def setUp(self):
         self.wdesired = context.desired_status.xpath("worker[@id='test']")[0]
@@ -41,7 +86,7 @@ class Testinfo1Case(unittest.TestCase):
     def populate_actions(self, setid):
         for a in self.tinfo.xpath("actionsets[@id='%s']" % setid)[0]:
             self.actions[a.tag].add(MRXpath(a.get("id")).to_xpath())
-        
+
     def test_010_statuses_valid(self):
         self.rng.assertValid(self.start)
         self.rng.assertValid(self.desired)
@@ -61,11 +106,12 @@ class Testinfo1Case(unittest.TestCase):
         start_st = Status(self.start)
         working = copy.deepcopy(self.start)
         start_st.generate_wus(working, self.desired,self. actions, self.wdesc)
-        
+
 
 
 if __name__ == '__main__':
-    xmlsuite = unittest.TestLoader().loadTestsFromTestCase(XMLTestCase)
+    mrxsuite = unittest.TestLoader().loadTestsFromTestCase(MRXpathTestCase)
+    wdsuite = unittest.TestLoader().loadTestsFromTestCase(WDTestCase)
     testinfo1_suite = unittest.TestLoader().loadTestsFromTestCase(Testinfo1Case)
-    alltests = unittest.TestSuite([xmlsuite,testinfo1_suite])
+    alltests = unittest.TestSuite([mrxsuite, wdsuite, testinfo1_suite])
     unittest.TextTestRunner(verbosity=2).run(alltests)

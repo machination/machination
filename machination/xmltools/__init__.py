@@ -308,7 +308,7 @@ class MRXpath(object):
         if self.is_attribute():
             raise Exception("an attribute may not have an id")
         if self.is_element():
-            if len(self.rep[-1]) > 0:
+            if len(self.rep[-1]) > 1:
                 return self.rep[-1][1]
             else:
                 return None
@@ -329,6 +329,17 @@ class MRXpath(object):
     def to_xpath_list(self):
         """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
+
+    def strip_prefix(self, prefix):
+        prefix = MRXpath(prefix)
+        return self[len(prefix):].reroot()
+
+    def workername(self, prefix = None):
+        """return worker name for an xpath with prefix before worker element"""
+        xpath = self
+        if prefix is not None:
+            xpath = self.strip_prefix(prefix)
+        return xpath[0].id()
 
 class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
@@ -404,17 +415,40 @@ class Status(object):
 
         # removes
         for rx in actions["remove"]:
+            rx = MRXpath(rx)
+            wd = wds[rx.workername("/status")]
             # every action should be a valid work unit
             if not wd.is_workunit(rx):
                 raise Exception("found a remove action that is not " +
-                                "a valid workunit: " + rx)
-            for e in working.xpath(rx):
+                                " a valid workunit: " + rx)
+            for e in working.xpath(rx.to_xpath()):
                 e.getparent().remove(e)
             # <wu op="remove" id="rx"/>
-            wus.append(E.wu(op="remove", id=rx))
+            wus.append(E.wu(op="remove", id=rx.to_xpath()))
 
         # modifies
+        # iterate through template sub elements and cf. working:
+        #  - descendant of a wu which is also a descendant of mx
+        #    = ignore, a more sepcific work unit is in charge of mx
+        #  - attribute in both
+        #    = set value of att in of working to template
+        #  - attribute in template only
+        #    = add to working
+        #  - attribute in working only
+        #    = remove from working
+        #  - element in both, text only
+        #    = set working text to template
+        #  - element in both, subelements
+        #    = scan attribs as above, then continue to next iteration
+        #  - element in template only
+        #    = add full element from template to working
+        # above loop can't detect elements in working only, so...
+        # iterate through working subelements:
+        #  - element in working only
+        #    = remove element from working
         for mx in actions["modify"]:
+            mx = MRXpath(mx)
+            wd = wds[mx.workername("/status")]
             # every action should be a valid work unit
             if not wd.is_workunit(mx):
                 raise Exception("found a modify action that is not " +
@@ -422,12 +456,12 @@ class Status(object):
             # alter the working XML
             # find the element to modify
             try:
-                e = working.xpath(mx)[0]
-                te = template.xpath(mx)[0]
+                e = working.xpath(mx.to_xpath())[0]
+                te = template.xpath(mx.to_xpath())[0]
             except IndexError:
-                # no results
+                 # no results
                 raise Exception("could not find %s in working or template " %
-                                mx)
+                                mx.to_abbrev_xpath())
 
             first = True
             for se in e.iter():

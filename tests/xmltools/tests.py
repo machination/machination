@@ -68,6 +68,12 @@ class MRXpathTestCase(unittest.TestCase):
         self.assertEqual(mrx.name(), "c")
         self.assertEqual(mrx.id(), '/d/e[@id="1"]')
 
+    def test_prefix(self):
+        mrx = MRXpath('/status/worker[test]/splat/frog')
+        self.assertEqual(mrx.strip_prefix('/status'), MRXpath('/worker[test]/splat/frog'))
+        self.assertEqual(mrx.workername('/status'), 'test')
+
+
 class WDTestCase(unittest.TestCase):
 
     def setUp(self):

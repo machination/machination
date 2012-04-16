@@ -1,0 +1,13 @@
+Make sure the python script is in the appropriate 'final' location on the system.
+
+To install this service, run:
+
+'python.exe machination-service.py install'
+
+next run:
+
+net start machination-service
+
+To remove the service, run:
+
+'python.exe machination-service.py remove'

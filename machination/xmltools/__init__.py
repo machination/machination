@@ -939,13 +939,15 @@ class XMLCompare(object):
         self.bystate = {'left': set(),
                         'right': set(),
                         'datadiff': set(),
-                        'childdiff': set()}
+                        'childdiff': set(),
+                        'orderdiff': set()}
         self.byxpath = {}
         self.diff_to_action = {
             'left': 'remove',
             'right': 'add',
             'datadiff': 'datamod',
-            'childdiff': 'deepmod'
+            'childdiff': 'deepmod',
+            'orderdiff': 'reorder'
             }
         self.workcache = None
         self.compare()
@@ -954,7 +956,7 @@ class XMLCompare(object):
         """return dictionary of sets action: xpaths"""
 #        return {xpath: self.diff_to_action[self.byxpath[xpath]] for xpath in self.find_work()}
 #        return {self.diff_to_action[self.byxpath[x]]: {y for y in self.find_work() if self.diff_to_action[self.byxpath[x]] == self.diff_to_action[self.byxpath[y]]} for x in self.find_work()}
-        return {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff']}
+        return {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff', 'orderdiff']}
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -986,7 +988,8 @@ class XMLCompare(object):
             self._set_childdiff(MRXpath(xpath).parent())
 
         self.find_diffs(self.leftset.intersection(self.rightset))
-#        self.worklist = self.find_work(self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right'])
+
+        self.order_diff()
 
     def find_diffs(self, xpathlist):
         """Find differing values in the intersection set"""
@@ -1024,7 +1027,17 @@ class XMLCompare(object):
             right_elt = self.rightxml.xpath(xp)[0]
             # it's enough to check direct children, deeper into the tree
             # will be checked by other xpaths
-
+            i = 0
+            for lchild in left_elt.iterchildren():
+                rchild = right_elt[i]
+                if (lchild.tag != rchild.tag or
+                    ("id" in lchild.keys() and
+                     lchild.get("id") != rchild.get("id"))):
+                    self.byxpath[xp] = 'orderdiff'
+                    self.bystate['orderdiff'].add(xp)
+                    self._set_childdiff(MRXpath(xp))
+                    break
+                i += 1
 
     def _set_childdiff(self, mrx):
         """set the state of mrx.to_xpath() to 'childdiff'
@@ -1040,7 +1053,7 @@ class XMLCompare(object):
         self.bystate['childdiff'].add(mrx.to_xpath())
         self.byxpath[mrx.to_xpath()] = 'childdiff'
         p = mrx.parent()
-        if p and self.byxpath[p.to_xpath()] != 'childdiff':
+        if p and p.to_xpath() not in self.bystate['childdiff']:
             self._set_childdiff(p)
 
     @functools.lru_cache(maxsize=100)
@@ -1051,7 +1064,7 @@ class XMLCompare(object):
           prefix: xpath prefix to parent of worker elements.
         """
 
-        diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right']
+        diffs = self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right'] | self.bystate['orderdiff']
 
         wi = len(MRXpath(prefix))
 

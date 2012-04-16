@@ -70,7 +70,7 @@ class MRXpath(object):
     def __init__(self, mpath=None, att=None):
         self.rep = []
         if(mpath is not None):
-            self.set_path(mpath)
+            self.set_path(mpath, att)
 
     def set_path(self, path, att = None, prefix = None):
         """Set representation based on ``path``
@@ -378,7 +378,7 @@ class Status(object):
                 raise Exception("The MRXpath 'mrx' must reference only one element")
             elt = elts[0]
 
-    def generate_wus(self, comp, orderstyle="move"):
+    def generate_wus(self, todo, comp, orderstyle="move"):
         """Return a list of workunits from actions guided by template.
 
         Args:
@@ -393,6 +393,7 @@ class Status(object):
                 ordered workers it should have the resulting elements
                 in the desired order. Usually the appropriate element
                 from final desired_status.
+          todo: set of workunit xpaths to do in this pass.
           orderstyle: control what kind of ordering wus are generated:
             move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
             removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
@@ -407,24 +408,30 @@ class Status(object):
           the current independent work set.
         """
 
-        working = comp.leftxml
+        working = copy.deepcopy(comp.leftxml)
         template = comp.rightxml
         wds = comp.wds()
-        actions = comp.actions(comp.bystate['datadiff'])
+#        actions = comp.actions(comp.bystate['datadiff'])
+        actions = {'remove': todo & comp.bystate['left'],
+                   'add': todo & comp.bystate['right'],
+                   'datamod': todo & comp.bystate['datadiff'],
+                   'deepmod': todo & comp.bystate['childdiff']}
         wus = []
 
         # removes
-        for rx in actions["remove"]:
+        for rx in actions['remove']:
             rx = MRXpath(rx)
             wd = wds[rx.workername("/status")]
-            # every action should be a valid work unit
+            # todo should always be workunits
             if not wd.is_workunit(rx):
-                raise Exception("found a remove action that is not " +
-                                " a valid workunit: " + rx)
+                raise Exception('Trying to remove %s, which is not a work unit'
+                                % rx.to_xpath())
             for e in working.xpath(rx.to_xpath()):
                 e.getparent().remove(e)
             # <wu op="remove" id="rx"/>
             wus.append(E.wu(op="remove", id=rx.to_xpath()))
+
+        # data only modified
 
         # modifies
         # iterate through template sub elements and cf. working:
@@ -446,13 +453,13 @@ class Status(object):
         # iterate through working subelements:
         #  - element in working only
         #    = remove element from working
-        for mx in actions["modify"]:
+        for mx in comp.bystate['datadiff'] | comp.bystate['childdiff']:
             mx = MRXpath(mx)
             wd = wds[mx.workername("/status")]
             # every action should be a valid work unit
             if not wd.is_workunit(mx):
-                raise Exception("found a modify action that is not " +
-                                "a valid workunit: " + mx)
+                raise Exception('Trying to remove %s, which is not a work unit'
+                                % mx.to_xpath())
             # alter the working XML
             # find the element to modify
             try:
@@ -937,32 +944,46 @@ class XMLCompare(object):
         self.diff_to_action = {
             'left': 'remove',
             'right': 'add',
-            'datadiff': 'modify',
-            'childdiff': 'modify'
+            'datadiff': 'datamod',
+            'childdiff': 'deepmod'
             }
         self.workcache = None
         self.compare()
 
-    def actions(self, diffs):
+    def actions(self):
         """return dictionary of sets action: xpaths"""
 #        return {xpath: self.diff_to_action[self.byxpath[xpath]] for xpath in self.find_work()}
-        return {self.diff_to_action[self.byxpath[x]]: {y for y in self.find_work() if self.diff_to_action[self.byxpath[x]] == self.diff_to_action[self.byxpath[y]]} for x in self.find_work()}
+#        return {self.diff_to_action[self.byxpath[x]]: {y for y in self.find_work() if self.diff_to_action[self.byxpath[x]] == self.diff_to_action[self.byxpath[y]]} for x in self.find_work()}
+        return {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff']}
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
 
         for elt in self.leftxml.iter():
             self.leftset.add(MRXpath(elt).to_xpath())
+            for att in elt.keys():
+                if att == "id":
+                    continue
+                self.leftset.add(MRXpath(elt,att=att).to_xpath())
         for elt in self.rightxml.iter():
             self.rightset.add(MRXpath(elt).to_xpath())
+            for att in elt.keys():
+                if att == "id":
+                    continue
+                self.rightset.add(MRXpath(elt,att=att).to_xpath())
+
+#        self.leftset = {MRXpath(elt).to_xpath() for elt in self.leftxml.iter()}
+#        self.rightset = {MRXpath(elt).to_xpath() for elt in self.rightxml.iter()}
 
         for xpath in self.leftset.difference(self.rightset):
             self.bystate['left'].add(xpath)
             self.byxpath[xpath] = 'left'
+            self._set_childdiff(MRXpath(xpath).parent())
 
         for xpath in self.rightset.difference(self.leftset):
             self.bystate['right'].add(xpath)
             self.byxpath[xpath] = 'right'
+            self._set_childdiff(MRXpath(xpath).parent())
 
         self.find_diffs(self.leftset.intersection(self.rightset))
 #        self.worklist = self.find_work(self.bystate['datadiff'] | self.bystate['left'] | self.bystate['right'])
@@ -979,6 +1000,7 @@ class XMLCompare(object):
             lval = ""
             rval = ""
 
+            # check data difference
             try:
                 lval = l[0].text
                 rval = r[0].text
@@ -989,9 +1011,37 @@ class XMLCompare(object):
             if lval != rval:
                 self.bystate['datadiff'].add(xpath)
                 self.byxpath[xpath] = 'datadiff'
-                for a in MRXpath(xpath).ancestors():
-                    self.bystate['childdiff'].add(a.to_xpath())
-                    self.byxpath[a.to_xpath()] = 'childdiff'
+#                for a in MRXpath(xpath).ancestors():
+#                    self.bystate['childdiff'].add(a.to_xpath())
+#                    self.byxpath[a.to_xpath()] = 'childdiff'
+                self._set_childdiff(MRXpath(xpath))
+
+    def order_diff(self):
+        # check child order for all xpaths that so far look the same
+        for xp in (self.leftset | self.rightset) - (self.bystate['left'] | self.bystate['right'] | self.bystate['datadiff'] | self.bystate['childdiff']):
+            # xp guaranteed(?) to exist in both by construction
+            left_elt = self.leftxml.xpath(xp)[0]
+            right_elt = self.rightxml.xpath(xp)[0]
+            # it's enough to check direct children, deeper into the tree
+            # will be checked by other xpaths
+
+
+    def _set_childdiff(self, mrx):
+        """set the state of mrx.to_xpath() to 'childdiff'
+
+        Will set all ancestors to 'childdiff' if necessary
+        """
+        # the following is so that we can call _set_childdiff(x.parent())
+        # and not worry
+        if mrx is None:
+            return
+
+        # Now get on and do the real work
+        self.bystate['childdiff'].add(mrx.to_xpath())
+        self.byxpath[mrx.to_xpath()] = 'childdiff'
+        p = mrx.parent()
+        if p and self.byxpath[p.to_xpath()] != 'childdiff':
+            self._set_childdiff(p)
 
     @functools.lru_cache(maxsize=100)
     def find_work(self, prefix = "/status"):

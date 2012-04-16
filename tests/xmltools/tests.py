@@ -105,13 +105,17 @@ class XMLCompareTestCase(unittest.TestCase):
     def test_find_work(self):
         work = self.xmlc.find_work()
         print()
-        pprint.pprint(self.xmlc.actions(work))
+        pprint.pprint(self.xmlc.actions())
         self.assertIn('/status/worker[@id=\'test\']/iniFile' , work)
         self.assertNotIn("/status/worker[@id='test']/orderedItems", work)
 
         # quick memoization test
         work2 = self.xmlc.find_work()
         self.assertEqual(work, work2)
+
+    def test_actions(self):
+        print()
+        pprint.pprint(self.xmlc.actions())
 
 class Testinfo1Case(unittest.TestCase):
 

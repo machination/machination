@@ -10,12 +10,21 @@
     <value>test</value>
   </attribute>
   <interleave>
-    
+
     <element name="orderedItems" info:ordered="1">
       <oneOrMore>
 
         <element name="item" wu:wu="1">
           <attribute name="id"/>
+          <zeroOrMore>
+            <attribute name="modatt"/>
+          </zeroOrMore>
+          <zeroOrMore>
+            <attribute name="rematt"/>
+          </zeroOrMore>
+          <zeroOrMore>
+            <attribute name="addatt"/>
+          </zeroOrMore>
           <text/>
         </element>
       </oneOrMore>
@@ -28,7 +37,16 @@
         <element name="section">
           <attribute name="id"/>
           <zeroOrMore>
-            
+            <attribute name="modatt"/>
+          </zeroOrMore>
+          <zeroOrMore>
+            <attribute name="rematt"/>
+          </zeroOrMore>
+          <zeroOrMore>
+            <attribute name="addatt"/>
+          </zeroOrMore>
+          <zeroOrMore>
+
             <element name="keyvalue">
               <attribute name="id"/>
               <text/>
@@ -38,7 +56,7 @@
       </oneOrMore>
     </element>
 
-    <element name="unordered" info:ordered="0">
+    <element name="unordered" wu:wu="1" info:ordered="0">
 
       <oneOrMore>
 

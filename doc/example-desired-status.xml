@@ -2,7 +2,6 @@
 
   <directories status_dir="/var/lib/machination2"
                cache_dir="/var/cache/machination"
-               
                />
 
   <!-- A machination 2 client can attach to more than one service -->
@@ -49,7 +48,7 @@
   </logging>
 
   <!-- The daemon or service listening for 'kick' packets-->
-  <daemon port="1313" sleeptime="4000"/>
+  <daemon port="1313" address="" sleeptime="10"/>
 
   <!-- platforms supported by the client code installed here -->
   <platforms>
@@ -108,7 +107,7 @@
         <!-- There might be different pruning strategies... -->
         <pruningStrategy>fifo</pruningStrategy>
       </cache>
-      
+
       <sources>
         <!-- The fetcher should try these sources in the order listed,
              like a path-->

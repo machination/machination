@@ -2,7 +2,6 @@ import win32serviceutil
 import win32service
 import win32event
 import win32file
-import time
 import socket
 
 
@@ -23,26 +22,30 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.stop_event)
 
     def SvcDoRun(self):
-        # Establish a socket listening for 'kicks'
-        self.kick_socket()
 
+        eventlist = [self.stop_event]
+        timeout = 0
         while True:
-            # Block, waiting for stop event or daemon kick
-            event = win32event.WaitForMultipleObjects(
-                [self.kick_event, self.stop_event],
-                0,
-                win32event.INFINITE)
+            # Block, waiting for events to fire
+            event = win32event.WaitForMultipleObjects(eventlist,
+                                                      0,
+                                                      timeout)
 
-            if event == win32event.WAIT_OBJECT_0:
-                self.sock.shutdown(2)
+            if event == win32event.WAIT_TIMEOUT:
+                #timeout has expired - handle kicks again
+                self.kick_socket()
+                eventlist = [self.stop_event, self.kick_event]
+                timeout = win32event.INFINITE
+            elif event == 0:
+                #stop the service
+                break
+            elif event == 1:
+                #kick received - close socket to prevent DOS
                 self.sock.close()
+                eventlist = [self.stop_event]
+                timeout = 10000
+                #Launch the update process
                 self.launch_update()
-
-                # Keep the socket closed for 60 secs to prevent DOS
-                time.sleep(60)
-                self.start_service()
-            elif event == win32event.WAIT_OBJECT_1:
-                self.SvcStop()
 
     def kick_socket(self):
         """Open a socket waiting for 'kicks' to launch update."""
@@ -57,10 +60,8 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         self.sock.listen(0)
 
     def launch_update(self):
-        """Code that calls the update command goes here."""
-
-        with open("c:\\workspace\\kick.txt", 'w') as f:
-            f.write('kick')
+        """Launch the Machination update code."""
+        pass
 
 
 if __name__ == '__main__':

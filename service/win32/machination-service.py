@@ -19,20 +19,12 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         self.kick_event = win32event.CreateEvent(None, 0, 0, None)
 
     def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-
         # Trigger a stop event
         win32event.SetEvent(self.stop_event)
 
-        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
-
     def SvcDoRun(self):
-        self.ReportServiceStatus(win32service.SERVICE_START_PENDING)
-
         # Establish a socket listening for 'kicks'
         self.kick_socket()
-
-        self.ReportServiceStatus(win32service.SERVICE_RUNNING)
 
         while True:
             # Block, waiting for stop event or daemon kick
@@ -42,6 +34,7 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
                 win32event.INFINITE)
 
             if event == win32event.WAIT_OBJECT_0:
+                self.sock.shutdown(2)
                 self.sock.close()
                 self.launch_update()
 
@@ -59,7 +52,7 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         win32file.WSAEventSelect(self.sock.fileno(),
                                  self.kick_event,
                                  win32file.FD_ACCEPT)
-        self.sock.bind(("127.0.0.1", 1313))
+        self.sock.bind(('', 1313))
         self.sock.setblocking(0)
         self.sock.listen(0)
 

@@ -1,13 +1,11 @@
-Make sure the python script is in the appropriate 'final' location on the system.
+The following steps should only be run against this module when it is in its 'final location' after install as the path to the module will be cached in the service framework in Windows.
 
-To install this service, run:
+The service must be installed (once) before it can be started:
+'python.exe machination-service.py install [--interactive]'
 
-'python.exe machination-service.py install'
+The module will also accept the following arguments instead of install:
 
-next run:
+start|stop|restart|remove
 
-net start machination-service
+The service can also be started with the traditional 'net start' command.
 
-To remove the service, run:
-
-'python.exe machination-service.py remove'

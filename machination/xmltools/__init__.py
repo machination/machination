@@ -453,7 +453,8 @@ class Status(object):
         # modifies
         # iterate through template sub elements and cf. working:
         #  - descendant of a wu which is also a descendant of mx
-        #    = ignore, a more sepcific work unit is in charge of mx
+        #    = remove from working, a more sepcific work unit is
+        #      in charge of mx
         #  - attribute in both
         #    = set value of att in of working to template
         #  - attribute in template only
@@ -488,30 +489,61 @@ class Status(object):
                 raise Exception("could not find %s in working or template " %
                                 mx.to_abbrev_xpath())
 
-            first = True
             for se in e.iter():
+                se_mrx = MRXpath(se)
+                if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
+                    # se must have a more specific workunit than mx,
+                    # remove from working - another workunit is in charge
+                    se.getparent().remove(se)
+                    continue
+
                 # find equivalent element from template.
                 try:
-                    ste = template.xpath(MRXpath(se).to_xpath())[0]
+                    ste = template.xpath(se_mrx.to_xpath())[0]
                 except IndexError:
-                    # xpath doesn't exist in template, must be a remove
-                    # somewhere in the future
+                    # xpath doesn't exist in template, remove
+                    se.getparent.remove(se)
                     continue
+
                 # change any different attributes
-                for se_att in se.keys():
-                    if se_att not in ste.keys():
-                        del se.attrib[se_att]
+                for k in se.keys():
+                    if k in ste.keys():
+                        se.set(k, ste.get(k))
                     else:
-                        se.set(se_att, ste.get(se_att))
+                        del se.attrib[k]
+                for k in ste.keys():
+                    if k not in se.keys():
+                        se.set(k, ste.get(k))
+
                 # change any different text
                 se.text = ste.text
-                if first:
-                    # the first element will be e itself
-                    first = False
+
+                if se_mrx.to_xpath() in self.bystate['orderdiff']:
+                    # sub element in wrong order - change
+                    prevwe = self.prev_in_both(working, template, se_mrx)
+                    parent = se.getparent()
+                    parent.remove(se)
+                    parent.insert(parent.index(prevwe) + 1, se)
+
+            # check for elements in template but not working
+            for ste in te.iter:
+                try:
+                    se = working.xpath(MRXpath(ste).to_xpath())[0]
+                except IndexError:
+                    # ste doesn't exist in working, need to add
+                    add = copy.deepcopy(ste)
+                    # find the first previous xpath that also exists in working
+                    prevwe = self.prev_in_both(working,template,MRXpath(add))
+                    # strip out any sub work units
+                    for aelt in add.iterdescendants():
+                        if wd.find_workunit(MRXpath(aelt)) != wd.find_workunit(mx):
+                            aelt.getparent().remove(aelt)
+                    # add to working
+                    wep = prevwe.getparent()
+                    wep.insert(wep.index(prevwe) + 1, add)
+                else:
                     continue
-                if wd.is_workunit(MRXpath(se).to_noid_path()):
-                    # is a workunit: remove
-                    se.getparent().remove(se)
+
             # generate a wu
             wus.append(
                 E.wu(e, op="modify", id=mx)
@@ -611,6 +643,16 @@ class Status(object):
 
         # these are the droids you are looking for...
         return wus
+
+    def prev_in_both(self, working, template, xp):
+        xp = MRXpath(xp)
+        prevte = template.xpath(xp.to_xpath())[0].getprevious()
+        while prevte is not None:
+            prevwes = working.xpath(MRXpath(prevte))
+            if prevwes:
+                return prevwes[0]
+            prevte = prevte.getprevious()
+        return None
 
     def find_temp_desired(self, wus, template):
         working = Status(self)

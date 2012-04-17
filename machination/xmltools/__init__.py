@@ -67,12 +67,10 @@ class MRXpath(object):
             (r"\w*", token_name),
             ])
 
-    def __init__(self, mpath=None, att=None):
-        self.rep = []
-        if(mpath is not None):
-            self.set_path(mpath, att)
+    def __init__(self, path=None, att=None):
+        self.set_path(path, att)
 
-    def set_path(self, path, att = None, prefix = None):
+    def set_path(self, path, att = None):
         """Set representation based on ``path``
 
         calling options, elements::
@@ -83,8 +81,13 @@ class MRXpath(object):
 
         attributes::
           set_path("/path/to/@attribute")
-          set_path(etree_element,"attribute_name")
+          set_path(etree_element,att="attribute_name")
         """
+        self._clear_cache()
+        if path is None:
+            self.rep = []
+            return
+
         if isinstance(path, list):
             self.rep = copy.deepcopy(path)
         elif isinstance(path, MRXpath):
@@ -92,7 +95,7 @@ class MRXpath(object):
             self.rep = path.clone_rep()
         elif isinstance(path, str):
             # a string, break it up and store the pieces
-            rep = []
+            self.rep = []
             tokens, remainder = MRXpath.scanner.scan(path)
             if tokens[0][0] == "SEP":
                 # rooted xpath, need an empty name to start
@@ -101,12 +104,11 @@ class MRXpath(object):
                 working = []
             for token in tokens:
                 if token[0] == "SEP":
-                    rep.append(self.tokens_to_rep(working,rep))
+                    self.rep.append(self.tokens_to_rep(working))
                     working = []
                 else:
                     working.append(token)
-            rep.append(self.tokens_to_rep(working,rep))
-            self.rep = rep
+            self.rep.append(self.tokens_to_rep(working))
         elif isinstance(path, etree._Element):
             # an etree element, follow parents to root
             elt = path
@@ -126,8 +128,8 @@ class MRXpath(object):
             self.rep = path
 
     # TODO: this parser is fragile and doesn't give sensible error messages
-    def tokens_to_rep(self, tokens, rep = None):
-        if rep and self.is_attribute(rep):
+    def tokens_to_rep(self, tokens):
+        if self.rep and self.is_attribute():
             raise Exception("cannot add more to an attribute xpath")
         if tokens[0][0] == "NAME":
             name = tokens[0][1]
@@ -173,6 +175,10 @@ class MRXpath(object):
         """Return a clone of representation"""
         return copy.deepcopy(self.rep)
 
+    def _clear_cache(self):
+        """Clear any accumulated caches. Called when representation changes."""
+        self.xp_cache = None
+
     def __repr__(self):
         return self.to_xpath()
 
@@ -183,9 +189,9 @@ class MRXpath(object):
         return str(self).__hash__()
 
     def __eq__(self, other):
-        return self.to_abbrev_xpath() == other.to_abbrev_xpath()
+        return self.to_xpath() == other.to_xpath()
     def __ne__(self, other):
-        return self.to_abbrev_xpath() != other.to_abbrev_xpath()
+        return self.to_xpath() != other.to_xpath()
 
     def __len__(self):
         return self.length()
@@ -204,6 +210,7 @@ class MRXpath(object):
             return ret
 
     def __setitem__(self, key, value):
+        self._clear_cache()
         if isinstance(key, int):
             if self.is_rooted():
                 key += 1
@@ -228,11 +235,12 @@ class MRXpath(object):
     def append(self, val):
         if self.is_attribute():
             raise Exception("cannot append to an attribute")
+        self._clear_cache()
         val = MRXpath(val)
         for i in val.rep:
             self.rep.append(i)
 
-    def is_attribute(self, rep = None):
+    def is_attribute(self):
         """True if self represents an attribute, False otherwise"""
         if self.is_rooted() and len(self.rep) < 2:
             # Not anything (first item in rep is always [''])
@@ -259,6 +267,7 @@ class MRXpath(object):
 
     def reroot(self):
         """root this xpath if it is not already rooted"""
+        self._clear_cache()
         if len(self.rep) > 0:
             if self.rep[0][0] != '':
                 self.rep.insert(0,[''])
@@ -316,16 +325,23 @@ class MRXpath(object):
 
     def to_xpath(self):
         """return xpath string"""
-        return "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
+        if self.xp_cache is None:
+            self.xp_cache = "/".join([ "%s[@id='%s']" % (e[0],e[1])
+                                       if len(e)==2 else e[0]
+                                       for e in self.rep])
+        return self.xp_cache
 
+    @functools.lru_cache(maxsize = None)
     def to_abbrev_xpath(self):
         """return Machination abbreviated xpath string"""
         return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
 
+    @functools.lru_cache(maxsize = None)
     def to_noid_path(self):
         """return xpath with no ids"""
         return "/".join([e[0] for e in self.rep])
 
+    @functools.lru_cache(maxsize = None)
     def to_xpath_list(self):
         """return list of xpath path elements"""
         return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
@@ -975,20 +991,28 @@ class XMLCompare(object):
                     continue
                 self.rightset.add(MRXpath(elt,att=att).to_xpath())
 
+        self.universalset = self.leftset | self.rightset
+
 #        self.leftset = {MRXpath(elt).to_xpath() for elt in self.leftxml.iter()}
 #        self.rightset = {MRXpath(elt).to_xpath() for elt in self.rightxml.iter()}
 
         for xpath in self.leftset.difference(self.rightset):
             self.bystate['left'].add(xpath)
             self.byxpath[xpath] = 'left'
-            self._set_childdiff(MRXpath(xpath).parent())
 
         for xpath in self.rightset.difference(self.leftset):
             self.bystate['right'].add(xpath)
             self.byxpath[xpath] = 'right'
-            self._set_childdiff(MRXpath(xpath).parent())
 
-        self.find_diffs(self.leftset.intersection(self.rightset))
+        self.onesideset = self.bystate['left'] | self.bystate['right']
+        self.bothsidesset = self.universalset - self.onesideset
+
+        for xp in self.onesideset:
+            p = MRXpath(xp).parent()
+            if p.to_xpath() in self.bothsidesset:
+                self._set_childdiff(p)
+
+        self.find_diffs(self.leftset & self.rightset)
 
         self.order_diff()
 
@@ -1022,23 +1046,27 @@ class XMLCompare(object):
 
     def order_diff(self):
         # check child order for all xpaths that so far look the same
-        for xp in (self.leftset | self.rightset) - (self.bystate['left'] | self.bystate['right'] | self.bystate['datadiff'] | self.bystate['childdiff']):
+        for xp in self.universalset - (self.bystate['left'] | self.bystate['right'] | self.bystate['datadiff'] | self.bystate['childdiff']):
             # xp guaranteed(?) to exist in both by construction
             left_elt = self.leftxml.xpath(xp)[0]
             right_elt = self.rightxml.xpath(xp)[0]
             # it's enough to check direct children, deeper into the tree
             # will be checked by other xpaths
-            i = 0
-            for lchild in left_elt.iterchildren():
-                rchild = right_elt[i]
-                if (lchild.tag != rchild.tag or
-                    ("id" in lchild.keys() and
-                     lchild.get("id") != rchild.get("id"))):
-                    self.byxpath[xp] = 'orderdiff'
-                    self.bystate['orderdiff'].add(xp)
-                    self._set_childdiff(MRXpath(xp.parent()))
-                    break
-                i += 1
+
+            # A child is defined to have been reordered if it comes after
+            # a different sibling in right cf. left
+            for rc in right_elt.iterchildren():
+                rcx = MRXpath(rc)
+                lc = self.leftxml.xpath(rcx.to_xpath())[0]
+                rcp = rc.getprevious()
+                lcp = lc.getprevious()
+                # MRXpath objects can still be instantiated and compared
+                # even if argument is None, so we don't need to worry about
+                # the case where rcp and/or lcp are the first children
+                if MRXpath(lcp) != MRXpath(rcp):
+                    self.byxpath[rcx.to_xpath()] = 'orderdiff'
+                    self.bystate['orderdiff'].add(rcx.to_xpath())
+                    self._set_childdiff(MRXpath(xp))
 
     def _set_childdiff(self, mrx):
         """set the state of mrx.to_xpath() to 'childdiff'

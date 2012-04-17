@@ -69,7 +69,7 @@ def python_lib_dir():
 def _get_dir(name):
     dirname = name + "_dir"
     envname = "MACHINATION_" + dirname.upper()
-    
+
     # try the environment
     if envname in os.environ:
         return os.environ[envname]

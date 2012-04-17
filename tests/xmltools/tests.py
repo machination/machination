@@ -3,6 +3,7 @@
 import unittest
 import inspect, os, shutil, pprint, copy
 from lxml import etree
+from lxml.builder import E
 
 myfile = inspect.getfile(inspect.currentframe())
 mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -117,6 +118,44 @@ class XMLCompareTestCase(unittest.TestCase):
         print()
         pprint.pprint(self.xmlc.actions())
 
+class StatusTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
+        self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
+        del self.start.attrib['id']
+        self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
+        del self.desired.attrib['id']
+        self.start_st = Status(self.start, worker_prefix='/status')
+
+    def test_prev_in_both(self):
+        w = etree.fromstring("""
+<top>
+  <e4/>
+  <e2/>
+  <e1/>
+</top>
+""")
+        t = etree.fromstring("""
+<top>
+  <tonly/>
+  <e1/>
+  <e2/>
+  <e3/>
+  <e4/>
+  <e5/>
+</top>
+""")
+
+        print()
+        print(etree.tostring(w))
+        res = self.start_st.prev_in_both(w,t,"e2")
+        print()
+        print(etree.tostring(res))
+        print(w.index(res))
+
+
+
 class Testinfo1Case(unittest.TestCase):
 
     def setUp(self):
@@ -153,8 +192,15 @@ class Testinfo1Case(unittest.TestCase):
 #        self.populate_actions(1)
         start_st = Status(self.start, worker_prefix='/status')
         print()
-        print(start_st.worker_prefix())
-        start_st.generate_wus(self.comp)
+        pprint.pprint(self.comp.actions())
+        mrx = MRXpath("/status/worker[@id='test']/orderedItems/item[@id='1']")
+        for k in self.comp.bystate.keys():
+            if mrx.to_xpath() in self.comp.bystate[k]:
+                print(k)
+        wus = start_st.generate_wus(self.comp.actions()['reorder'], self.comp)
+        for wu in wus:
+            print()
+            print(etree.tostring(wu))
 
 
 
@@ -162,6 +208,12 @@ if __name__ == '__main__':
     mrxsuite = unittest.TestLoader().loadTestsFromTestCase(MRXpathTestCase)
     xmlcomp_suite = unittest.TestLoader().loadTestsFromTestCase(XMLCompareTestCase)
     wdsuite = unittest.TestLoader().loadTestsFromTestCase(WDTestCase)
+    status_suite = unittest.TestLoader().loadTestsFromTestCase(StatusTestCase)
     testinfo1_suite = unittest.TestLoader().loadTestsFromTestCase(Testinfo1Case)
-    alltests = unittest.TestSuite([mrxsuite, wdsuite, xmlcomp_suite, testinfo1_suite])
-    unittest.TextTestRunner(verbosity=2).run(alltests)
+    alltests = unittest.TestSuite([mrxsuite,
+                                   wdsuite,
+                                   xmlcomp_suite,
+                                   status_suite,
+                                   testinfo1_suite])
+#    unittest.TextTestRunner(verbosity=2).run(alltests)
+    unittest.TextTestRunner(verbosity=2).run(testinfo1_suite)

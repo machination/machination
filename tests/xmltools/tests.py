@@ -163,7 +163,7 @@ class Testinfo1Case(unittest.TestCase):
         self.wdesc = WorkerDescription('test')
         self.rng = etree.RelaxNG(self.wdesc.desc)
         self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
-        self.actions = {'add': set(), 'remove': set(), 'modify': set()}
+#        self.actions = {'add': set(), 'remove': set(), 'modify': set()}
         self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
         del self.start.attrib['id']
         self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
@@ -171,9 +171,10 @@ class Testinfo1Case(unittest.TestCase):
         self.comp = XMLCompare(self.start, self.desired)
 
 
-    def populate_actions(self, setid):
-        for a in self.tinfo.xpath("actionsets[@id='%s']" % setid)[0]:
-            self.actions[a.tag].add(MRXpath(a.get("id")).to_xpath())
+    def populate_todo(self, setid):
+        self.todo = set()
+        for i in self.tinfo.xpath("todosets[@id='%s']" % setid)[0]:
+            self.todo.add(MRXpath(t.get("id")).to_xpath())
 
     def test_010_statuses_valid(self):
         self.rng.assertValid(self.start.xpath("worker[@id='test']")[0])
@@ -202,10 +203,17 @@ class Testinfo1Case(unittest.TestCase):
         for wu in wus:
             print()
             print(etree.tostring(wu))
+#        print()
+#        print(etree.tostring(working))
+
+    def test_040_transform_deps(self):
+        deps = self.desired.xpath('/status/deps')[0]
         print()
-        print(etree.tostring(working))
+        self.splat(deps.iterchildren(etree.Element))
 
-
+    def splat(self,it):
+        for d in it:
+            print(d)
 
 if __name__ == '__main__':
     mrxsuite = unittest.TestLoader().loadTestsFromTestCase(MRXpathTestCase)

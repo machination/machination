@@ -197,10 +197,12 @@ class Testinfo1Case(unittest.TestCase):
         for k in self.comp.bystate.keys():
             if mrx.to_xpath() in self.comp.bystate[k]:
                 print(k)
-        wus = start_st.generate_wus(self.comp.actions()['reorder'], self.comp)
+        wus, working = start_st.generate_wus(self.comp.actions()['reorder'], self.comp)
         for wu in wus:
             print()
             print(etree.tostring(wu))
+        print()
+        print(etree.tostring(working))
 
 
 

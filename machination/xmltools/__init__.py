@@ -587,6 +587,8 @@ class Status(object):
         # added or moved.
         for te in template.iter():
             tmrx = MRXpath(te)
+            if tmrx.to_xpath() not in todo:
+                continue
             welts = working.xpath(tmrx.to_xpath())
             if welts:
                 # there is a corresponding element in working, check if it
@@ -605,15 +607,16 @@ class Status(object):
                 # don't bother generating order wus if order is unimportant
                 # (parent not flagged as ordered)
                 if not wd.is_ordered(tmrx.parent().to_noid_path()):
-                    continue
+#                    continue
+                    pass
 
                 # find the first previous element that also exists in working
                 prev = self.closest_shared_previous(working,
                                                     template,
                                                     tmrx)
 
-                # no move needed if prev has same xpath as tmrx.getprevious()
-                if MRXpath(tmrx.getprevious()) == MRXpath(prev):
+                # no move needed if previous for welts[0] and te are the same
+                if MRXpath(te.getprevious()) == MRXpath(welts[0].getprevious()):
                     continue
 
                 # find the parent from working
@@ -693,7 +696,7 @@ class Status(object):
                     )
 
         # these are the droids you are looking for...
-        return wus
+        return wus, working
 
     def closest_shared_previous(self, working, template, xp):
         xp = MRXpath(xp)

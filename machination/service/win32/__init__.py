@@ -21,6 +21,7 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         config = context.desired_status.getroot()
         self.sockcfg = (config.xpath("/status/daemon/@address")[0],
                         int(config.xpath("/status/daemon/@port")[0]))
+        self.timeout = int(config.xpath("/status/daemon/@sleeptime")[0])
 
         # Event handler for stop events
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
@@ -53,7 +54,7 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
                 #kick received - close socket to prevent DOS
                 self.sock.close()
                 eventlist = [self.stop_event]
-                timeout = 10000
+                timeout = self.timeout
                 #Launch the update process
                 self.launch_update()
 

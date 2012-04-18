@@ -3,6 +3,10 @@ import win32service
 import win32event
 import win32file
 import socket
+import sys
+import os
+import pkgutil
+from machination import context
 
 
 class ServiceLauncher(win32serviceutil.ServiceFramework):
@@ -12,6 +16,12 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
+
+        #Get config from context
+        config = context.desired_status.getroot()
+        self.sockcfg = (config.xpath("/status/daemon/@address")[0],
+                        int(config.xpath("/status/daemon/@port")[0]))
+
         # Event handler for stop events
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         # Event handler for daemon kicks
@@ -55,13 +65,17 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         win32file.WSAEventSelect(self.sock.fileno(),
                                  self.kick_event,
                                  win32file.FD_ACCEPT)
-        self.sock.bind(('', 1313))
+        self.sock.bind(self.sockcfg)
         self.sock.setblocking(0)
         self.sock.listen(0)
 
     def launch_update(self):
         """Launch the Machination update code."""
-        pass
+
+        #Magic to find python executable and update.py
+        proc = subprocess.Popen(
+            [os.path.join(sys.exec_prefix, "python.exe"),
+             pkgutil.get_loader("machination.update").filename])
 
 
 if __name__ == '__main__':

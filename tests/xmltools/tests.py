@@ -199,7 +199,7 @@ class Testinfo1Case(unittest.TestCase):
         for k in self.comp.bystate.keys():
             if mrx.to_xpath() in self.comp.bystate[k]:
                 print(k)
-        wus, working = generate_wus(self.comp.actions()['add'], self.comp)
+        wus, working = generate_wus(self.comp.actions()['all'], self.comp)
         for wu in wus:
             print()
             print(etree.tostring(wu))
@@ -208,12 +208,11 @@ class Testinfo1Case(unittest.TestCase):
 
     def test_040_transform_deps(self):
         deps = self.desired.xpath('/status/deps')[0]
+        wus, working = generate_wus(self.comp.actions()['all'], self.comp)
+        wudeps = self.comp.wudeps(deps.iterchildren(etree.Element), wus)
         print()
-        self.splat(deps.iterchildren(etree.Element))
+        pprint.pprint(wudeps)
 
-    def splat(self,it):
-        for d in it:
-            print(d)
 
 if __name__ == '__main__':
     mrxsuite = unittest.TestLoader().loadTestsFromTestCase(MRXpathTestCase)

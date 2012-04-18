@@ -177,7 +177,7 @@ def generate_wus(todo, comp, orderstyle="move"):
 
             if se_mrx.to_xpath() in comp.bystate['orderdiff']:
                 # sub element in wrong order - change
-                prevwe = self.closest_shared_previous(working,
+                prevwe = closest_shared_previous(working,
                                                       template,
                                                       se_mrx)
                 parent = se.getparent()
@@ -193,7 +193,7 @@ def generate_wus(todo, comp, orderstyle="move"):
                 add = copy.deepcopy(ste)
                 # find the first previous xpath that also exists
                 # in working
-                prevwe = self.closest_shared_previous(working,
+                prevwe = closest_shared_previous(working,
                                                       template,
                                                       MRXpath(ste))
                 # strip out any sub work units
@@ -1069,7 +1069,9 @@ class XMLCompare(object):
     @functools.lru_cache(maxsize = None)
     def actions(self):
         """return dictionary of sets as {action: {xpaths}}"""
-        return {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff', 'orderdiff']}
+        actions = {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff', 'orderdiff']}
+        actions['all'] = actions['add'] | actions['remove'] | actions['datamod'] | actions['deepmod'] | actions['reorder']
+        return actions
 
 
     def compare(self):
@@ -1204,7 +1206,7 @@ class XMLCompare(object):
 
         return {n: WorkerDescription(n, prefix) for n in wnames}
 
-    def wudeps(self, statedeps, prefix = '/status'):
+    def wudeps(self, statedeps, wus):
         """Combine state dependencies with worklist to find work dependencies.
 
         statedeps: an iterable of lxml ``Element``s from the profile. These
@@ -1226,33 +1228,33 @@ class XMLCompare(object):
         (yet to be chosen or implemented) topological sort and may
         change later depending on implementation choice.
         """
+
+        wu_byxpath = {wu.get("id"): wu for wu in wus}
+
+        topdeps = []
         for sdep in statedeps:
             # build a list of deps for topological sort just now
             # might change to generator approach later
-            topdeps = []
 
             # translate src and tgt state xpaths to wu xpaths
-#            src_wu = self.find_parent_workunit(sdep.get("src"))
-#            tgt_wu = self.find_parent_workunit(sdep.get("tgt"))
             src_mrx = MRXpath(sdep.get("src"))
-            src_wu = self.wds(prefix)[src_mrx.workername()].find_workunit()
             tgt_mrx = MRXpath(sdep.get("tgt"))
-            tgt_wu = self.wds(prefix)[tgt_mrx.workername()].find_workunit()
 
             # find intended work operation for both wus
-            if src_wu in byxpath:
-                src_action = self.diff_to_action[byxpath[src_wu]]
+            if src_mrx.to_xpath() in wu_byxpath:
+                src_action = wu_byxpath[src_mrx.to_xpath()].get("op")
             else:
                 src_action = "none"
-            if tgt_wu in byxpath:
-                tgt_action = self.diff_to_action[byxpath[tgt_wu]]
+            if tgt_mrx.to_xpath() in wu_byxpath:
+                tgt_action = wu_byxpath[tgt_mrx.to_xpath()].get("op")
             else:
                 tgt_action = "none"
 
             # get to one of [src, tgt], [tgt, src] or nothing
 
             if sdep.get("op") == "requires":
-                if src_action == "add" or src_action == "modify":
+                if src_action == "add" or src_action == "datamod" or\
+                        src_action == "deepmod":
 
                     # tgt_action better be add, modify or none
                     if tgt_action == "remove":
@@ -1271,7 +1273,7 @@ class XMLCompare(object):
                     topdeps.append([sdep.get("src"), sdep.get("tgt")])
 
                 elif src_action == "remove" and tgt_action == "remove":
-                    topdeps.append([sdep.get("tgt"), spep.get("src")])
+                    topdeps.append([sdep.get("tgt"), sdep.get("src")])
 
                 else:
                     # src_action == remove and tgt_action != remove
@@ -1279,10 +1281,12 @@ class XMLCompare(object):
                     continue
 
             elif sdep.get("op") == "excludes":
-                if src_action == "add" or src_action == "modify":
+                if src_action == "add" or src_action == "datamod" or\
+                        src_action == "deepmod":
 
                     # tgt_action better be remove or none
-                    if tgt_action == "add" or tgt_action == "modify":
+                    if tgt_action == "add" or tgt_action == "datamod" or\
+                            src_action == "deepmod":
                         raise Exception(sdep.get("src") +
                                         " excludes " +
                                         sdep.get("tgt") +
@@ -1300,7 +1304,7 @@ class XMLCompare(object):
                 elif src_action == "remove":
                     if tgt_action == "add":
                         # tgt_action deps src_action
-                        topdeps.append([sdep.get("tgt"), spep.get("src")])
+                        topdeps.append([sdep.get("tgt"), sdep.get("src")])
 
                 else:
                     # src_action == none

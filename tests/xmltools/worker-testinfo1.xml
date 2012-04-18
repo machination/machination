@@ -54,7 +54,6 @@
           <keyvalue id="2">here2</keyvalue>
         </section>
         <section id="addonly">
-          <keyvalue id="1">here</keyvalue>
         </section>
       </iniFile>
       <orderedItems>

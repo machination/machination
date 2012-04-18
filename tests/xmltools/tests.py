@@ -13,6 +13,7 @@ from machination.xmltools import MRXpath
 from machination.xmltools import WorkerDescription
 from machination.xmltools import Status
 from machination.xmltools import XMLCompare
+from machination.xmltools import generate_wus
 
 class MRXpathTestCase(unittest.TestCase):
 
@@ -190,14 +191,14 @@ class Testinfo1Case(unittest.TestCase):
 
     def test_030_generate_wus(self):
 #        self.populate_actions(1)
-        start_st = Status(self.start, worker_prefix='/status')
+#        start_st = Status(self.start, worker_prefix='/status')
         print()
         pprint.pprint(self.comp.actions())
         mrx = MRXpath("/status/worker[@id='test']/orderedItems/item[@id='1']")
         for k in self.comp.bystate.keys():
             if mrx.to_xpath() in self.comp.bystate[k]:
                 print(k)
-        wus, working = start_st.generate_wus(self.comp.actions()['reorder'], self.comp)
+        wus, working = generate_wus(self.comp.actions()['add'], self.comp)
         for wu in wus:
             print()
             print(etree.tostring(wu))

@@ -30,6 +30,321 @@ import functools
 import pprint
 from machination import context
 
+def generate_wus(todo, comp, orderstyle="move"):
+    """Return a list of workunits from todo list guided by template.
+
+    Args:
+    todo: set of workunit xpaths to do in this pass.
+    comp: an XMLCompare object initialised as:
+    XMLCompare(working, template)
+    working: an ``etree.Element``. This should a copy of the
+    current status element and it will be updated to be as
+    close to the template status element as
+    todo allows.
+    template: an etree.Element with the same tag as
+    working to be used as a template for changes. for
+    ordered workers it should have the resulting elements
+    in the desired order. Usually the appropriate element
+    from final desired_status.
+    orderstyle: control what kind of ordering wus are generated:
+    move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
+    removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
+    swap: swap(tag1[id1],tag2[id2]).
+
+    Returns:
+    a list of work unit (wu) elements
+
+    Side Effects:
+    ``working`` will be altered to the nearest desired status that
+    ``todo`` allows. This is usually the desired status within
+    the current independent work set.
+    """
+
+    working = copy.deepcopy(comp.leftxml)
+    template = comp.rightxml
+    wds = comp.wds()
+#        actions = comp.actions(comp.bystate['datadiff'])
+#        actions = {'remove': todo & comp.bystate['left'],
+#                   'add': todo & comp.bystate['right'],
+#                   'datamod': todo & comp.bystate['datadiff'],
+#                   'deepmod': todo & comp.bystate['childdiff'],
+#                   'reorder': todo & comp.bystate['orderdiff']}
+    wus = []
+
+    # removes
+    for rx in comp.actions()['remove'] & todo:
+        rx = MRXpath(rx)
+        wd = wds[rx.workername("/status")]
+        # todo should always be workunits
+        if not wd.is_workunit(rx):
+            raise Exception('Trying to remove %s, which is not a work unit'
+                            % rx.to_xpath())
+        for e in working.xpath(rx.to_xpath()):
+            e.getparent().remove(e)
+        # <wu op="remove" id="rx"/>
+        wus.append(E.wu(op="remove", id=rx.to_xpath()))
+
+    # data only modified
+    for mx in comp.actions()['datamod'] & todo:
+        mx = MRXpath(mx)
+        wd = wds[mx.workername("/status")]
+        # every action should be a valid work unit
+        if not wd.is_workunit(mx):
+            raise Exception('Trying to modify %s, which is not a work unit'
+                            % mx.to_xpath())
+        # alter the working XML
+        # find the element to modify
+        try:
+            e = working.xpath(mx.to_xpath())[0]
+            te = template.xpath(mx.to_xpath())[0]
+        except IndexError:
+            # no results
+            raise Exception("could not find %s in working or template " %
+                            mx.to_abbrev_xpath())
+        e.text = te.text
+        # generate wu
+        wus.append(
+            E.wu(copy.deepcopy(e), op="datamod", id=mx.to_xpath())
+            )
+
+    # deep modify
+    # iterate through template sub elements and cf. working:
+    #  - descendant of a wu which is also a descendant of mx
+    #    = remove from working, a more sepcific work unit is
+    #      in charge of mx
+    #  - attribute in both
+    #    = set value of att in of working to template
+    #  - attribute in template only
+    #    = add to working
+    #  - attribute in working only
+    #    = remove from working
+    #  - element in both, text only
+    #    = set working text to template
+    #  - element in both, subelements
+    #    = scan attribs as above, then continue to next iteration
+    #  - element in template only
+    #    = add full element from template to working
+    # above loop can't detect elements in working only, so...
+    # iterate through working subelements:
+    #  - element in working only
+    #    = remove element from working
+
+    for mx in comp.actions()['deepmod'] & todo:
+        mx = MRXpath(mx)
+        wd = wds[mx.workername("/status")]
+        # every action should be a valid work unit
+        if not wd.is_workunit(mx):
+            raise Exception('Trying to modify %s, which is not a work unit'
+                            % mx.to_xpath())
+        # alter the working XML
+        # find the element to modify
+        try:
+            e = working.xpath(mx.to_xpath())[0]
+            te = template.xpath(mx.to_xpath())[0]
+        except IndexError:
+            # no results
+            raise Exception("could not find %s in working or template " %
+                            mx.to_abbrev_xpath())
+
+        for se in e.iter():
+            se_mrx = MRXpath(se)
+            if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
+                # se must have a more specific workunit than mx,
+                # remove from working - another workunit is in charge
+                se.getparent().remove(se)
+                continue
+
+            # find equivalent element from template.
+            try:
+                ste = template.xpath(se_mrx.to_xpath())[0]
+            except IndexError:
+                # xpath doesn't exist in template, remove
+                se.getparent().remove(se)
+                continue
+
+            # change any different attributes
+            for k in se.keys():
+                if k in ste.keys():
+                    se.set(k, ste.get(k))
+                else:
+                    del se.attrib[k]
+            for k in ste.keys():
+                if k not in se.keys():
+                    se.set(k, ste.get(k))
+
+            # change any different text
+            se.text = ste.text
+
+            if se_mrx.to_xpath() in comp.bystate['orderdiff']:
+                # sub element in wrong order - change
+                prevwe = self.closest_shared_previous(working,
+                                                      template,
+                                                      se_mrx)
+                parent = se.getparent()
+                parent.remove(se)
+                parent.insert(parent.index(prevwe) + 1, se)
+
+        # check for elements in template but not working
+        for ste in te.iter():
+            try:
+                se = working.xpath(MRXpath(ste).to_xpath())[0]
+            except IndexError:
+                # ste doesn't exist in working, need to add
+                add = copy.deepcopy(ste)
+                # find the first previous xpath that also exists
+                # in working
+                prevwe = self.closest_shared_previous(working,
+                                                      template,
+                                                      MRXpath(ste))
+                # strip out any sub work units
+                for aelt in add.iterdescendants():
+                    if wd.find_workunit(MRXpath(aelt)) != \
+                            wd.find_workunit(mx):
+                        aelt.getparent().remove(aelt)
+                # add to working
+                if prevwe is None:
+                    parent_mrx = MRXpath(ste.getparent())
+                    wep = working.xpath(parent_mrx.to_xpath())[0]
+                    index = 0
+                else:
+                    wep = prevwe.getparent()
+                    index = wep.index(prevwe) + 1
+                wep.insert(index, add)
+            else:
+                continue
+
+        # generate a wu
+        wus.append(
+            E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
+            )
+
+    # add and reorder
+    # iterate over elements in template and see if working needs them
+    # added or moved.
+    for te in template.iter():
+        tmrx = MRXpath(te)
+        if tmrx.to_xpath() not in todo:
+            continue
+        welts = working.xpath(tmrx.to_xpath())
+        if welts:
+            # there is a corresponding element in working, check if it
+            # is in the right position
+
+            # ignore worker elements
+            if tmrx.to_noid_path() == "/status/worker":
+                continue
+
+            # don't reorder unless te is a workunit
+            # easiest way to see is to check comp.actions()['reorder']
+            if tmrx.to_xpath() not in comp.actions()['reorder']:
+                continue
+
+            wd = wds[tmrx.workername("/status")]
+            # don't bother generating order wus if order is unimportant
+            # (parent not flagged as ordered)
+            if not wd.is_ordered(tmrx.parent().to_noid_path()):
+                    continue
+
+            # find the first previous element that also exists in working
+            prev = closest_shared_previous(working,
+                                           template,
+                                           tmrx)
+
+            # no move needed if previous for welts[0] and te are the same
+            if MRXpath(te.getprevious()) == MRXpath(welts[0].getprevious()):
+                continue
+
+            # find the parent from working
+            wparent = working.xpath(tmrx.parent().to_xpath())[0]
+            if prev is None:
+                # move to first child
+                wparent.insert(0, welts[0])
+                # remember position for wu
+                pos = "<first>"
+            else:
+                # insert after prev
+                wparent.insert(wparent.index(prev + 1), welts[0])
+                pos = MRXpath(prev).last_item().to_xpath()
+
+            # generate a work unit
+            # TODO(colin): support other order wu styles
+            wus.append(
+                E.wu(op="move",
+                     id=tmrx.to_xpath(),
+                     pos=pos)
+                )
+
+        else:
+            # there is not a corresponding element in working
+
+            # if it's a worker element we better just add it
+            if tmrx.to_noid_path() == "/status/worker":
+                welt = etree.Element(tmrx.name(), id=tmrx.id())
+                working.xpath("/status")[0].append(welt)
+                # but no need to go on and generate a wu
+                continue
+
+            # add
+            # if there is an add in actions, otherwise the
+            # element should be added on a later run
+            if not tmrx.to_xpath() in comp.actions()["add"]:
+                continue
+
+            wd = wds[tmrx.workername("/status")]
+            # can't add to a parent that doesn't exist
+            try:
+                wparent = working.xpath(tmrx.parent().to_xpath())[0]
+            except IndexError:
+                raise Exception("trying to add " + tmrx.to_xpath() +
+                                " but its parent does not exist")
+
+            # make a copy of the element to add
+            add_elt = copy.deepcopy(te)
+            # strip out any sub work units - they should be added later
+            for subadd in add_elt.iterdescendants():
+                sub_mrx = MRXpath(subadd)
+                sub_mrx[:0] = tmrx
+                del sub_mrx.rep[0]
+                if wd.is_workunit(sub_mrx):
+                    # is a workunit: remove
+                    subadd.getparent().remove(subadd)
+
+            # find the first previous element that also exists in working
+            prev = closest_shared_previous(working,
+                                                template,
+                                                tmrx)
+            if prev is None:
+                # add as first child
+                wparent.insert(0, add_elt)
+                pos = "<first>"
+            else:
+                # add after wprev[0]
+                wparent.insert(wparent.index(prev) + 1, add_elt)
+                pos = MRXpath(prev)[-1].to_xpath()
+
+            # generate a work unit
+            wus.append(
+                E.wu(add_elt,
+                     op="add",
+                     id=tmrx.to_xpath(),
+                     pos=pos)
+                )
+
+    # these are the droids you are looking for...
+    return wus, working
+
+def closest_shared_previous(working, template, xp):
+    """find the closest sibling in working that is prior to xpath xp in template"""
+    xp = MRXpath(xp)
+    prevte = template.xpath(xp.to_xpath())[0].getprevious()
+    while prevte is not None:
+        prevwes = working.xpath(MRXpath(prevte).to_xpath())
+        if prevwes:
+            return prevwes[0]
+        prevte = prevte.getprevious()
+    return None
+
+
 class MRXpath(object):
     """Manipulate Machination restricted xpaths.
 
@@ -394,319 +709,6 @@ class Status(object):
                 raise Exception("The MRXpath 'mrx' must reference only one element")
             elt = elts[0]
 
-    def generate_wus(self, todo, comp, orderstyle="move"):
-        """Return a list of workunits from actions guided by template.
-
-        Args:
-          comp: an XMLCompare object initialised as:
-            XMLCompare(working, template, workerdesc)
-              working: ``an etree.Element``. This should a copy of the
-                current status element and it will be updated to be as
-                close to the ``template`` status element as
-                ``actions`` allow.
-              template: an etree.Element with the same tag as
-                self.status to be used as a template for changes. for
-                ordered workers it should have the resulting elements
-                in the desired order. Usually the appropriate element
-                from final desired_status.
-          todo: set of workunit xpaths to do in this pass.
-          orderstyle: control what kind of ordering wus are generated:
-            move: move(tag1[id1],tag2[id2]) - move tag1[id1] after tag2[id2].
-            removeadd: remove(tag1[id1]) followed by add(tag1[id1],tag2[id2]).
-            swap: swap(tag1[id1],tag2[id2]).
-
-        Returns:
-          a list of work unit (wu) elements
-
-        Side Effects:
-          ``working`` will be altered to the nearest desired status that
-          ``actions`` will allow. This is usually the desired status within
-          the current independent work set.
-        """
-
-        working = copy.deepcopy(comp.leftxml)
-        template = comp.rightxml
-        wds = comp.wds()
-#        actions = comp.actions(comp.bystate['datadiff'])
-#        actions = {'remove': todo & comp.bystate['left'],
-#                   'add': todo & comp.bystate['right'],
-#                   'datamod': todo & comp.bystate['datadiff'],
-#                   'deepmod': todo & comp.bystate['childdiff'],
-#                   'reorder': todo & comp.bystate['orderdiff']}
-        wus = []
-
-        # removes
-        for rx in comp.actions()['remove'] & todo:
-            rx = MRXpath(rx)
-            wd = wds[rx.workername("/status")]
-            # todo should always be workunits
-            if not wd.is_workunit(rx):
-                raise Exception('Trying to remove %s, which is not a work unit'
-                                % rx.to_xpath())
-            for e in working.xpath(rx.to_xpath()):
-                e.getparent().remove(e)
-            # <wu op="remove" id="rx"/>
-            wus.append(E.wu(op="remove", id=rx.to_xpath()))
-
-        # data only modified
-        for mx in comp.actions()['datamod'] & todo:
-            mx = MRXpath(mx)
-            wd = wds[mx.workername("/status")]
-            # every action should be a valid work unit
-            if not wd.is_workunit(mx):
-                raise Exception('Trying to modify %s, which is not a work unit'
-                                % mx.to_xpath())
-            # alter the working XML
-            # find the element to modify
-            try:
-                e = working.xpath(mx.to_xpath())[0]
-                te = template.xpath(mx.to_xpath())[0]
-            except IndexError:
-                 # no results
-                raise Exception("could not find %s in working or template " %
-                                mx.to_abbrev_xpath())
-            e.text = te.text
-            # generate wu
-            wus.append(
-                E.wu(copy.deepcopy(e), op="datamod", id=mx.to_xpath())
-                )
-
-        # deep modify
-        # iterate through template sub elements and cf. working:
-        #  - descendant of a wu which is also a descendant of mx
-        #    = remove from working, a more sepcific work unit is
-        #      in charge of mx
-        #  - attribute in both
-        #    = set value of att in of working to template
-        #  - attribute in template only
-        #    = add to working
-        #  - attribute in working only
-        #    = remove from working
-        #  - element in both, text only
-        #    = set working text to template
-        #  - element in both, subelements
-        #    = scan attribs as above, then continue to next iteration
-        #  - element in template only
-        #    = add full element from template to working
-        # above loop can't detect elements in working only, so...
-        # iterate through working subelements:
-        #  - element in working only
-        #    = remove element from working
-
-        for mx in comp.actions()['deepmod'] & todo:
-            mx = MRXpath(mx)
-            wd = wds[mx.workername("/status")]
-            # every action should be a valid work unit
-            if not wd.is_workunit(mx):
-                raise Exception('Trying to modify %s, which is not a work unit'
-                                % mx.to_xpath())
-            # alter the working XML
-            # find the element to modify
-            try:
-                e = working.xpath(mx.to_xpath())[0]
-                te = template.xpath(mx.to_xpath())[0]
-            except IndexError:
-                 # no results
-                raise Exception("could not find %s in working or template " %
-                                mx.to_abbrev_xpath())
-
-            for se in e.iter():
-                se_mrx = MRXpath(se)
-                if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
-                    # se must have a more specific workunit than mx,
-                    # remove from working - another workunit is in charge
-                    se.getparent().remove(se)
-                    continue
-
-                # find equivalent element from template.
-                try:
-                    ste = template.xpath(se_mrx.to_xpath())[0]
-                except IndexError:
-                    # xpath doesn't exist in template, remove
-                    se.getparent().remove(se)
-                    continue
-
-                # change any different attributes
-                for k in se.keys():
-                    if k in ste.keys():
-                        se.set(k, ste.get(k))
-                    else:
-                        del se.attrib[k]
-                for k in ste.keys():
-                    if k not in se.keys():
-                        se.set(k, ste.get(k))
-
-                # change any different text
-                se.text = ste.text
-
-                if se_mrx.to_xpath() in comp.bystate['orderdiff']:
-                    # sub element in wrong order - change
-                    prevwe = self.closest_shared_previous(working,
-                                                          template,
-                                                          se_mrx)
-                    parent = se.getparent()
-                    parent.remove(se)
-                    parent.insert(parent.index(prevwe) + 1, se)
-
-            # check for elements in template but not working
-            for ste in te.iter():
-                try:
-                    se = working.xpath(MRXpath(ste).to_xpath())[0]
-                except IndexError:
-                    # ste doesn't exist in working, need to add
-                    add = copy.deepcopy(ste)
-                    # find the first previous xpath that also exists
-                    # in working
-                    prevwe = self.closest_shared_previous(working,
-                                                          template,
-                                                          MRXpath(ste))
-                    # strip out any sub work units
-                    for aelt in add.iterdescendants():
-                        if wd.find_workunit(MRXpath(aelt)) != \
-                                wd.find_workunit(mx):
-                            aelt.getparent().remove(aelt)
-                    # add to working
-                    if prevwe is None:
-                        parent_mrx = MRXpath(ste.getparent())
-                        wep = working.xpath(parent_mrx.to_xpath())[0]
-                        index = 0
-                    else:
-                        wep = prevwe.getparent()
-                        index = wep.index(prevwe) + 1
-                    wep.insert(index, add)
-                else:
-                    continue
-
-            # generate a wu
-            wus.append(
-                E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
-                )
-
-        # add and reorder
-        # iterate over elements in template and see if working needs them
-        # added or moved.
-        for te in template.iter():
-            tmrx = MRXpath(te)
-            if tmrx.to_xpath() not in todo:
-                continue
-            welts = working.xpath(tmrx.to_xpath())
-            if welts:
-                # there is a corresponding element in working, check if it
-                # is in the right position
-
-                # ignore worker elements
-                if tmrx.to_noid_path() == "/status/worker":
-                    continue
-
-                # don't reorder unless te is a workunit
-                # easiest way to see is to check comp.actions()['reorder']
-                if tmrx.to_xpath() not in comp.actions()['reorder']:
-                    continue
-
-                wd = wds[tmrx.workername("/status")]
-                # don't bother generating order wus if order is unimportant
-                # (parent not flagged as ordered)
-                if not wd.is_ordered(tmrx.parent().to_noid_path()):
-#                    continue
-                    pass
-
-                # find the first previous element that also exists in working
-                prev = self.closest_shared_previous(working,
-                                                    template,
-                                                    tmrx)
-
-                # no move needed if previous for welts[0] and te are the same
-                if MRXpath(te.getprevious()) == MRXpath(welts[0].getprevious()):
-                    continue
-
-                # find the parent from working
-                wparent = working.xpath(tmrx.parent().to_xpath())[0]
-                if prev is None:
-                    # move to first child
-                    wparent.insert(0, welts[0])
-                    # remember position for wu
-                    pos = "<first>"
-                else:
-                    # insert after prev
-                    wparent.insert(wparent.index(prev + 1), welts[0])
-                    pos = MRXpath(prev).last_item().to_xpath()
-
-                # generate a work unit
-                # TODO(colin): support other order wu styles
-                wus.append(
-                    E.wu(op="move",
-                         id=tmrx.to_xpath(),
-                         pos=pos)
-                    )
-
-            else:
-                # there is not a corresponding element in working
-
-                # if it's a worker element we better just add it
-                if tmrx.to_noid_path() == "/status/worker":
-                    welt = etree.Element(tmrx.name(), id=tmrx.id())
-                    working.xpath("/status")[0].append(welt)
-                    # but no need to go on and generate a wu
-                    continue
-
-                # add
-                # if there is an add in actions, otherwise the
-                # element should be added on a later run
-                if not tmrx.to_xpath() in comp.actions()["add"]:
-                    continue
-
-                wd = wds[tmrx.workername("/status")]
-                # can't add to a parent that doesn't exist
-                try:
-                    wparent = working.xpath(tmrx.parent().to_xpath())[0]
-                except IndexError:
-                    raise Exception("trying to add " + tmrx.to_xpath() +
-                                    " but its parent does not exist")
-
-                # make a copy of the element to add
-                add_elt = copy.deepcopy(te)
-                # strip out any sub work units - they should be added later
-                for subadd in add_elt.iterdescendants():
-                    sub_mrx = MRXpath(subadd)
-                    sub_mrx[:0] = tmrx
-                    del sub_mrx.rep[0]
-                    if wd.is_workunit(sub_mrx):
-                        # is a workunit: remove
-                        subadd.getparent().remove(subadd)
-
-                # find the first previous element that also exists in working
-                prev = self.closest_shared_previous(working,
-                                                    template,
-                                                    tmrx)
-                if prev is None:
-                    # add as first child
-                    wparent.insert(0, add_elt)
-                    pos = "<first>"
-                else:
-                    # add after wprev[0]
-                    wparent.insert(wparent.index(prev) + 1, add_elt)
-                    pos = MRXpath(prev)[-1].to_xpath()
-
-                # generate a work unit
-                wus.append(
-                    E.wu(add_elt,
-                         op="add",
-                         id=tmrx.to_xpath(),
-                         pos=pos)
-                    )
-
-        # these are the droids you are looking for...
-        return wus, working
-
-    def closest_shared_previous(self, working, template, xp):
-        xp = MRXpath(xp)
-        prevte = template.xpath(xp.to_xpath())[0].getprevious()
-        while prevte is not None:
-            prevwes = working.xpath(MRXpath(prevte).to_xpath())
-            if prevwes:
-                return prevwes[0]
-            prevte = prevte.getprevious()
-        return None
 
     def find_temp_desired(self, wus, template):
         working = Status(self)
@@ -1311,3 +1313,4 @@ class XMLCompare(object):
                                 % sdep.get("op"))
 
         return topdeps
+

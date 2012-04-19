@@ -54,7 +54,7 @@ class usergroup(object):
              "priv": win32netcon.UF_PRIV_USER
             }
 
-        if expire = 0:
+        if expire == 0:
             u["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
 
         try:
@@ -68,11 +68,11 @@ class usergroup(object):
         info = win32net.NetUserGetInfo(None, user, 3)
         for k in kw:
             # Password expiration is a bitwise flag
-            if k = "password_can_expire":
+            if k == "password_can_expire":
                 info["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
             # Don't change the user's password -- else for every change
             # we'd reset the user's password.
-            elif k = "initialPassword":
+            elif k == "initialPassword":
                 continue
             elif k in info.keys():
                 info[k] = kw[k]
@@ -121,9 +121,9 @@ class usergroup(object):
 
     def __add_user_to_group(self, user, group, domain=None):
         if domain:
-            userstring = u"{0}\{1}".format(domain.upper(), user)
+            userstring = u"\\".join([domain.upper(), user])
         else:
-            userstring = u"{}".format(user)
+            userstring = user
 
         ug_info = {"domainandname": userstring}
 
@@ -136,9 +136,9 @@ class usergroup(object):
 
     def __del_user_from_group(self, user, group, domain=None):
         if domain:
-            userstring = u"{0}\{1}".format(domain.upper(), user)
+            userstring = u"\\".join([domain.upper(), user])
         else:
-            userstring = u"{}".format(user)
+            userstring = user
 
         ug_info = {"domainandname": userstring}
         try:
@@ -199,7 +199,8 @@ class usergroup(object):
                 m_elt.attrib["id"] = domname[1]
                 g_elt.append(m_elt)
                 
-            root.append(g_elt)
+            # We're only interested in groups with members
+            if len(g_elt) > 0: root.append(g_elt)
         
         # Iterate over local user elements only
         for user in c.Win32_UserAccount(LocalAccount=True):
@@ -210,8 +211,6 @@ class usergroup(object):
             d.text = user.Description
             u_elt.append(d)
             root.append(u_elt)
-        
-        for grp in 
-                    
+
         return root
         

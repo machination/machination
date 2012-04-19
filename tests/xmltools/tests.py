@@ -208,14 +208,23 @@ class Testinfo1Case(unittest.TestCase):
 
     def test_040_transform_deps(self):
         deps = self.desired.xpath('/status/deps')[0]
-        wus, working = generate_wus(self.comp.find_work(), self.comp)
         wudeps = self.comp.wudeps(deps.iterchildren(etree.Element))
         print()
         pprint.pprint(wudeps)
         import topsort
         wudeps.extend([["", x] for x in self.comp.find_work()])
+        i = 0
         for lev in iter(topsort.topsort_levels(wudeps)):
-            print(lev)
+            if lev == ['']:
+                continue
+            i += 1
+            wus, working = generate_wus(set(lev), self.comp)
+            print("*********************************")
+            print("* LEVEL: %d" % i)
+            print("*********************************")
+            for wu in wus:
+                print(etree.tostring(wu))
+
 
 
 if __name__ == '__main__':

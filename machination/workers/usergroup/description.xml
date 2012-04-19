@@ -13,7 +13,7 @@ gui:longhelp="longhelp.txt"
 gui:doc="documentation.html"
 >
     <attribute name="id">
-        <value>shortcut-1</value>
+        <value>usergroup-1</value>
     </attribute>
     <plat:platforms>
         <plat:platform id="winXP_32"/>
@@ -22,66 +22,41 @@ gui:doc="documentation.html"
         <plat:platform id="win7_64"/>
     </plat:platforms>
     <oneOrMore>
-        <element name="shortcut" wu:wu="1">
+        <element name="user" wu:wu="1">
             <attribute name="id">
                 <text/>
             </attribute>
-            <attribute name="keepfolder">
+            <attribute name="password_can_expire">
                 <choice>
-                    <value>true</value>
-                    <value>false</value>
+                    <value>0</value>
+                    <value>1</value>
                 </choice>
             </attribute>
-            <element name="name">
-                <text/>
-            </element>
-            <element name="target">
-                <text/>
-            </element>
-            <element name="destination">
-                <choice>
-                    <value>AllUsersDesktop</value>
-                    <value>AllUsersStartMenu</value>
-                    <value>AllUsersPrograms</value>
-                    <value>AllUsersStartup</value>
-                    <value>Desktop</value>
-                    <value>Favorites</value>
-                    <value>Fonts</value>
-                    <value>MyDocuments</value>
-                    <value>NetHood</value>
-                    <value>PrintHood</value>
-                    <value>Programs</value>
-                    <value>Recent</value>
-                    <value>SendTo</value>
-                    <value>StartMenu</value>
-                    <value>Startup</value>
-                    <value>Templates</value>
-                </choice>
-            </element>
             <zeroOrMore>
-                <element name="arguments">
+                <element name="InitialPassword">
                     <text/>
                 </element>
-                <element name="descrption">
+                <element name="Description">
                     <text/>
-                </element>
-                <element name="folderName">
-                    <text/>
-                </element>
-                <element name="iconFile">
-                    <text/>
-                </element>
-                <element name="iconNumber">
-                    <text/>
-                </element>
-                <element name="windowStyle">
-                    <choice>
-                        <value>max</value>
-                        <value>normal</value>
-                        <value>min</value>
-                    </choice>
                 </element>
             </zeroOrMore>
+        </element>
+        <element name="group" wu:wu="1">
+            <attribute name="id">
+                <text/>
+            </attribute>
+            <oneOrMore>
+                <element name="member">
+                    <zeroOrOne>
+                        <attribute name="domain">
+                            </text>
+                        </attribute>
+                    </zeroOrOne>
+                    <attribute name="id">
+                        <text/>
+                    </attribute>
+                </element>
+            </oneOrMore>
         </element>
     </oneOrMore>
 </element>

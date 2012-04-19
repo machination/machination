@@ -199,7 +199,7 @@ class Testinfo1Case(unittest.TestCase):
         for k in self.comp.bystate.keys():
             if mrx.to_xpath() in self.comp.bystate[k]:
                 print(k)
-        wus, working = generate_wus(self.comp.actions()['all'], self.comp)
+        wus, working = generate_wus(self.comp.find_work(), self.comp)
         for wu in wus:
             print()
             print(etree.tostring(wu))
@@ -208,10 +208,14 @@ class Testinfo1Case(unittest.TestCase):
 
     def test_040_transform_deps(self):
         deps = self.desired.xpath('/status/deps')[0]
-        wus, working = generate_wus(self.comp.actions()['all'], self.comp)
-        wudeps = self.comp.wudeps(deps.iterchildren(etree.Element), wus)
+        wus, working = generate_wus(self.comp.find_work(), self.comp)
+        wudeps = self.comp.wudeps(deps.iterchildren(etree.Element))
         print()
         pprint.pprint(wudeps)
+        import topsort
+        wudeps.extend([["", x] for x in self.comp.find_work()])
+        for lev in iter(topsort.topsort_levels(wudeps)):
+            print(lev)
 
 
 if __name__ == '__main__':

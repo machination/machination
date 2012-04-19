@@ -1024,7 +1024,7 @@ class WorkerDescription:
             mrx = mrx.parent()
 
         # got to the root without finding a workunit
-        raise Exception("No work unit ancestors found!")
+        raise Exception("No work unit ancestors found for %s" % str(xpath))
 
     def find_work(self, xpset):
         """return the set of workunits for a set of xpaths"""
@@ -1070,9 +1070,8 @@ class XMLCompare(object):
     def actions(self):
         """return dictionary of sets as {action: {xpaths}}"""
         actions = {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff', 'orderdiff']}
-        actions['all'] = actions['add'] | actions['remove'] | actions['datamod'] | actions['deepmod'] | actions['reorder']
+#        actions['all'] = actions['add'] | actions['remove'] | actions['datamod'] | actions['deepmod'] | actions['reorder']
         return actions
-
 
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
@@ -1206,7 +1205,7 @@ class XMLCompare(object):
 
         return {n: WorkerDescription(n, prefix) for n in wnames}
 
-    def wudeps(self, statedeps, wus):
+    def wudeps(self, statedeps):
         """Combine state dependencies with worklist to find work dependencies.
 
         statedeps: an iterable of lxml ``Element``s from the profile. These
@@ -1229,7 +1228,7 @@ class XMLCompare(object):
         change later depending on implementation choice.
         """
 
-        wu_byxpath = {wu.get("id"): wu for wu in wus}
+#        wu_byxpath = {wu.get("id"): wu for wu in wus}
 
         topdeps = []
         for sdep in statedeps:
@@ -1239,14 +1238,20 @@ class XMLCompare(object):
             # translate src and tgt state xpaths to wu xpaths
             src_mrx = MRXpath(sdep.get("src"))
             tgt_mrx = MRXpath(sdep.get("tgt"))
+            src_wuxpath = WorkerDescription(
+                src_mrx.workername(prefix="/status"), prefix="/status"
+                ).find_workunit(src_mrx.to_xpath())
+            tgt_wuxpath = WorkerDescription(
+                tgt_mrx.workername(prefix="/status"), prefix="/status"
+                ).find_workunit(tgt_mrx.to_xpath())
 
             # find intended work operation for both wus
-            if src_mrx.to_xpath() in wu_byxpath:
-                src_action = wu_byxpath[src_mrx.to_xpath()].get("op")
+            if src_wuxpath in self.byxpath:
+                src_action = self.diff_to_action[self.byxpath[src_wuxpath]]
             else:
                 src_action = "none"
-            if tgt_mrx.to_xpath() in wu_byxpath:
-                tgt_action = wu_byxpath[tgt_mrx.to_xpath()].get("op")
+            if tgt_wuxpath in self.byxpath:
+                tgt_action = self.diff_to_action[self.byxpath[tgt_wuxpath]]
             else:
                 tgt_action = "none"
 
@@ -1270,10 +1275,10 @@ class XMLCompare(object):
 
                     # tgt_action must now be add or modify
                     # src_action deps tgt_action
-                    topdeps.append([sdep.get("src"), sdep.get("tgt")])
+                    topdeps.append([tgt_wuxpath, src_wuxpath])
 
                 elif src_action == "remove" and tgt_action == "remove":
-                    topdeps.append([sdep.get("tgt"), sdep.get("src")])
+                    topdeps.append([src_wuxpath, tgt_wuxpath])
 
                 else:
                     # src_action == remove and tgt_action != remove
@@ -1299,12 +1304,12 @@ class XMLCompare(object):
 
                     # tgt_action must now be remove
                     # src_action deps tgt_action
-                    topdeps.append([sdep.get("src"), sdep.get("tgt")])
+                    topdeps.append([tgt_wuxpath, src_wuxpath])
 
                 elif src_action == "remove":
                     if tgt_action == "add":
                         # tgt_action deps src_action
-                        topdeps.append([sdep.get("tgt"), sdep.get("src")])
+                        topdeps.append([src_wuxpath, tgt_wuxpath])
 
                 else:
                     # src_action == none

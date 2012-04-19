@@ -22,7 +22,7 @@ class usergroup(object):
                 "Guest",
                 "HelpAssistant",
                 "SUPPORT_388945a0")
-                
+
     sp_groups = ("Administrators",
                  "Backup Operators",
                  "Guests",
@@ -32,12 +32,6 @@ class usergroup(object):
                  "Replicator",
                  "Users",
                  "HelpServicesGroup")
-    
-    attributes = ("manage_passwords",
-                  "unmanaged_users",
-                  "unmanaged_groups",
-                  "acct_col",
-                  "comp_name")
 
     def __init__(self, logger):
         self.logger = logger
@@ -203,4 +197,5 @@ class usergroup(object):
                 if grp.attrib["id"] in grplist:
                     m_elt = etree.Element("member")
                     m_elt.attrib["id"] = user.Name
+
         

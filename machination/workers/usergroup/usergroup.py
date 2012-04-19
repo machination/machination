@@ -10,30 +10,31 @@ import win32netcon
 import win32com.client
 import win32net
 import wmi
+from platform import uname
 
 
 class usergroup(object):
     logger = None
-    
-    u = {}
-
-    sp_users = ("Administrator",
-                "ASPNET",
-                "Guest",
-                "HelpAssistant",
-                "SUPPORT_388945a0")
-
-    sp_groups = ("Administrators",
-                 "Backup Operators",
-                 "Guests",
-                 "Network Configuration Operators",
-                 "Power Users",
-                 "Remote Desktop Users",
-                 "Replicator",
-                 "Users",
-                 "HelpServicesGroup")
 
     def __init__(self, logger):
+        u = {}
+
+        sp_users = ("Administrator",
+                    "ASPNET",
+                    "Guest",
+                    "HelpAssistant",
+                    "SUPPORT_388945a0")
+
+        sp_groups = ("Administrators",
+                     "Backup Operators",
+                     "Guests",
+                     "Network Configuration Operators",
+                     "Power Users",
+                     "Remote Desktop Users",
+                     "Replicator",
+                     "Users",
+                     "HelpServicesGroup")
+
         self.logger = logger
 
     def do_work(self, work_list):
@@ -46,7 +47,6 @@ class usergroup(object):
         return result
 
     def __add_user(self, username, password, expire, description=None):
-        description += " machination-controlled"
         u = {"name": username,
              "password": password,
              "comment": description,
@@ -67,8 +67,11 @@ class usergroup(object):
     def __mod_user(self, user, kw):
         info = win32net.NetUserGetInfo(None, user, 3)
         for k in kw:
+            # Password expiration is a bitwise flag
             if k = "password_can_expire":
                 info["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
+            # Don't change the user's password -- else for every change
+            # we'd reset the user's password.
             elif k = "initialPassword":
                 continue
             elif k in info.keys():
@@ -83,6 +86,7 @@ class usergroup(object):
             return errmsg
 
     def __del_user(self, username):
+        # Don't ever delete special user accounts
         if username in sp_users:
             return None
         try:
@@ -96,7 +100,7 @@ class usergroup(object):
         g_info = {"name": name}
 
         if name in sp_groups:
-            return "Cannot add a defined special group"
+            return "Cannot add a special group"
 
         try:
             win32net.NetLocalGroupAdd(None, 1, g_info)
@@ -115,10 +119,30 @@ class usergroup(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __add_user_to_group(self, user, group):
-        ug_info = {"domainandname": user}
+    def __add_user_to_group(self, user, group, domain=None):
+        if domain:
+            userstring = u"{0}\{1}".format(domain.upper(), user)
+        else:
+            userstring = u"{}".format(user)
+
+        ug_info = {"domainandname": userstring}
+
         try:
             win32net.NetLocalGroupAddMembers(None, group, 3,[ug_info])
+            return None
+        except win32net.error as error:
+            errno, errctx, errmsg = error.args
+            return errmsg
+
+    def __del_user_from_group(self, user, group, domain=None):
+        if domain:
+            userstring = u"{0}\{1}".format(domain.upper(), user)
+        else:
+            userstring = u"{}".format(user)
+
+        ug_info = {"domainandname": userstring}
+        try:
+            win32net.NetLocalGroupDelMembers(None, group, 3,[ug_info])
             return None
         except win32net.error as error:
             errno, errctx, errmsg = error.args
@@ -149,53 +173,45 @@ class usergroup(object):
         res = etree.element("wu",
                             id=work.attrib["id"])
 
-        if work[0].tag = "user":
-            u_name = work[0].attrib["id"]
-            u_pwd = work[0].attrib["password_can_expire"]
-            u_pass = work[0].iter("initialPassword")[0].text
-            if work[0].iter("description"):
-                u_desc = work[0].iter("description")
-            else:
-                u_desc = None
-
-            self.__add_user(u_name, u_pass, u_pwd, u_desc)
-
-        elif work[0].tag = "group":
-            back = self.__add_user(work[0])
-        else:
-            back = "Unknown element defined: " + work[0].tag
-
-        if back:
-            wmsg(back)
-            res.attrib["status"] = "error"
-            res.attrib["message"] = back
-        else:
             res.attrib["status"] = "success"
             
         return res
 
     def generate_status(self):
-        root = wmi.WMI()
-        out = etree.Element("usergroup")
+        c = wmi.WMI()
+        root = etree.Element("usergroup")
+        sysname = uname()[1]
         
+        # Build a list of local group elements
         for group in c.Win32_Group(LocalAccount=True):
             g_elt = etree.Element("group")
             g_elt.attrib["id"] = group.Name
+            # Get a list of group members
+            members, count, handle = win32net.NetLocalGroupGetMembers(None,
+                                                               group.Name,
+                                                               3)
+            for member in members:
+                # Member is a dictionary, thanks to the windows API.
+                domname = member["domainandname"].split('\\')
+                m_elt = etree.Element("member")
+                if domname[0].upper() != sysname.upper():
+                    m_elt.attrib["domain"] = domname[0]
+                m_elt.attrib["id"] = domname[1]
+                g_elt.append(m_elt)
+                
             root.append(g_elt)
         
+        # Iterate over local user elements only
         for user in c.Win32_UserAccount(LocalAccount=True):
-            if user.Name not in sp_users:
-                u_elt = etree.Element("user")
-                u_elt.attrib["id"] = user.Name
-                u_elt.attrib["password_can_expire"] = int(i.PasswordExpires)
-                d = etree.Element("Description")
-                d.text = user.Description
-                u_elt.append(d)
-                root.append(u_elt)
-            grplst = win32net.NetUserGetLocalGroups(None, user.Name)
-            for grp in root.iter("group"):
-                if grp.attrib["id"] in grplist:
-                    m_elt = etree.Element("member")
-                    m_elt.attrib["id"] = user.Name
-
+            u_elt = etree.Element("user")
+            u_elt.attrib["id"] = user.Name
+            u_elt.attrib["password_can_expire"] = int(i.PasswordExpires)
+            d = etree.Element("Description")
+            d.text = user.Description
+            u_elt.append(d)
+            root.append(u_elt)
+        
+        for grp in 
+                    
+        return root
         

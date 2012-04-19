@@ -12,38 +12,38 @@ gui:shorthelp="manipulates environment variables"
 gui:longhelp="longhelp.txt"
 gui:doc="documentation.html"
 >
-<attribute name="id">
-<value>environment-1</value>
-</attribute>
-<plat:platforms>
-<plat:platform id="win32"/>
-<plat:platform id="win64"/>
-</plat:platforms>
-<oneOrMore>
-<element name="var" wu:wu="1">
-<attribute name="id">
-<text/>
-</attribute>
-<zeroOrMore>
-<attribute name="type">
-<text/>
-</attribute>
-<attribute name="separator">
-<text/>
-</attribute>
-<attribute name="notpres">
-<text/>
-</attribute>
-</zeroOrMore>
-<zeroOrMore>
-<element name="item">
-<attribute name="id">
-<text/>
-</attribute>
-<text/>
-</element>
-<text/>
-</zeroOrMore>
-</element>
-</oneOrMore>
+    <attribute name="id">
+        <value>environment-1</value>
+    </attribute>
+    <plat:platforms>
+        <plat:platform id="win32"/>
+        <plat:platform id="win64"/>
+    </plat:platforms>
+    <oneOrMore>
+        <element name="var" wu:wu="1">
+            <attribute name="id">
+                <text/>
+            </attribute>
+            <zeroOrMore>
+                <attribute name="type">
+                    <text/>
+                </attribute>
+                <attribute name="separator">
+                    <text/>
+                </attribute>
+                <attribute name="notpres">
+                    <text/>
+                </attribute>
+            </zeroOrMore>
+            <zeroOrMore>
+                <element name="item">
+                    <attribute name="id">
+                        <text/>
+                    </attribute>
+                    <text/>
+                </element>
+                <text/>
+            </zeroOrMore>
+        </element>
+    </oneOrMore>
 </element>

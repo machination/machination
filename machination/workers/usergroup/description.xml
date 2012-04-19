@@ -26,6 +26,11 @@ gui:doc="documentation.html"
             <attribute name="id">
                 <text/>
             </attribute>
+            <zeroOrOne>
+                <attribute name="notpres">
+                    <text/>
+                </attribute>
+            </zeroOrOne>
             <attribute name="password_can_expire">
                 <choice>
                     <value>0</value>
@@ -45,6 +50,11 @@ gui:doc="documentation.html"
             <attribute name="id">
                 <text/>
             </attribute>
+            <zeroOrOne>
+                <attribute name="notpres">
+                    <text/>
+                </attribute>
+            </zeroOrOne>
             <oneOrMore>
                 <element name="member">
                     <zeroOrOne>

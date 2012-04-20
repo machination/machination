@@ -3,11 +3,14 @@
 from machination import context
 from machination.xmltools import XMLCompare
 from machination.xmltools import MRXpath
+from machination.xmltools import generate_wus
 from machination import utils
 from lxml import etree
 from lxml.builder import E
 import copy
 import topsort
+import argparse
+import os
 
 class Update(object):
 
@@ -17,14 +20,20 @@ class Update(object):
         self._desired_status = desired_status
 
     def do_update(self):
+        """Perform an update cycle"""
+        print("desired:\n %s\ninitial:\n %s" % (etree.tostring(self.desired_status()), etree.tostring(self.initial_status())))
+
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        deps = self.desired_status.xpath('/status/deps')[0]
+        deps = self.desired_status().xpath('/status/deps')[0]
         wudeps = comp.wudeps(deps.iterchildren(etree.Element))
+        # we need to make all workunits depend on something for
+        # topsort to work
         wudeps.extend([['', x] for x in comp.find_work()])
         i = 0
         for lev in iter(topsort.topsort_levels(wudeps)):
             if i == 0:
+                # this is the fake workunit '' we put in above
                 i += 1
                 continue
             wus, working_elt = generate_wus(set(lev), comp)
@@ -43,16 +52,19 @@ class Update(object):
         new_status = self.gather_status()
 
     def initial_status(self):
+        """Get the initial status. Will call gather_status() if necessary."""
         if self._initial_status is None:
             self._initial_status = self.gather_status()
         return self._initial_status
 
     def desired_status(self):
+        """Get the desired status. Will download and compile status if necessary."""
         if self._desired_status is None:
             pass
         return self._desired_status
 
     def previous_status(self):
+        """Get the status from the previous run."""
         if self._previous_status is None:
             fname = os.path.join(context.cache_dir(), 'previous-status.xml')
             try:
@@ -67,6 +79,7 @@ class Update(object):
         return self._previous_status
 
     def gather_status(self):
+        """Invoke all workers' generate_status() and gather into one."""
         status = copy.deepcopy(self.previous_status())
         # find all workers
         stelt = welt.xpath('/status')[0]
@@ -83,22 +96,35 @@ class Update(object):
             stelt.append(wstatus)
 
     def worker(self, name):
+        """Get the worker object for name."""
         if name in self.workers:
             return self.workers[name]
 
         try:
             w = __import__('machination.workers.' + name)
         except ImportError as e:
-            if e.message.startswith('No module named '):
+            if str(e).startswith('No module named '):
                 # TODO: assume no python module for this worker,
                 # try to find and execute an OL worker
                 try:
                     w = OLWorker(name)
-                    logger.emsg("No worker %s, giving up!" % name)
-                    raise
+                except Exception as eol:
+#                    logger.emsg("No worker %s, giving up!" % name)
+                    raise WorkerError(name, e, eol)
         self.workers[name] = w
 
+class WorkerError(Exception):
+    def __init__(self, wname, epy, eol):
+        Exception.__init__(self, wname, epy, eol)
+        self.wname = wname
+        self.epy = epy
+        self.eol = eol
+
+    def __str__(self):
+        return 'Could not load worker "{}" as python module or OL worker:\n\nPython import error:\n{}\n\nOL worker error:\n{}'.format(self.wname, self.epy, self.eol)
+
 class OLWorker(object):
+    """Other Language Worker: wrapper for workers not in python."""
 
     def __init__(self, wid):
         self.wid = wid
@@ -112,14 +138,43 @@ class OLWorker(object):
             raise Exception("No worker named " + wid)
 
     def generate_status(self):
+        """Execute worker with generate_status call and return result from stdout."""
+        # TODO(colin): exec worker
         pass
 
-    def do_work(self,wus):
+    def do_work(self, wus):
+        """Execute worker with do_work call. Return result from stdout."""
+        # TODO(colin): exec worker
         pass
-
-def main(args):
-    # TODO: parse command line args and options?
-    Update().do_update()
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--desired', '-d', nargs='?',
+                        help='desired status file')
+    parser.add_argument('--desired_xpath', '-dx', nargs='?',
+                        help='xpath of status in desired status file')
+    parser.add_argument('--initial', '-i', nargs='?',
+                        help='initial status file')
+    parser.add_argument('--initial_xpath', '-ix', nargs='?',
+                        help='xpath of status in initial status file')
+
+    args = parser.parse_args()
+
+    desired = None
+    if args.desired is not None:
+        desired = etree.parse(args.desired).getroot()
+        if args.desired_xpath is not None:
+            desired = desired.xpath(args.desired_xpath)[0]
+            if 'id' in desired.keys():
+                del desired.attrib['id']
+
+    initial = None
+    if args.initial is not None:
+        initial = etree.parse(args.initial).getroot()
+        if args.initial_xpath is not None:
+            initial = initial.xpath(args.initial_xpath)[0]
+            if 'id' in initial.keys():
+                del initial.attrib['id']
+
+    Update(desired_status=copy.deepcopy(desired),
+           initial_status=copy.deepcopy(initial)).do_update()

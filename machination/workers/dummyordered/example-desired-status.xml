@@ -1,15 +1,16 @@
-<worker id="test_ordered">
+<worker id="dummyordered">
   <sysitem id="1">sysone</sysitem>
   <sysitem id="2">systwo</sysitem>
   <sysitem id="3">systhree</sysitem>
   <sysitem id="4">sysfour</sysitem>
-  <tofile>
-    <directive>something</directive>
-    <item id="1">fone</item>
-    <item id="2">ftwo</item>
-    <item id="3">fthree</item>
-    <item id="4">ffour</item>
-  </tofile>
+  <iniFile>
+    <section id="something">
+      <item id="1">fone</item>
+      <item id="2">ftwo</item>
+      <item id="3">fthree</item>
+      <item id="4">ffour</item>
+    </section>
+  </iniFile>
   <notordered id="1">noone</notordered>
   <notordered id="2">notwo</notordered>
   <notordered id="3">nothree</notordered>

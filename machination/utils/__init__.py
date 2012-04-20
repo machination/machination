@@ -24,6 +24,7 @@ __status__ = "Development"
 
 import sys
 import os
+import pkgutil
 from machination import context
 
 __all__ = ['machination_id', 'machination_path']
@@ -61,11 +62,12 @@ def worker_dir(name = None):
     workersdir = pkgutil.get_loader('machination.workers').filename
     if name is None:
         return workersdir
-    return os.path.join(workersdir, wid)
+    return os.path.join(workersdir, name)
 
 # Copy machination_path into this namespace. It shouldn't really exist in
 # context, but it has to be there in order to avoid circular imports with this
 # module.
-machination_path = context.machination_path
+# doesn't exist at all any more? (colin)
+#machination_path = context.machination_path
 
 del sys, context

@@ -35,15 +35,15 @@ def _get_exports_list(module):
         return [n for n in dir(module) if n[0] != '_']
 
 if 'posix' in sys.builtin_module_names:
-    from machination.utils.unix import *
-    import machination.utils.unix
-    __all__.extend(_get_exports_list(machination.utils.unix))
-    del machination.utils.unix
+    from machination.platutils.unix import *
+    import machination.platutils.unix
+    __all__.extend(_get_exports_list(machination.platutils.unix))
+    del machination.platutils.unix
 elif 'nt' in sys.builtin_module_names:
-    from machination.utils.win import *
-    import machination.utils.win
-    __all__.extend(_get_exports_list(machination.utils.win))
-    del machination.utils.win
+    from machination.platutils.win import *
+    import machination.platutils.win
+    __all__.extend(_get_exports_list(machination.platutils.win))
+    del machination.platutils.win
 
 # Now for platform-independent stuff...
 

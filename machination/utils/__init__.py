@@ -23,6 +23,7 @@ __email__ = "Bruce.Duncan@ed.ac.uk"
 __status__ = "Development"
 
 import sys
+import os
 from machination import context
 
 __all__ = ['machination_id', 'machination_path']
@@ -34,10 +35,10 @@ def _get_exports_list(module):
         return [n for n in dir(module) if n[0] != '_']
 
 if 'posix' in sys.builtin_module_names:
-    from machination.utils.posix import *
-    import machination.utils.posix
-    __all__.extend(_get_exports_list(machination.utils.posix))
-    del machination.utils.posix
+    from machination.utils.unix import *
+    import machination.utils.unix
+    __all__.extend(_get_exports_list(machination.utils.unix))
+    del machination.utils.unix
 elif 'nt' in sys.builtin_module_names:
     from machination.utils.win import *
     import machination.utils.win
@@ -55,6 +56,12 @@ def machination_id(self, serviceid):
     except IndexError:
         # Xpath didn't return anything
         raise IndexError("XPath error: Could not trace machination id: {}".format(serviceid))
+
+def worker_dir(name = None):
+    workersdir = pkgutil.get_loader('machination.workers').filename
+    if name is None:
+        return workersdir
+    return os.path.join(workersdir, wid)
 
 # Copy machination_path into this namespace. It shouldn't really exist in
 # context, but it has to be there in order to avoid circular imports with this

@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 "A test worker which relies on the order of elements in its XML"
 
 from lxml import etree
@@ -18,6 +16,7 @@ class worker(object):
     example status:
     .. code-block:: xml
       <status>
+      <worker id="dummyordered">
         <sysitem id="a">atext</sysitem>
         <sysitem id="b">btext</sysitem>
         <tofile>
@@ -27,11 +26,12 @@ class worker(object):
         </tofile>
         <notordered id="a">atext</notordered>
         <notordered id="a">btext</notordered>
+      </worker>
       </status>
 
     #. XML represents a configuration file.
 
-       Illustrated by contents of <tofile> element
+       Illustrated by contents of <iniFile> element
 
        In this case the XML in some part of status represents a
        configuration file or perhaps some other entity that will be
@@ -39,13 +39,10 @@ class worker(object):
        configuration information in UNIX-like systems is changed this
        way.
 
-       In do_work() the strategy is to apply all wuwus and make sure
-       the resultant working status Element is correct. Then we
+       The preferred strategy is to mark ``iniFile`` as a work
+       unit. Changes anywhere under the ``iniFile`` element will be
+       sent as a 'deepmod' wu for the whole of ``iniFile``. Just
        translate to the target file format and write out the results.
-
-       ``status.apply_wus(wulist)`` where status is a
-       ``machination.xmltools.status`` object will take care of
-       updating the XML.
 
     #. System settings altered via an API.
 
@@ -56,7 +53,7 @@ class worker(object):
        is changed this way for example (usually via WMI or some other
        COM interface).
 
-       In this case we can't consume all wuwus to construct our
+       In this case we can't consume all wus to construct our
        working status Element first and then alter the system, we must
        alter the system directly as we evaluate each work unit. Most
        of the time this is fine - just do the work in order and
@@ -88,11 +85,18 @@ class worker(object):
     """
 
     def __init__(self, datadir = None):
-        self.end_desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
+#        self.end_desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
         if datadir:
             self.datadir = datadir
         else:
             self.datadir = os.path.join(context.cache_dir(),"dummyordered")
+        self.wd = xmltools.WorkerDescription("dummyordered",
+                                             prefix = '/status')
+        self.dispatch = {
+            '/status/worker/sysitem': handle_ordered,
+            '/status/worker/tofile': handle_file,
+            '/status/worker/notordered': handle_notordered,
+            }
 
     def generate_status(self, desired):
         w_elt = etree.Element("worker")
@@ -123,11 +127,26 @@ class worker(object):
             no_elt = w_elt.SubElement("notordered")
             no_elt.set("id", key)
             no_elt.text = dic[key]
-        
+
 
         return w_elt
 
     def do_work(self, wus):
+        results = []
+        for wu in wus:
+            wmrx = MRXpath(wu.get('id'))
+            self.dispatch.get(wmrx.to_noid_path(), self.handle_default)(wu)
+
+    def handle_default(self, wu):
+        raise Exception("argh")
+
+    def handle_ordered(self, wu):
+        pass
+
+    def handle_file(self, wu):
+        pass
+
+    def handle_notordered(self, wu):
         pass
 
     # methods to manipulate the status outside of do_work for testing
@@ -150,7 +169,7 @@ class worker(object):
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
-        
+
         # fill the database
         pdb = pretend_db(os.path.join(self.datadir, "pdb"))
         for item in status.xpath("sysitem"):
@@ -338,5 +357,5 @@ class pretend_db(object):
             if theid == self.endstr:
                 raise Exception("ran off the end of the list")
         return theid
-            
-        
+
+

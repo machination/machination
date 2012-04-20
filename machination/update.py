@@ -129,13 +129,14 @@ class OLWorker(object):
     def __init__(self, wid):
         self.wid = wid
         self.progdir = utils.worker_dir(wid)
+        self.progfile = None
         for f in os.listdir(self.progdir):
             if f == wid or f.startswith(wid + "."):
                 self.progfile = f
                 self.progpath = os.path.join(self.progdir, self.progfile)
                 break
-        if self.progfile == None:
-            raise Exception("No worker named " + wid)
+        if self.progfile is None:
+            raise Exception("No OL worker named {} in {}".format(self.wid, self.progdir))
 
     def generate_status(self):
         """Execute worker with generate_status call and return result from stdout."""

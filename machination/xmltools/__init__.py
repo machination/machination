@@ -29,6 +29,7 @@ import re
 import functools
 import pprint
 from machination import context
+from machination import utils
 
 def generate_wus(todo, comp, orderstyle="move"):
     """Return a list of workunits from todo list guided by template.
@@ -872,7 +873,8 @@ class WorkerDescription:
         if isinstance(workername,str):
             self.workername = workername
             # try to find the description file
-            descfile = os.path.join(context.status_dir(), "workers", workername, "description.xml")
+            descfile = os.path.join(utils.worker_dir(workername),
+                                    "description.xml")
             try:
                 self.desc = etree.parse(descfile).getroot()
             except IOError:

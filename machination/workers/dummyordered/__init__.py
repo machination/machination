@@ -6,7 +6,7 @@ from machination import xmltools
 import os, shutil
 import errno
 
-class worker(object):
+class Worker(object):
     """Test of order preservation
 
     This worker is designed to illustrate the various ways in which a
@@ -85,28 +85,29 @@ class worker(object):
     """
 
     def __init__(self, datadir = None):
-#        self.end_desired = context.desired_status.xpath("/status/worker[@id='dummyordered']")[0]
         if datadir:
             self.datadir = datadir
         else:
             self.datadir = os.path.join(context.cache_dir(),"dummyordered")
         self.wd = xmltools.WorkerDescription("dummyordered",
                                              prefix = '/status')
+        self.pdb = pretend_db(os.path.join(self.datadir, "pdb"))
+        self.pc = pretend_config(os.path.join(self.datadir,"conf.txt"))
+
         self.dispatch = {
-            '/status/worker/sysitem': handle_ordered,
-            '/status/worker/tofile': handle_file,
-            '/status/worker/notordered': handle_notordered,
+            '/status/worker/sysitem': self.handle_ordered,
+            '/status/worker/tofile': self.handle_file,
+            '/status/worker/notordered': self.handle_notordered,
             }
 
-    def generate_status(self, desired):
+    def generate_status(self):
         w_elt = etree.Element("worker")
         w_elt.set("id","dummyordered")
 
         # <sysitem> elements first from pretend_db
-        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
-        cur_id = pdb.get_next(None)
-        while cur_id != pdb.endstr:
-            text, next = pdb.get_contents(cur_id)
+        cur_id = self.pdb.get_next(None)
+        while cur_id != self.pdb.endstr:
+            text, next = self.pdb.get_contents(cur_id)
             item_elt = etree.Element("sysitem")
             item_elt.set("id", cur_id)
             item_elt.text = text
@@ -114,15 +115,18 @@ class worker(object):
             cur_id = next
 
         # get tofile element by converting from pretend_config
-        pc = pretend_config(os.path.join(self.datadir),"conf.txt")
-        w_elt.append(pc.to_xml())
+        w_elt.append(self.pc.to_xml())
 
         # notordered from contents of some files
         fpath = os.path.join(self.datadir, "files")
         dic = {}
-        for f in os.listdir(fpath):
-            with open(os.path.join(fpath,f)) as fd:
-                dic[f] = fd.readline().rstrip("\r\n")
+        try:
+            for f in os.listdir(fpath):
+                with open(os.path.join(fpath,f)) as fd:
+                    dic[f] = fd.readline().rstrip("\r\n")
+        except OSError as e:
+            pass
+
         for key in dic:
             no_elt = w_elt.SubElement("notordered")
             no_elt.set("id", key)
@@ -134,20 +138,46 @@ class worker(object):
     def do_work(self, wus):
         results = []
         for wu in wus:
-            wmrx = MRXpath(wu.get('id'))
+            wmrx = xmltools.MRXpath(wu.get('id'))
             self.dispatch.get(wmrx.to_noid_path(), self.handle_default)(wu)
 
     def handle_default(self, wu):
-        raise Exception("argh")
+        raise Exception(wu.get('id') + " is not a valid work unit for worker 'dummyordered'")
 
     def handle_ordered(self, wu):
-        pass
+        op = wu.get('op')
+        elt_id = xmltools.MRXpath(wu[0].get('id')).id()
+        pos_id = wu.get('pos')
+        if pos_id == '<first>':
+            pos_id = None
+        else:
+            pos_id = xmltools.MRXpath(pos_id).id()
+
+        if op == 'add':
+            self.pdb.insert_after(elt_id, pos_id, wu[0].text)
+        elif op == 'remove':
+            self.pdb.remove_elt(elt_id)
+        elif op == 'datamod':
+            self.pdb.modify_elt(elt_id, wu[0].text)
+        else:
+            raise Exception('op "%s" not supported for sysitem' % op)
 
     def handle_file(self, wu):
-        pass
+        if wu.get('op') == 'remove':
+            pass
+        else:
+            self.pc.from_xml(wu[0])
 
     def handle_notordered(self, wu):
-        pass
+        op = wu.get('op')
+        fname = xmltools.MRXpath(wu[0].get('id')).id()
+        if op == 'add' or op == 'datamod':
+            with open(os.path.join(self.datadir,"files", fname), "w") as f:
+                f.write(wu[0].text + "\n")
+        elif op == 'remove':
+            os.unlink(os.path.join(self.datadir, 'files', fname))
+        else:
+            raise Exception('op %s no supported for notordered' % op)
 
     # methods to manipulate the status outside of do_work for testing
     # purposes
@@ -171,14 +201,14 @@ class worker(object):
                 raise
 
         # fill the database
-        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
+#        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
         for item in status.xpath("sysitem"):
             # always append since we start from empty
-            pdb.append(item.get("id"), item.text)
+            self.pdb.append(item.get("id"), item.text)
 
         # create the conf file
-        pcfg = pretend_config(os.path.join(self.datadir,"conf.txt"))
-        pcfg.from_xml(status.xpath("tofile")[0])
+#        pcfg = pretend_config(os.path.join(self.datadir,"conf.txt"))
+        self.pc.from_xml(status.xpath("tofile")[0])
 
         # create the unordered files
         os.makedirs(os.path.join(self.datadir,"files"))
@@ -292,6 +322,17 @@ class pretend_db(object):
         text, next = self.get_contents(cur_id)
         return next
 
+    def get_previous(self, eid):
+        cur_id = self.get_start()
+        if cur_id == eid:
+            # eid is at the start
+            return None
+        while cur_id != self.endstr:
+            next_id = self.get_next(cur_id)
+            if next_id == eid:
+                return cur_id
+        raise KeyError('Could not find previous for key "%s"' % eid)
+
     def get_end(self):
         cur_id = self.get_start()
         if cur_id is self.endstr:
@@ -323,6 +364,14 @@ class pretend_db(object):
         with open(os.path.join(self.datadir,eid),"w") as f:
             f.write(text + "\n")
             f.write(next + "\n")
+
+    def remove_elt(self, eid):
+        prev_elt = self.get_previous(eid)
+        self.change_tail(self.get_previous(eid), self.get_next(eid))
+        os.unlink(os.path.join(self.datadir, eid))
+
+    def modify_elt(self, eid, text):
+        self.write_elt(eid, text, self.get_next(eid))
 
     def id_exists(self, eid):
         return os.path.exists(os.path.join(self.datadir, eid))
@@ -359,3 +408,10 @@ class pretend_db(object):
         return theid
 
 
+worker = Worker()
+
+def generate_status():
+    return worker.generate_status()
+
+def do_work(wus):
+    return worker.do_work(wus)

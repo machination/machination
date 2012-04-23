@@ -11,6 +11,7 @@ import copy
 import topsort
 import argparse
 import os
+import importlib
 
 class Update(object):
 
@@ -18,6 +19,7 @@ class Update(object):
         self.workers = {}
         self._initial_status = initial_status
         self._desired_status = desired_status
+        self._previous_status = None
 
     def do_update(self):
         """Perform an update cycle"""
@@ -60,7 +62,9 @@ class Update(object):
     def desired_status(self):
         """Get the desired status. Will download and compile status if necessary."""
         if self._desired_status is None:
-            pass
+            # TODO(colin): replace this with fetch / compile
+            self._desired_status = etree.parse(os.path.join(
+                    context.cache_dir(), 'desired-status.xml')).getroot()
         return self._desired_status
 
     def previous_status(self):
@@ -82,7 +86,7 @@ class Update(object):
         """Invoke all workers' generate_status() and gather into one."""
         status = copy.deepcopy(self.previous_status())
         # find all workers
-        stelt = welt.xpath('/status')[0]
+        stelt = status.xpath('/status')[0]
         for welt in status.xpath('/status/worker'):
             # the following should create a worker object and store it
             # in self.workers
@@ -90,10 +94,11 @@ class Update(object):
             stelt.remove(welt)
             stelt.append(wstatus)
         for welt in self.desired_status().xpath('/status/worker'):
-            if welt.get("id") in workers:
+            if welt.get("id") in self.workers:
                 continue
             wstatus = self.worker(welt.get("id")).generate_status()
             stelt.append(wstatus)
+        return status
 
     def worker(self, name):
         """Get the worker object for name."""
@@ -101,7 +106,7 @@ class Update(object):
             return self.workers[name]
 
         try:
-            w = __import__('machination.workers.' + name)
+            w = importlib.import_module('machination.workers.' + name)
         except ImportError as e:
             if str(e).startswith('No module named '):
                 # TODO: assume no python module for this worker,
@@ -112,6 +117,7 @@ class Update(object):
 #                    logger.emsg("No worker %s, giving up!" % name)
                     raise WorkerError(name, e, eol)
         self.workers[name] = w
+        return w
 
 class WorkerError(Exception):
     def __init__(self, wname, epy, eol):

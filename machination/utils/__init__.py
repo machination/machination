@@ -59,15 +59,18 @@ def machination_id(self, serviceid):
         raise IndexError("XPath error: Could not trace machination id: {}".format(serviceid))
 
 def worker_dir(name = None):
-    workersdir = pkgutil.get_loader('machination.workers').filename
     if name is None:
-        return workersdir
-    return os.path.join(workersdir, name)
+        return workers_dir
+    return os.path.join(workers_dir, name)
 
 # Copy machination_path into this namespace. It shouldn't really exist in
 # context, but it has to be there in order to avoid circular imports with this
 # module.
 # doesn't exist at all any more? (colin)
 #machination_path = context.machination_path
+
+# this has to be a package global to avoid something that looks like a
+# circular reference error
+workers_dir = os.path.dirname(pkgutil.get_loader('machination.workers').get_filename())
 
 del sys, context

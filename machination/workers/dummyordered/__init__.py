@@ -88,7 +88,9 @@ class Worker(object):
         if datadir:
             self.datadir = datadir
         else:
-            self.datadir = os.path.join(context.cache_dir(),"dummyordered")
+            self.datadir = os.path.join(context.cache_dir(),
+                                        'workers',
+                                        'dummyordered')
         self.wd = xmltools.WorkerDescription("dummyordered",
                                              prefix = '/status')
         self.pdb = pretend_db(os.path.join(self.datadir, "pdb"))

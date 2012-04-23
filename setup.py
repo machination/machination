@@ -3,6 +3,60 @@
 from setuptools import setup, find_packages
 from distutils.command.clean import clean
 import os
+import errno
+import subprocess
+
+
+def git_describe(abbrev=4):
+    try:
+        return subprocess.check_output(
+            ['git', 'describe', '--abbrev=%d' % abbrev]).strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def read_release_version():
+
+    try:
+        with open("RELEASE-VERSION", "r") as f:
+            version = f.readlines()[0]
+            return version.strip()
+    except:
+        return None
+
+
+def write_release_version(version):
+    f = open("RELEASE-VERSION", "w")
+    f.write("%s\n" % version)
+    f.close()
+
+
+def get_git_version():
+    # First try to get the current version using "git describe".
+
+    version = git_describe()
+
+    # If that doesn't work, fall back on the value that's in
+    # RELEASE-VERSION.
+
+    # Read in the version that's currently in RELEASE-VERSION.
+    release_version = read_release_version()
+
+    if version is None:
+        version = release_version
+
+    # If we still don't have anything, that's an error.
+
+    if version is None:
+        raise ValueError("Cannot find the version number!")
+
+    # If the current version is different from what's in the
+    # RELEASE-VERSION file, update the file to be current.
+
+    if version != release_version:
+        write_release_version(version)
+
+    return version
 
 
 def clean_all():
@@ -26,7 +80,7 @@ def run_setup(pkgname, pkglist):
 
     setup(
         name=pkgname,
-        version="0.0.1",
+        version=get_git_version(),
         author="Colin Higgs, Bruce Duncan, Matthew Richardson, Stewart Wilson",
         author_email="machination@see.ed.ac.uk",
         description="The Machination Configuration Management System.",

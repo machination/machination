@@ -46,7 +46,7 @@ gui:doc="documentation.html"
                 </element>
             </zeroOrMore>
         </element>
-        <element name="group" wu:wu="1">
+        <element name="group">
             <attribute name="id">
                 <text/>
             </attribute>
@@ -56,7 +56,7 @@ gui:doc="documentation.html"
                 </attribute>
             </zeroOrOne>
             <oneOrMore>
-                <element name="member">
+                <element name="member" wu:wu="1">
                     <zeroOrOne>
                         <attribute name="domain">
                             </text>

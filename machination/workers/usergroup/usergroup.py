@@ -46,7 +46,7 @@ class usergroup(object):
             result.append(res)
         return result
 
-    def __add_user(self, username, password, expire, description=None):
+    def __add_user(self, username, password, expire, description):
         u = {"name": username,
              "password": password,
              "comment": description,
@@ -64,20 +64,14 @@ class usergroup(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __mod_user(self, user, kw):
+    def __mod_user(self, user, expire, description):
         info = win32net.NetUserGetInfo(None, user, 3)
-        for k in kw:
-            # Password expiration is a bitwise flag
-            if k == "password_can_expire":
-                info["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
-            # Don't change the user's password -- else for every change
-            # we'd reset the user's password.
-            elif k == "initialPassword":
-                continue
-            elif k in info.keys():
-                info[k] = kw[k]
-            else:
-                return "Can't change userinfo {}".format(k)
+        
+        if expire is not None:
+            info["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
+        if description is not None:
+            info["description"] = description
+            
         try:
             win32net.NetUserSetInfo(None, user, 3, info)
             return None
@@ -101,13 +95,29 @@ class usergroup(object):
 
         if name in sp_groups:
             return "Cannot add a special group"
-
         try:
             win32net.NetLocalGroupAdd(None, 1, g_info)
             return None
         except win32net.error as error:
             errno, errctx, errmsg = error.args
             return errmsg
+
+    def __check_group(self, g_name):
+        c = wmi.WMI()
+        extant = c.Win32_Group(Name=g_name, LocalAccount=True)
+        back = None
+        if not extant:
+            back = add_group(g_name)
+        return back
+
+    def __check_group_rm(self, g_name):
+        members, count, handle = win32net.NetLocalGroupGetMembers(None,
+                                                               g_Name,
+                                                               3)
+        back = None
+        if (count == 0) and (g_name not in sp_groups):
+            back = self.__del_group(g_name)
+        return back
 
     def __del_group(self, name):
         if name in sp_groups:
@@ -147,35 +157,104 @@ class usergroup(object):
         except win32net.error as error:
             errno, errctx, errmsg = error.args
             return errmsg
-
-    def __modify(self, work):
-        res = etree.element("wu",
-                            id=work.attrib["id"])
-
-        # Insert work here.
-
-        res.attrib["status"] = "success"
-        return res
-
-    def __order(self, work):
-        pass
-
-    def __remove(self, work):
-        res = etree.element("wu",
-                            id=work.attrib["id"])
-
-        # Insert work here.
-
-        res.attrib["status"] = "success"
-        return res
+    
+    def __get_group_name(self, xpath):
+        mrx = machination.xmltools.MRXpath(xpath)
+        mrx = mrx.parent()
+        return mrx.id()
 
     def __add(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
 
-            res.attrib["status"] = "success"
+        if work[0].tag == "user":
+            u_name = work[0].attrib["id"]
+            u_pwd = " ".join(work[0].xpath('/user/initialPassword/text()',
+                                           smart_strings=False))
+            u_desc = " ".join(work[0].xpath('/user/description/text()',
+                                            smart_strings=False))
+            u_expire = work[0].attrib["password_can_expire"]
+            test = self.__add_user(u_name, u_pwd, u_expire, u_desc)
+        elif work[0].tag == "member":
+            group = self.__get_group_name(work.attrib["id"])
+            test = self.__check_group(group)
+            
+            if not test:
+                m_name = work[0].attrib["id"]
+                if "domain" in work[0].attrib:
+                    m_dom = work[0].attrib["domain"]
+                else:
+                    m_dom = None
+                test = self.__add_user_to_group(m_name, group, m_dom)
+
+        res.attrib["status"] = "success"
+        if test:
+            logger.emsg(test)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = test
             
         return res
+
+    def __remove(self, work):
+        res = etree.element("wu",
+                            id=work.attrib["id"])
+
+        if work[0].tag == "user":
+            u_name = work[0].attrib["id"]
+            test = self.__del_user(u_name)
+        elif work[0].tag == "member":
+            group = self.__get_group_name(work.attrib["id"])
+            m_name = work[0].attrib["id"]
+            if "domain" in work[0].attrib:
+                m_dom = work[0].attrib["domain"]
+            else:
+                m_dom = None
+            test = self.__del_user_from_group(m_name, group, m_dom)
+            if not test:
+                # Delete went smoothly. Can we delete the group?
+                test = self.__check_group_rm(group)
+
+        res.attrib["status"] = "success"
+        if test:
+            logger.emsg(test)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = test
+        else:
+
+        return res
+
+    def __modify(self, work):
+        res = etree.element("wu",
+                            id=work.attrib["id"])
+
+        # As far as I can work out, we can only modify users, not groups
+        if work[0].tag == "member":
+            test = "Can't modify group, only add or remove members" 
+        else:
+            c = wmi.WMI()
+            [user] = c.Win32_UserAccount(LocalAccount=True,
+                                         name=work[0].attrib["id"]):
+            expire = work[0].attrib["password_can_expire"]:
+            desc = " ".join(work[0].xpath('/user/description/text()',
+                                          smart_strings=False))
+            # Set whatever hasn't changed to None
+            if int(user.PasswordExpires) == expire:
+                expire = None
+            if user.Description == desc:
+                desc = None
+            test = self.__mod_user(user.Name, expire, desc)
+
+        res.attrib["status"] = "success"
+
+        if test:
+            logger.emsg(test)_
+            res.attrib["status"] = "error"
+            res.attrib["message"] = test
+
+        return res
+
+    def __order(self, work):
+        pass
 
     def generate_status(self):
         c = wmi.WMI()
@@ -206,7 +285,7 @@ class usergroup(object):
         for user in c.Win32_UserAccount(LocalAccount=True):
             u_elt = etree.Element("user")
             u_elt.attrib["id"] = user.Name
-            u_elt.attrib["password_can_expire"] = int(i.PasswordExpires)
+            u_elt.attrib["password_can_expire"] = int(user.PasswordExpires)
             d = etree.Element("Description")
             d.text = user.Description
             u_elt.append(d)

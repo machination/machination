@@ -219,7 +219,6 @@ class usergroup(object):
             logger.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
-        else:
 
         return res
 
@@ -233,8 +232,8 @@ class usergroup(object):
         else:
             c = wmi.WMI()
             [user] = c.Win32_UserAccount(LocalAccount=True,
-                                         name=work[0].attrib["id"]):
-            expire = work[0].attrib["password_can_expire"]:
+                                       Name=work[0].attrib["id"])
+            expire = work[0].attrib["password_can_expire"]
             desc = " ".join(work[0].xpath('/user/description/text()',
                                           smart_strings=False))
             # Set whatever hasn't changed to None
@@ -247,7 +246,7 @@ class usergroup(object):
         res.attrib["status"] = "success"
 
         if test:
-            logger.emsg(test)_
+            logger.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 

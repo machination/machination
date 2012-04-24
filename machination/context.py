@@ -19,6 +19,7 @@ import platform
 #from os import environ
 import os
 from lxml import etree
+from machination.logger import Logger
 
 desired_status = None
 
@@ -66,6 +67,13 @@ def python_lib_dir():
     usually /usr/lib/python or C:\Program Files\Machination"""
     return _get_dir("python_lib")
 
+def log_dir():
+    """returns path to log dir
+
+    usually /var/log/machination or C:\Program Files\machination\log
+    """
+    return _get_dir("log")
+
 def _get_dir(name):
     dirname = name + "_dir"
     envname = "MACHINATION_" + dirname.upper()
@@ -102,12 +110,22 @@ def _get_dir(name):
         return os.path.join(win_machination_path(),"bin") if platname == "Win" else '/usr/bin'
     elif name == "python_lib":
         return win_machination_path() if platname == "Win" else '/usr/lib/python'
+    elif name == 'log':
+        return os.path.join(win_machination_path(),"log") if platname == "Win" else '/var/log/machination'
 
 desired_status_file = os.path.join(status_dir(),"desired-status.xml")
 try:
     desired_status = etree.parse(desired_status_file)
 except IOError:
     raise IOError("could not find file '%s'" % desired_status_file)
+
+logging_elts = desired_status.xpath('/status/logging')
+if not logging_elts:
+    # defaults
+    logging_elts = [etree.fromstring('<logging>' +
+                                     '<stream id="stderr" loglevel="4"/>' +
+                                     '</logging>')]
+logger = Logger(logging_elts[0], log_dir())
 
 def main(args):
     print(etree.tostring(config).decode('utf8'))
@@ -116,4 +134,4 @@ def main(args):
 if __name__ == '__main__':
     main(sys.argv[1:])
 
-del sys
+del sys, logging_elts

@@ -11,7 +11,7 @@ are independent) and each log destination can have its own level
 threshold, each destination is created as a separate logger. This module
 handles creation and dispatching.
 
-Retuns an object with four methods: emsg, wmsg, lmsg, and dmsg. Each logs
+Returns an object with four methods: emsg, wmsg, lmsg, and dmsg. Each logs
 at the appropriate level (error, warning, info, debug) to all sources
 with a loglevel > the level passed to the method. All messages are
 formatted appropriately."""
@@ -29,13 +29,13 @@ import logging
 from logging.handlers import SysLogHandler
 from lxml import etree
 import inspect
-from machination import utils
-
+import os
+import sys
 
 class Logger(object):
     "The core class that handles individual loggers and dispatching"
 
-    def __init__(self, config_elt):
+    def __init__(self, logging_elt, log_dir, default_loglevel = 4):
 
         # Set up module-global vars
 
@@ -44,11 +44,9 @@ class Logger(object):
                 ": %(message)s"
 
         # Assign [logger object, priority] to self.loggers for each
-        # entry in /config/logging
+        # entry in logging_elt
 
-        a = utils.MachUtils(config_elt)
-
-        for dest in config_elt.xpath("/config/logging")[0]:
+        for dest in logging_elt:
             if not isinstance(dest.tag, str):
                 continue
 
@@ -65,13 +63,26 @@ class Logger(object):
 
             elif dest.tag == "file":
                 logger = logging.Logger(dest.attrib["id"])
-                filepath = os.path.join(a.machination_path(),
+                filepath = os.path.join(log_dir,
                                         dest.attrib["id"])
                 hdlr = logging.FileHandler(filepath)
                 fmt = logging.Formatter(self.fmtstring)
                 hdlr.setFormatter(fmt)
                 logger.addHandler(hdlr)
                 self.loggers.append([logger, int(dest.attrib["loglevel"])])
+
+            elif dest.tag == 'stream':
+                logger = logging.Logger(dest.attrib['id'])
+                hdlr = logging.StreamHandler(getattr(sys,
+                                                     dest.get('id',
+                                                              'stderr')))
+                fmt = logging.Formatter(self.fmtstring)
+                hdlr.setFormatter(fmt)
+                logger.addHandler(hdlr)
+                self.loggers.append([logger,
+                                     int(dest.get("loglevel",
+                                                  default_loglevel))
+                                     ])
 
             else:
                 # Unhandled value

@@ -1,0 +1,7 @@
+<status>
+  <directories cache="{dsdir}"
+               log="{dsdir}"/>
+  <logging>
+    <file id='log.txt' loglevel='4'/>
+  </logging>
+</status>

@@ -16,6 +16,8 @@ import importlib
 import sys
 import pprint
 
+l = context.logger
+
 class Update(object):
 
     def __init__(self, initial_status = None, desired_status = None):
@@ -27,14 +29,12 @@ class Update(object):
     def do_update(self):
         """Perform an update cycle"""
 #        print("desired:\n %s\ninitial:\n %s" % (etree.tostring(self.desired_status(), pretty_print=True).decode(sys.stdout.encoding), etree.tostring(self.initial_status(), pretty_print=True).decode(sys.stdout.encoding)))
-        print()
-        print('desired:\n%s' % pstring(self.desired_status()))
-        print()
-        print('initial:\n%s' % pstring(self.initial_status()))
+        l.dmsg('desired:\n%s' % pstring(self.desired_status()))
+        l.dmsg('initial:\n%s' % pstring(self.initial_status()))
 
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        pprint.pprint(comp.bystate)
+        l.dmsg('\n' + pprint.pformat(comp.bystate))
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
         except IndexError:
@@ -49,12 +49,11 @@ class Update(object):
             if i == 1:
                 # this is the fake workunit '' we put in above
                 continue
-            print('xpaths for level {}:'.format(i))
-            pprint.pprint(lev)
+            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev))
             wus, working_elt = generate_wus(set(lev), comp)
-            print('wus for level {}:'.format(i))
+            l.dmsg('wus for level {}:'.format(i))
             for wu in wus:
-                print(pstring(wu))
+                l.dmsg(pstring(wu))
             wubatch = []
             cur_worker = None
             for wu in wus:

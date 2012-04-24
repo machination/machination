@@ -1,7 +1,11 @@
 <status>
   <directories
       cache='{dsdir}'
+      log='{dsdir}'
       />
+  <logging>
+    <stream id='stdout' loglevel='10'/>
+  </logging>
   <worker id='dummyordered'>
     <sysitem id="1">sysone</sysitem>
     <sysitem id="2">systwo</sysitem>

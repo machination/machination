@@ -1107,6 +1107,7 @@ class XMLCompare(object):
             }
         self.workcache = None
         self.compare()
+        context.logger.dmsg('XMLCompare object created')
 
     @functools.lru_cache(maxsize = None)
     def actions(self):

@@ -88,6 +88,8 @@ class Logger(object):
                 # Unhandled value
                 raise IOError("1", "Unknown log method " + repr(dest.tag))
 
+        self.lmsg('logging started')
+
     def dmsg(self, msg, lvl=6):
         "Log a debug message. Default level is 6"
         fmtdict = {"left": "[",

@@ -130,7 +130,7 @@ class Worker(object):
             pass
 
         for key in dic:
-            no_elt = w_elt.SubElement("notordered")
+            no_elt = etree.SubElement(w_elt, "notordered")
             no_elt.set("id", key)
             no_elt.text = dic[key]
 
@@ -204,13 +204,15 @@ class Worker(object):
 
         # fill the database
 #        pdb = pretend_db(os.path.join(self.datadir, "pdb"))
+        self.pdb.init_datadir()
         for item in status.xpath("sysitem"):
             # always append since we start from empty
             self.pdb.append(item.get("id"), item.text)
 
         # create the conf file
 #        pcfg = pretend_config(os.path.join(self.datadir,"conf.txt"))
-        self.pc.from_xml(status.xpath("tofile")[0])
+        if status.xpath('tofile'):
+            self.pc.from_xml(status.xpath("tofile")[0])
 
         # create the unordered files
         os.makedirs(os.path.join(self.datadir,"files"))
@@ -276,6 +278,9 @@ class pretend_db(object):
         self.counter = os.path.join(self.dir, "counter")
         self.start = os.path.join(self.dir, "start")
         self.endstr = "::END::"
+        self.init_datadir()
+
+    def init_datadir(self):
         try:
             os.makedirs(self.datadir)
         except OSError as e:

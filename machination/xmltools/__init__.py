@@ -1177,12 +1177,11 @@ class XMLCompare(object):
                 rval = r[0]
 
             if lval != rval:
-                self.bystate['datadiff'].add(xpath)
-                self.byxpath[xpath] = 'datadiff'
-#                for a in MRXpath(xpath).ancestors():
-#                    self.bystate['childdiff'].add(a.to_xpath())
-#                    self.byxpath[a.to_xpath()] = 'childdiff'
-                self._set_childdiff(MRXpath(xpath).parent())
+                # only set datadiff if childdiff is not set
+                if xpath not in self.bystate['childdiff']:
+                    self.bystate['datadiff'].add(xpath)
+                    self.byxpath[xpath] = 'datadiff'
+                    self._set_childdiff(MRXpath(xpath).parent())
 
     def order_diff(self):
         # check child order for all xpaths that so far look the same
@@ -1220,6 +1219,8 @@ class XMLCompare(object):
 
         # Now get on and do the real work
         self.bystate['childdiff'].add(mrx.to_xpath())
+        if mrx.to_xpath() in self.bystate['datadiff']:
+            self.bystate['datadiff'].remove(mrx.to_xpath())
         self.byxpath[mrx.to_xpath()] = 'childdiff'
         p = mrx.parent()
         if p and p.to_xpath() not in self.bystate['childdiff']:

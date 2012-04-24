@@ -6,12 +6,14 @@ from lxml import etree
 from lxml.builder import E
 import pkgutil
 import importlib
+import sys
 
 myfile = inspect.getfile(inspect.currentframe())
 mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
 os.environ['MACHINATION_BOOTSTRAP_DIR'] = os.path.join(mydir, 'cache')
 from machination.update import Update
 from machination.workers import dummyordered as do
+from machination import xmltools
 
 class UpdateTestCase(unittest.TestCase):
 
@@ -28,21 +30,24 @@ class UpdateTestCase(unittest.TestCase):
             """)
         do.worker.set_status(st)
 
-    def test_desired_status(self):
+    def est_desired_status(self):
         st = self.u.desired_status()
 #        print()
 #        print(etree.tostring(st))
         self.assertEqual(st.tag, 'status')
 
-    def test_gather_status(self):
+    def est_gather_status(self):
         st = self.u.gather_status()
-        print()
-        print(etree.tostring(st))
+#        print()
+#        print(etree.tostring(st, pretty_print=True).decode(sys.stdout.encoding))
         # make sure the dummyordered worker element is in status
         self.assertNotEqual(len(st.xpath('/status/worker[@id="dummyordered"]')),0)
 
     def test_do_update(self):
-        self.u
+        self.u.do_update()
+        st = self.u.gather_status()
+        print()
+        print(xmltools.pstring(st))
 
 if __name__ == '__main__':
     upsuite = unittest.TestLoader().loadTestsFromTestCase(UpdateTestCase)

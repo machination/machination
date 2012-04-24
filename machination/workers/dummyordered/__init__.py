@@ -5,6 +5,7 @@ from machination import context
 from machination import xmltools
 import os, shutil
 import errno
+import sys
 
 class Worker(object):
     """Test of order preservation
@@ -141,14 +142,19 @@ class Worker(object):
         results = []
         for wu in wus:
             wmrx = xmltools.MRXpath(wu.get('id'))
+#            print()
+#            print("dispatching:\n" +
+#                  xmltools.pstring(wu))
             self.dispatch.get(wmrx.to_noid_path(), self.handle_default)(wu)
 
     def handle_default(self, wu):
+        if xmltools.MRXpath(wu.get('id')).name() == 'worker':
+            return
         raise Exception(wu.get('id') + " is not a valid work unit for worker 'dummyordered'")
 
     def handle_ordered(self, wu):
         op = wu.get('op')
-        elt_id = xmltools.MRXpath(wu[0].get('id')).id()
+        elt_id = xmltools.MRXpath(wu.get('id')).id()
         pos_id = wu.get('pos')
         if pos_id == '<first>':
             pos_id = None
@@ -172,7 +178,7 @@ class Worker(object):
 
     def handle_notordered(self, wu):
         op = wu.get('op')
-        fname = xmltools.MRXpath(wu[0].get('id')).id()
+        fname = xmltools.MRXpath(wu.get('id')).id()
         if op == 'add' or op == 'datamod':
             with open(os.path.join(self.datadir,"files", fname), "w") as f:
                 f.write(wu[0].text + "\n")
@@ -258,10 +264,11 @@ class pretend_config(object):
         return elt
 
     def from_xml(self, elt):
-        delt = elt.xpath("directive")[0]
+        delt = elt.xpath("directive")
         items = elt.xpath("item")
         with open(self.path, "w") as f:
-            f.write("directive:" + delt.text + "\n")
+            if delt:
+                f.write("directive:" + delt[0].text + "\n")
             f.write("[items]\n")
             for item in items:
                 f.write("{}:{}\n".format(item.get("id"),item.text))

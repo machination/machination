@@ -18,17 +18,18 @@
       </element>
     </zeroOrMore>
 
-    <element name="iniFile" info:ordered="1" wu:wu="1">
+    <element name="tofile" info:ordered="1" wu:wu="1">
 
       <zeroOrMore>
-        <element name="section">
+        <element name="directive">
+          <text/>
+        </element>
+      </zeroOrMore>
+
+      <zeroOrMore>
+        <element name="item">
           <attribute name="id"/>
-          <zeroOrMore>
-            <element name="item">
-              <attribute name="id"/>
-              <text/>
-            </element>
-          </zeroOrMore>
+          <text/>
         </element>
       </zeroOrMore>
 

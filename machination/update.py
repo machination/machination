@@ -4,6 +4,7 @@ from machination import context
 from machination.xmltools import XMLCompare
 from machination.xmltools import MRXpath
 from machination.xmltools import generate_wus
+from machination.xmltools import pstring
 from machination import utils
 from lxml import etree
 from lxml.builder import E
@@ -12,6 +13,8 @@ import topsort
 import argparse
 import os
 import importlib
+import sys
+import pprint
 
 class Update(object):
 
@@ -23,22 +26,35 @@ class Update(object):
 
     def do_update(self):
         """Perform an update cycle"""
-        print("desired:\n %s\ninitial:\n %s" % (etree.tostring(self.desired_status()), etree.tostring(self.initial_status())))
+#        print("desired:\n %s\ninitial:\n %s" % (etree.tostring(self.desired_status(), pretty_print=True).decode(sys.stdout.encoding), etree.tostring(self.initial_status(), pretty_print=True).decode(sys.stdout.encoding)))
+        print()
+        print('desired:\n%s' % pstring(self.desired_status()))
+        print()
+        print('initial:\n%s' % pstring(self.initial_status()))
 
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        deps = self.desired_status().xpath('/status/deps')[0]
-        wudeps = comp.wudeps(deps.iterchildren(etree.Element))
+        pprint.pprint(comp.bystate)
+        try:
+            deps = self.desired_status().xpath('/status/deps')[0]
+        except IndexError:
+            deps = etree.fromstring('<status><deps/></status>')[0]
+        wudeps = comp.wudeps(deps.iterchildren(tag=etree.Element))
         # we need to make all workunits depend on something for
         # topsort to work
         wudeps.extend([['', x] for x in comp.find_work()])
         i = 0
         for lev in iter(topsort.topsort_levels(wudeps)):
-            if i == 0:
+            i += 1
+            if i == 1:
                 # this is the fake workunit '' we put in above
-                i += 1
                 continue
+            print('xpaths for level {}:'.format(i))
+            pprint.pprint(lev)
             wus, working_elt = generate_wus(set(lev), comp)
+            print('wus for level {}:'.format(i))
+            for wu in wus:
+                print(pstring(wu))
             wubatch = []
             cur_worker = None
             for wu in wus:

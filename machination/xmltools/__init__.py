@@ -28,8 +28,29 @@ import errno
 import re
 import functools
 import pprint
+import sys
 from machination import context
 from machination import utils
+
+def pstring(e, top = True, depth = 0, istring = '  '):
+    """pretty string represetnation of an etree element"""
+    rep = []
+    rep.append('{}<{}'.format(istring * depth, e.tag))
+    for att in e.keys():
+        rep.append(" {}='{}'".format(att, e.get(att)))
+    if len(e) == 0:
+        if e.text is None or e.text == '':
+            rep.append("/>")
+        else:
+            rep.append(">{}</{}>".format(e.text, e.tag))
+    else:
+        rep.append(">\n")
+        for sube in e:
+            rep.append(pstring(sube, False, depth + 1, istring))
+        rep.append("{}</{}>".format(istring * depth, e.tag))
+    if not top:
+        rep.append("\n")
+    return ''.join(rep)
 
 def generate_wus(todo, comp, orderstyle="move"):
     """Return a list of workunits from todo list guided by template.
@@ -215,6 +236,8 @@ def generate_wus(todo, comp, orderstyle="move"):
                 continue
 
         # generate a wu
+        # TODO(colin): don't generate a wu if everything has been covered
+        # by sub workunits
         wus.append(
             E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
             )
@@ -957,6 +980,11 @@ class WorkerDescription:
         """
 
         xpath = MRXpath(xpath)
+        mrx = MRXpath(xpath)[len(self.prefix):].reroot()
+
+        # the worker element is always a workunit
+        if len(mrx) == 1:
+            return True
 
         if self.desc is not None:
             desc = self.get_description(xpath)
@@ -965,7 +993,6 @@ class WorkerDescription:
             else:
                 return False
         else:
-            mrx = MRXpath(xpath)[len(self.prefix):].reroot()
             # xpath should be /worker or /worker/something
             if len(mrx) <= 2:
                 return True
@@ -990,6 +1017,19 @@ class WorkerDescription:
             return True
         else:
             return False
+
+    def is_spanned(self, xpath):
+        """True if all children are work units, False otherwise"""
+        if self.desc is None:
+            return False
+        for cx in self.element_children(xpath):
+            if not self.is_workunit(cx):
+                return False
+        return True
+
+    def element_children(self, xpath):
+        """Return xpaths for all children of xpath that are elements"""
+        pass
 
     @functools.lru_cache(maxsize=100)
     def describes_path(self, element):

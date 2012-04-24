@@ -95,7 +95,6 @@ class Logger(object):
         fmtdict = {"left": "[",
                    "right": "]",
                    "lvl": str(lvl),
-                   "modname": inspect.stack()[1][1],
                    "funct": inspect.stack()[1][3]}
         message = msg
         self.__write_msg(lvl, "debug", message, fmtdict)
@@ -105,7 +104,6 @@ class Logger(object):
         fmtdict = {"left": "(",
                    "right": ")",
                    "lvl": str(lvl),
-                   "modname": inspect.stack()[1][1],
                    "funct": inspect.stack()[1][3]}
         message = msg
         self.__write_msg(lvl, "info", message, fmtdict)
@@ -115,7 +113,6 @@ class Logger(object):
         fmtdict = {"left": "{",
                    "right": "}",
                    "lvl": str(lvl),
-                   "modname": inspect.stack()[1][1],
                    "funct": inspect.stack()[1][3]}
         message = "WARNING: " + msg
         self.__write_msg(lvl, "warning", message, fmtdict)
@@ -125,13 +122,13 @@ class Logger(object):
         fmtdict = {"left": "<",
                    "right": ">",
                    "lvl": str(lvl),
-                   "modname": inspect.stack()[1][1],
                    "funct": inspect.stack()[1][3]}
         message = "ERROR: " + msg
         self.__write_msg(lvl, "debug", message, fmtdict)
 
     def __write_msg(self, lvl, cat, msg, fmt):
         "Dispatcher to write formatted messages to all destinations"
+        fmt['modname'] = inspect.stack()[2][0].f_globals['__name__']
         for disp in self.loggers:
             if lvl > disp[1]:
                 pass

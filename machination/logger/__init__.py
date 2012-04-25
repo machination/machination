@@ -94,8 +94,7 @@ class Logger(object):
         "Log a debug message. Default level is 6"
         fmtdict = {"left": "[",
                    "right": "]",
-                   "lvl": str(lvl),
-                   "funct": inspect.stack()[1][3]}
+                   "lvl": str(lvl)}
         message = msg
         self.__write_msg(lvl, "debug", message, fmtdict)
 
@@ -103,8 +102,7 @@ class Logger(object):
         "Log an info message. Default level is 4"
         fmtdict = {"left": "(",
                    "right": ")",
-                   "lvl": str(lvl),
-                   "funct": inspect.stack()[1][3]}
+                   "lvl": str(lvl)}
         message = msg
         self.__write_msg(lvl, "info", message, fmtdict)
 
@@ -112,8 +110,7 @@ class Logger(object):
         "Log a warning message. Default level is 1"
         fmtdict = {"left": "{",
                    "right": "}",
-                   "lvl": str(lvl),
-                   "funct": inspect.stack()[1][3]}
+                   "lvl": str(lvl)}
         message = "WARNING: " + msg
         self.__write_msg(lvl, "warning", message, fmtdict)
 
@@ -121,19 +118,36 @@ class Logger(object):
         "Log an error message. Default level is 1"
         fmtdict = {"left": "<",
                    "right": ">",
-                   "lvl": str(lvl),
-                   "funct": inspect.stack()[1][3]}
+                   "lvl": str(lvl)}
         message = "ERROR: " + msg
         self.__write_msg(lvl, "debug", message, fmtdict)
 
     def __write_msg(self, lvl, cat, msg, fmt):
         "Dispatcher to write formatted messages to all destinations"
-        fmt['modname'] = inspect.stack()[2][0].f_globals['__name__']
+        framerec = inspect.stack()[2]
+        try:
+            fmt['modname'] = framerec[0].f_globals['__name__']
+            fn = framerec[3]
+            cname = self.get_class_from_frame(framerec[0])
+            if cname is not None:
+                fn = cname + '.' + fn
+            fmt['funct'] = fn
+        finally:
+            del framerec
         for disp in self.loggers:
             if lvl > disp[1]:
                 pass
             else:
                 getattr(disp[0], cat)(msg, extra=fmt)
+
+# from http://stackoverflow.com/questions/2203424/python-how-to-retrieve-class-information-from-a-frame-object
+    def get_class_from_frame(self, f):
+        try:
+            class_name = f.f_locals['self'].__class__.__name__
+        except KeyError:
+            class_name = None
+        return class_name
+
 
 if __name__ == "main":
     conf_file = "/home/swilso11/machination/notes/example-config-file.xml"

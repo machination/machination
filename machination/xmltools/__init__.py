@@ -269,15 +269,14 @@ def generate_wus(todo, comp, orderstyle="move"):
             if not wd.is_ordered(tmrx.parent().to_noid_path()):
                     continue
 
-            # find the first previous element that also exists in working
-            prev = closest_shared_previous(working,
-                                           template,
-                                           tmrx)
-
             # no move needed if previous for welts[0] and te are the same
             if MRXpath(te.getprevious()) == MRXpath(welts[0].getprevious()):
                 continue
 
+            # find the first previous element that also exists in working
+            prev = closest_shared_previous(working,
+                                           template,
+                                           tmrx)
             # find the parent from working
             wparent = working.xpath(tmrx.parent().to_xpath())[0]
             if prev is None:
@@ -335,8 +334,10 @@ def generate_wus(todo, comp, orderstyle="move"):
 
             # find the first previous element that also exists in working
             prev = closest_shared_previous(working,
-                                                template,
-                                                tmrx)
+                                           template,
+                                           tmrx)
+            context.logger.dmsg(MRXpath(prev).to_xpath())
+
             if prev is None:
                 # add as first child
                 wparent.insert(0, add_elt)
@@ -361,6 +362,7 @@ def closest_shared_previous(working, template, xp):
     """find the closest sibling in working that is prior to xpath xp in template"""
     xp = MRXpath(xp)
     prevte = template.xpath(xp.to_xpath())[0].getprevious()
+    context.logger.dmsg('prevte: ' + MRXpath(prevte).to_xpath())
     while prevte is not None:
         prevwes = working.xpath(MRXpath(prevte).to_xpath())
         if prevwes:

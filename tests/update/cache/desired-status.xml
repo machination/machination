@@ -6,6 +6,12 @@
   <logging>
     <stream id='stdout' loglevel='6'/>
   </logging>
+  <worker id='__machination__'>
+    <test/>
+  </worker>
+  <worker id='fetcher'>
+
+  </worker>
   <worker id='dummyordered'>
     <sysitem id="1">sysone</sysitem>
     <sysitem id="2">systwo</sysitem>

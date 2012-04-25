@@ -28,7 +28,6 @@ class Update(object):
 
     def do_update(self):
         """Perform an update cycle"""
-#        print("desired:\n %s\ninitial:\n %s" % (etree.tostring(self.desired_status(), pretty_print=True).decode(sys.stdout.encoding), etree.tostring(self.initial_status(), pretty_print=True).decode(sys.stdout.encoding)))
         l.dmsg('desired:\n%s' % pstring(self.desired_status()))
         l.dmsg('initial:\n%s' % pstring(self.initial_status()))
 
@@ -121,7 +120,7 @@ class Update(object):
             return self.workers[name]
 
         try:
-            w = importlib.import_module('machination.workers.' + name)
+            w = importlib.import_module('machination.workers.' + name).Worker()
         except ImportError as e:
             if str(e).startswith('No module named '):
                 # TODO: assume no python module for this worker,
@@ -129,7 +128,7 @@ class Update(object):
                 try:
                     w = OLWorker(name)
                 except Exception as eol:
-#                    logger.emsg("No worker %s, giving up!" % name)
+                    l.emsg("No worker %s, giving up!" % name)
                     raise WorkerError(name, e, eol)
         self.workers[name] = w
         return w

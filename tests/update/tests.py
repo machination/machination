@@ -28,18 +28,15 @@ class UpdateTestCase(unittest.TestCase):
   <notordered id='2'>notwo</notordered>
 </worker>
             """)
-        do.worker.set_status(st)
+        self.w = do.Worker()
+        self.w.set_status(st)
 
     def est_desired_status(self):
         st = self.u.desired_status()
-#        print()
-#        print(etree.tostring(st))
         self.assertEqual(st.tag, 'status')
 
     def est_gather_status(self):
         st = self.u.gather_status()
-#        print()
-#        print(etree.tostring(st, pretty_print=True).decode(sys.stdout.encoding))
         # make sure the dummyordered worker element is in status
         self.assertNotEqual(len(st.xpath('/status/worker[@id="dummyordered"]')),0)
 

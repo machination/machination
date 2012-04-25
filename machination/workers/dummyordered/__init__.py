@@ -422,10 +422,10 @@ class pretend_db(object):
         return theid
 
 
-worker = Worker()
-
-def generate_status():
-    return worker.generate_status()
-
-def do_work(wus):
-    return worker.do_work(wus)
+#worker = Worker()
+#
+#def generate_status():
+#    return worker.generate_status()
+#
+#def do_work(wus):
+#    return worker.do_work(wus)

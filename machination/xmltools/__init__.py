@@ -336,7 +336,6 @@ def generate_wus(todo, comp, orderstyle="move"):
             prev = closest_shared_previous(working,
                                            template,
                                            tmrx)
-            context.logger.dmsg(MRXpath(prev).to_xpath())
 
             if prev is None:
                 # add as first child
@@ -349,7 +348,7 @@ def generate_wus(todo, comp, orderstyle="move"):
 
             # generate a work unit
             wus.append(
-                E.wu(add_elt,
+                E.wu(copy.deepcopy(add_elt),
                      op="add",
                      id=tmrx.to_xpath(),
                      pos=pos)

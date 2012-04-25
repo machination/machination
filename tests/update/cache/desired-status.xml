@@ -4,7 +4,7 @@
       log='{dsdir}'
       />
   <logging>
-    <stream id='stdout' loglevel='10'/>
+    <stream id='stdout' loglevel='6'/>
   </logging>
   <worker id='dummyordered'>
     <sysitem id="1">sysone</sysitem>

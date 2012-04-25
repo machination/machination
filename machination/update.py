@@ -28,12 +28,12 @@ class Update(object):
 
     def do_update(self):
         """Perform an update cycle"""
-        l.dmsg('desired:\n%s' % pstring(self.desired_status()))
-        l.dmsg('initial:\n%s' % pstring(self.initial_status()))
+        l.dmsg('desired:\n%s' % pstring(self.desired_status()),10)
+        l.dmsg('initial:\n%s' % pstring(self.initial_status()),10)
 
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        l.dmsg('\n' + pprint.pformat(comp.bystate))
+        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate),10)
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
         except IndexError:
@@ -48,9 +48,9 @@ class Update(object):
             if i == 1:
                 # this is the fake workunit '' we put in above
                 continue
-            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev))
+            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 8)
             wus, working_elt = generate_wus(set(lev), comp)
-            l.dmsg('wus for level {}:'.format(i))
+            l.dmsg('wus for level {}:'.format(i),8)
             for wu in wus:
                 l.dmsg(pstring(wu))
             wubatch = []
@@ -101,14 +101,16 @@ class Update(object):
         status = copy.deepcopy(self.previous_status())
         # find all workers
         stelt = status.xpath('/status')[0]
+        done = set()
         for welt in status.xpath('/status/worker'):
             # the following should create a worker object and store it
             # in self.workers
             wstatus = self.worker(welt.get("id")).generate_status()
             stelt.remove(welt)
             stelt.append(wstatus)
+            done.add(welt.get('id'))
         for welt in self.desired_status().xpath('/status/worker'):
-            if welt.get("id") in self.workers:
+            if welt.get("id") in done:
                 continue
             wstatus = self.worker(welt.get("id")).generate_status()
             stelt.append(wstatus)

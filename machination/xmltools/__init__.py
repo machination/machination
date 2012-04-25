@@ -361,7 +361,6 @@ def closest_shared_previous(working, template, xp):
     """find the closest sibling in working that is prior to xpath xp in template"""
     xp = MRXpath(xp)
     prevte = template.xpath(xp.to_xpath())[0].getprevious()
-    context.logger.dmsg('prevte: ' + MRXpath(prevte).to_xpath())
     while prevte is not None:
         prevwes = working.xpath(MRXpath(prevte).to_xpath())
         if prevwes:

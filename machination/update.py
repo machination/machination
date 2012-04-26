@@ -51,19 +51,32 @@ class Update(object):
             l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 8)
             wus, working_elt = generate_wus(set(lev), comp)
             l.dmsg('wus for level {}:'.format(i),8)
-            for wu in wus:
-                l.dmsg(pstring(wu))
-            wubatch = []
-            cur_worker = None
+#            for wu in wus:
+#                l.dmsg(pstring(wu))
+
+            # collect workunits by worker
+            byworker = {}
             for wu in wus:
                 workername = MRXpath(wu.get('id')).workername(prefix='/status')
-                if workername == cur_worker:
-                    wubatch.append(wu)
-                else:
-                    self.worker(workername).do_work(wubatch)
-                    wubatch = [wu]
-            # do the last batch
-            self.worker(workername).do_work(wubatch)
+                if workername not in byworker:
+                    byworker[workername] = E.wus(worker=workername)
+                byworker[workername].append(wu)
+
+            # TODO(colin): parallelise downloads and other work
+
+            # start the downloads
+            if 'fetcher' in byworker:
+                workelt = byworker['fetcher']
+                del byworker['fetcher']
+                l.lmsg('invoknig fetcher')
+                l.dmsg('fetching:\n' + pstring(workelt))
+                self.worker('fetcher').do_work(workelt)
+
+            # do the work
+            for wname, workelt in byworker.items():
+                l.lmsg('dispatching to ' + wname)
+                l.dmsg('work:\n' + pstring(workelt))
+                self.worker(wname).do_work(workelt)
 
         new_status = self.gather_status()
 

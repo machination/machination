@@ -10,7 +10,14 @@
     <test/>
   </worker>
   <worker id='fetcher'>
-
+    <sources>
+      <http id="machination-dl1"
+            baseURL="http://machination-dl1.see.ed.ac.uk/bundles"/>
+    </sources>
+    <cache>
+      <location>files</location>
+    </cache>
+    <bundle id ='name-ver-pkgver-arch-hash'/>
   </worker>
   <worker id='dummyordered'>
     <sysitem id="1">sysone</sysitem>

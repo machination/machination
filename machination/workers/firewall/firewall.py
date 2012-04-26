@@ -29,7 +29,7 @@ class firewall(object):
         return result
 
     def __add(self, work):
-        "Add new environment variables."
+        "Add new firewall rules."
         res = etree.element("wu",
                             id=work.attrib["id"])
 
@@ -39,7 +39,7 @@ class firewall(object):
         return res
 
     def __modify(self, work):
-        "Change existing environment variables"
+        "Change existing firewall rules variables"
         res = etree.element("wu",
                             id=work.attrib["id"])
 
@@ -52,7 +52,7 @@ class firewall(object):
         pass
 
     def __remove(self, work):
-        "Remove unwanted variables"
+        "Remove unwanted firewall rules"
         res = etree.element("wu",
                             id=work.attrib["id"])
 
@@ -69,16 +69,17 @@ class firewall(object):
 
         if not (self.fwstat.CurrentProfileTypes & 1):
             return w_elt
-    
+
         rules = self.fwstat.Rules
-    
+
         for rule in rules:
             if not rule.Profiles & 1:
                 continue
-            
+
             r_elt = etree.SubElement(w_elt, "Rule", id="rule-{}".format(i))
-            
+
             etree.SubElement(r_elt, "Name").text = rule.Name
+            etree.SubElement(r_elt, "Profiles").text = rule.Profiles
             etree.SubElement(r_elt, "Description").text = rule.Description
             etree.SubElement(r_elt, "AppName").text = rule.ApplicationName
             etree.SubElement(r_elt, "Protocol").text = protocols(rule.Protocol)

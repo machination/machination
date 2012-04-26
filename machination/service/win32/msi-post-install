@@ -1,0 +1,9 @@
+import win32serviceutil
+from machination.service.win32 import ServiceLauncher
+
+#Try to install the machination service
+win32serviceutil.HandleCommandLine(ServiceLauncher, argv=('', 'install'))
+
+#msiexec always wants a 0 exit for 'success'
+sys.exit(0)
+

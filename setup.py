@@ -11,7 +11,7 @@ def git_describe(abbrev=4):
     try:
         return subprocess.check_output(
             ['git', 'describe', '--abbrev=%d' % abbrev]).strip()
-    except subprocess.CalledProcessError:
+    except:
         return None
 
 
@@ -74,7 +74,7 @@ def run_setup(pkgname, pkglist):
     # clean_all throws 'build' away, and setup doesn't recreate it!
     try:
         os.mkdir("build")
-    except OSError, e:
+    except OSError as e:
         if e.errno != errno.EEXIST:
             raise
 
@@ -88,6 +88,7 @@ def run_setup(pkgname, pkglist):
         keywords="configuration management machination",
         url="http://www.github.com/machination/machination",
         packages=pkglist,
+        scripts=["machination/service/win32/msi-post-install"],
         classifiers=[
             "Development Status :: 3 - Alpha",
             "Topic :: Utilities",

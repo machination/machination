@@ -76,7 +76,7 @@ class Update(object):
                 l.lmsg('dispatching to ' + wname)
                 l.dmsg('work:\n' + pstring(workelt))
                 self.process_results(self.worker(wname).do_work(workelt),
-#                                     workelt)
+                                     workelt)
 
         new_status = self.gather_status()
 

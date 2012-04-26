@@ -28,12 +28,13 @@ class Update(object):
 
     def do_update(self):
         """Perform an update cycle"""
+        self.results = None
         l.dmsg('desired:\n%s' % pstring(self.desired_status()),10)
         l.dmsg('initial:\n%s' % pstring(self.initial_status()),10)
 
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate),10)
+        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate),6)
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
         except IndexError:
@@ -48,11 +49,8 @@ class Update(object):
             if i == 1:
                 # this is the fake workunit '' we put in above
                 continue
-            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 8)
+            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 6)
             wus, working_elt = generate_wus(set(lev), comp)
-            l.dmsg('wus for level {}:'.format(i),8)
-#            for wu in wus:
-#                l.dmsg(pstring(wu))
 
             # collect workunits by worker
             byworker = {}
@@ -68,15 +66,17 @@ class Update(object):
             if 'fetcher' in byworker:
                 workelt = byworker['fetcher']
                 del byworker['fetcher']
-                l.lmsg('invoknig fetcher')
+                l.lmsg('invoking fetcher')
                 l.dmsg('fetching:\n' + pstring(workelt))
-                self.worker('fetcher').do_work(workelt)
+                self.process_results(self.worker('fetcher').do_work(workelt),
+                                     workelt)
 
             # do the work
             for wname, workelt in byworker.items():
                 l.lmsg('dispatching to ' + wname)
                 l.dmsg('work:\n' + pstring(workelt))
-                self.worker(wname).do_work(workelt)
+                self.process_results(self.worker(wname).do_work(workelt),
+#                                     workelt)
 
         new_status = self.gather_status()
 
@@ -147,6 +147,9 @@ class Update(object):
                     raise WorkerError(name, e, eol)
         self.workers[name] = w
         return w
+
+    def process_results(self, res, workelt):
+        pass
 
 class WorkerError(Exception):
     def __init__(self, wname, epy, eol):

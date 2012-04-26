@@ -22,6 +22,7 @@ class UpdateTestCase(unittest.TestCase):
         st = etree.fromstring(
             """
 <worker id='dummyordered'>
+  <sysitem id='2'>systwo</sysitem>
   <sysitem id='1'>sysone</sysitem>
   <sysitem id='removeme'>rem</sysitem>
   <notordered id='3'>changeme</notordered>

@@ -197,8 +197,12 @@ def generate_wus(todo, comp, orderstyle="move"):
             # change any different text
             se.text = ste.text
 
-            if se_mrx.to_xpath() in comp.bystate['orderdiff']:
+            if se_mrx.to_xpath() in comp.bystate['orderdiff']\
+                    and e != se:
                 # sub element in wrong order - change
+
+                context.logger.dmsg('moving {} subelement {}'.
+                                    format(mx.to_xpath(), se_mrx.to_xpath()))
                 prevwe = closest_shared_previous(working,
                                                       template,
                                                       se_mrx)
@@ -286,8 +290,8 @@ def generate_wus(todo, comp, orderstyle="move"):
                 pos = "<first>"
             else:
                 # insert after prev
-                wparent.insert(wparent.index(prev + 1), welts[0])
-                pos = MRXpath(prev).last_item().to_xpath()
+                wparent.insert(wparent.index(prev) + 1, welts[0])
+                pos = MRXpath(prev)[-1].to_xpath()
 
             # generate a work unit
             # TODO(colin): support other order wu styles
@@ -1185,28 +1189,23 @@ class XMLCompare(object):
                     self._set_childdiff(MRXpath(xpath).parent())
 
     def order_diff(self):
-        # check child order for all xpaths that so far look the same
-        for xp in self.universalset - (self.bystate['left'] | self.bystate['right'] | self.bystate['datadiff'] | self.bystate['childdiff']):
+        # check child order for all xpaths that are in both sides
+        for xp in self.bothsidesset:
+            context.logger.dmsg('checking ' + xp)
             # xp guaranteed(?) to exist in both by construction
             left_elt = self.leftxml.xpath(xp)[0]
             right_elt = self.rightxml.xpath(xp)[0]
-            # it's enough to check direct children, deeper into the tree
-            # will be checked by other xpaths
-
-            # A child is defined to have been reordered if it comes after
-            # a different sibling in right cf. left
-            for rc in right_elt.iterchildren(tag = etree.Element):
-                rcx = MRXpath(rc)
-                lc = self.leftxml.xpath(rcx.to_xpath())[0]
-                rcp = rc.getprevious()
-                lcp = lc.getprevious()
-                # MRXpath objects can still be instantiated and compared
-                # even if argument is None, so we don't need to worry about
-                # the case where rcp and/or lcp are the first children
-                if MRXpath(lcp) != MRXpath(rcp):
-                    self.byxpath[rcx.to_xpath()] = 'orderdiff'
-                    self.bystate['orderdiff'].add(rcx.to_xpath())
-                    self._set_childdiff(MRXpath(xp))
+            # An element is defined to have been reordered if it comes
+            # after a different sibling in right cf. left
+            left_prev = left_elt.getprevious()
+            right_prev = right_elt.getprevious()
+            mrx = MRXpath(left_elt)
+            # MRXpath objects can still be instantiated and compared
+            # even if argument is None, so we don't need to worry about
+            # the case where rcp and/or lcp are the first children
+            if MRXpath(left_prev) != MRXpath(right_prev):
+                self.bystate['orderdiff'].add(mrx.to_xpath())
+                self._set_childdiff(mrx.parent())
 
     def _set_childdiff(self, mrx):
         """set the state of mrx.to_xpath() to 'childdiff'

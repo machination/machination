@@ -719,8 +719,23 @@ sub type_id {
   return $self->{type_id}->{$type};
 }
 
-=item B<os_id>
+=item B<type_exists_byname>
 
+$id or undef = $ha->type_exists_byname($name, $opts)
+
+=cut
+
+sub type_exists_byname {
+  my ($self, $name, $opts) = @_;
+
+  my $id = eval {$self->type_id($name, $opts)};
+  if(my $e = Exception::Class->caught('NoSuchTypeException')) {
+    return;
+  }
+  return $id;
+}
+
+=item B<os_id>
 
 =cut
 
@@ -1582,7 +1597,7 @@ sub fetch_authz_list {
 sub fetch_set_attachments {
   my $self = shift;
   my ($hc) = @_;
-  
+
 }
 
 =item B<authz_hash_from_object>
@@ -1837,7 +1852,7 @@ sub action_allowed_old {
 
 		# not relevant - not the same op
 		return (0,{test=>"op"})
-	    if (exists $req->{op} && 
+	    if (exists $req->{op} &&
 					($auth->{op} ne "all" && $req->{op} ne $auth->{op}));
 
 		# match action mpath against authorisation xpath
@@ -1865,7 +1880,7 @@ sub action_allowed_old {
 		# not relevant - owner/approved list not sufficient
 		if (exists $req->{owner} || exists $req->{approval}) {
 	    $req->{approval} = [] unless(defined $req->{approval});
-	    $req->{approval} = 
+	    $req->{approval} =
 				$self->{dba}->db_arr_str_to_array($req->{approval})
 					unless (ref $req->{approval} eq "ARRAY");
 	    my %ent;
@@ -1879,10 +1894,10 @@ sub action_allowed_old {
 																	 $req->{owner},
 																	 Dumper($req->{approval})));
 		}
-	
+
 		# relevant - return $authz->{is_allow}
 		return (1,$auth->{is_allow});
-	
+
 	} elsif (ref $auth eq "ARRAY") {
 		# $auth is a ref to an array of authz instructions.
 		# Try the request against each authz instruction in turn and
@@ -1920,7 +1935,7 @@ sub action_allowed_old {
 					$ai->{applies_to_set} = $set;
 					$ai->{mandatory} = 1;
 					my $ai_obj = $self->hobject->fetch('authz_inst',$aid);
-					@{$ai}{keys %{$ai_obj->fields}} = 
+					@{$ai}{keys %{$ai_obj->fields}} =
 						values %{$ai_obj->fields};
 					#		    print "checking ai: " . Dumper($req,$ai);
 					my ($rel, $ans) = $self->action_allowed($req,$ai);
@@ -1931,7 +1946,7 @@ sub action_allowed_old {
 	    }
 	    # store defaults for later
 	    foreach my $agid (@{$att->{default}}) {
-				unshift(@def_att, 
+				unshift(@def_att,
 								[$att->{applies_to_set}->{$agid},
 								 $agid,
 								 $hc->{id}]);
@@ -1946,7 +1961,7 @@ sub action_allowed_old {
 				$ai->{applies_to_set} = $set;
 				$ai->{mandatory} = 0;
 				my $ai_obj = $self->hobject->fetch('authz_inst',$aid);
-				@{$ai}{keys %{$ai_obj->fields}} = 
+				@{$ai}{keys %{$ai_obj->fields}} =
 					values %{$ai_obj->fields};
 				#		print "checking ai: " . Dumper($ai);
 				my ($rel, $ans) = $self->action_allowed($req,$ai);
@@ -1983,7 +1998,7 @@ Match if key $condition->{value}->{$value} exists.
 Match if regex matches $value.
 
 =item - {type=>"set",
-    
+
 value=>{set_id=>$id,obj_type=>$type,match_field=>"field"}}
 
 Match if an object of type obj_type in set set_id has a value in field
@@ -2089,7 +2104,7 @@ sub authz_entities {
 	my $self = shift;
 	my ($r,$a) = @_;
 	my $cat = "HAccessor.authz_entities";
-  
+
 	if (ref $a) {
 		# function
 		my $fn = shift @$a;
@@ -2124,11 +2139,11 @@ sub authz_entities {
 		}
 	} elsif (my($id)=$a=~/^set:(.*)$/) {
 		# a set
-		
+
 		# some special sets
 		return 1 if($id eq "EVERYONE");
 		return 0 if($id eq "NOBODY");
-		
+
 		# ordinary sets
 		my $set = Machination::HSet->new($self->hobject);
 		foreach my $r_ent (keys %$r) {
@@ -2250,7 +2265,7 @@ sub bootstrap_object_types {
 
 	foreach my $info (@{$self->def_obj_types}) {
 		$self->add_object_type({},$info->{name},$info->{plural},$info)
-			unless ($self->type_id($info->{name},{cache=>0}));
+			unless ($self->type_exists_byname($info->{name},{cache=>0}));
 	}
 }
 
@@ -3050,16 +3065,16 @@ sub op_add_object_type {
 #  my $dbh = $self->write_dbh;
 
 	# can't add an existing type - the database will enforce this too
-	if ($self->type_id($type,{cache=>0})) {
+  if($self->type_exists_byname($type, {cache=>0})) {
 		MachinationException->
       throw("Tried to add an object type that " .
             "already exists ($type)");
-	}
+  }
 
 	# there's a bootstrapping problem such that the type "set" has to be
 	# added first (so that the foreign key constraints on the set
 	# membership tables can be added).
-	if ($type ne "set" && ! $self->type_id("set",{cache=>0})) {
+	if ($type ne "set" && ! $self->type_exists_byname("set",{cache=>0})) {
 		MachinationException->
       throw("Could not add type \"$type\" - " .
             "the object type \"set\" must be added first.");
@@ -3159,7 +3174,7 @@ sub op_add_object_type {
        history=>1,
       }),
     );
-  
+
 	if ($type eq "set") {
     #		push @tables, $dbc->gentable
     #      ({name=>"nested_sets",
@@ -3271,7 +3286,7 @@ sub op_add_object_type {
 				 });
 	}
 	if ($type eq "authz_set") {
-		push @tables, 
+		push @tables,
       $dbc->gentable
 				({name=>"authz_set_members",
 					pk=>["set_id","identifier_type","identifier"],
@@ -4095,14 +4110,14 @@ sub op_add_to_agroup {
 		$sth->execute($item);
 		my ($db_agroup,$channel_id) = $sth->fetchrow_array;
 		$sth->finish;
-        
+
 		# don't do anything if $item is already in $agroup
 		next if(defined $db_agroup && $group == $db_agroup);
 
 		if ($channel_id ne $ag_chan_id) {
 			AttachmentException->
 				throw("HAccessor.add_to_agroup: can't add " .
-							"atachable $tid:$item to group $group - the " . 
+							"atachable $tid:$item to group $group - the " .
 							"channel ids are different " .
 							"($channel_id cf. $ag_chan_id).\n");
 		}
@@ -4207,7 +4222,7 @@ sub add_to_set {
 }
 sub op_add_to_set {
 	my ($self,$actor,$rev,$set,@mlist) = @_;
-  
+
   # $set should be a Machination::HSet or an id
   if (!ref($set)) {
     $set = Machination::HSet->new($self,$set);
@@ -4275,7 +4290,7 @@ sub op_remove_from_set {
   my $self = shift;
   #  print "args: " . Dumper(\@_);
 	my ($actor,$rev,$set,@mlist) = @_;
-  
+
   # $set should be a Machination::HSet or an id
   #  print Dumper($set) . "\n";
   if (!ref($set)) {
@@ -4652,7 +4667,7 @@ sub opts {
 		$opts->{fields} = ["*"] unless(defined $opts->{fields});
 		$opts->{condition} = "id=?" unless(defined $opts->{condition});
 		$opts->{keys} = ["id"] unless(defined $opts->{keys});
-        
+
 		#       if(defined $opts->{revision}) {
 		#           my $table = $self->table;
 		#           $table = "zzh_$table" unless($table=~/^zzh_/);
@@ -4814,7 +4829,7 @@ sub query {
 	}
 
 	$self->tables;
-    
+
 	my @extra_fields;
 	my $added;
 	if (defined $opts->{revision} &&
@@ -4824,7 +4839,7 @@ sub query {
 			unless (exists $fields{"$a.history_deletes"} ||
 							exists $fields{"history_deletes"}) {
 				push @extra_fields, "$a.history_deletes";
-				$added = 1; 
+				$added = 1;
 			}
 		}
 	}

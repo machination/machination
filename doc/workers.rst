@@ -44,66 +44,146 @@ output from all methods is XML.
 #. ``do_work``
 
 Only ``do_work`` need have a full implementation. Any method which a
-worker does *not* implement should return the XML::
+worker does *not* implement should be indicated in one of the
+following ways:
+
+* No method definition in a python worker.
+* Return the following XML for a non python worker:
+
+.. code-block:: xml
 
     <return method="$method" implemented="0"/>
 
-Introspection of a python worker object revealing the non existence of
-a method, a return value of ``None`` in python or the empty string in
-python or other language workers will also be inferred as meaning the
-method is not supported.
+* A special return value as specified by the method documentation.
 
 
 Python Workers vs. Other Language Workers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Python workers will be instantiated as objects and the methods called
-with an ``lxml.etree.Element`` object or a list of them as their
-arguments. They should return an ``lxml.etree.Element`` or a list as
-appropriate.
+Python Workers
+""""""""""""""
 
-Python example:
+Python workers will be instantiated as
+``machination.workers.[workername].Worker`` objects and the methods
+called with an ``lxml.etree.Element`` object as their arguments. When
+asked to return XML, they should return an ``lxml.etree.Element``
+object.
 
-Pythonish pseudocode for what happens in ``update``:
+Python example for worker 'dummyordered' (a worker created for test,
+bebugging and illustrative purposes):
+
+In file ``machination/workers/dummyordered/__init__.py`` somewhere in
+the python library path...
+
+.. code-block:: python
+  :linenos:
+
+  # Machination is nearly all XML. You'll probably need this...
+  from lxml import etree
+
+  # We haven't used context in this example, but you'll probably need
+  # it at least for the logger
+  from machination import context
+
+  class Worker(object):
+    """dummyordered Machination worker"""
+
+    def __init__(self):
+      # The worker name is used at several points. The following line
+      # autodiscovers it (from the module name). That means if you
+      # copy this code as a worker template it should work.
+      self.name = self.__module__.split('.')[-1]
+
+      # Worker descriptions are described later
+      self.wd = xmltools.WorkerDescription(self.name,
+                                           prefix = '/status')
+
+    def generate_status(self):
+      """find status relavent to this worker"""
+
+      # The following will create a 'worker' element with id
+      # self.name. I.e. XML of the form:
+      #
+      #   <worker id='workername'/>
+      st_elt = etree.Element("worker")
+      st_elt.set('id', self.name)
+
+      # find the status and fill in st_elt here
+
+      return st_elt
+
+    def do_work(self, wus):
+      """Change system status as dictated by work units in 'wus'
+
+      Args:
+        wus: an etree element whose children are all 'wu' elements.
+      """
+
+      # Create a results element to fill in
+      results = etree.Element('results')
+
+      # Iterating over an etree element iterates over its children
+      for wu in wus:
+        # Do something Muttley!
+        pass # so this code compiles if copied
+
+      return results
+
+And in ``machination/update.py``...
 
 .. code-block:: python
     :linenos:
-    :emphasize-lines: 8,29
+    :emphasize-lines: 8,9,15,21
 
     # somewhere to store current status
-    global_current_status = lxml.etree.Element("status")
+    current_status = lxml.etree.Element("status")
 
     # iterate through the workers and find current worker status
     for worker_name in some_list_of_workers:
-        worker = machination.workers.worker_name()
+
+        # make a Worker object
+        wmodname = 'machination.workers.' + name
+        worker = importlib.import_module(wmodname).Worker()
+
+        # store the workers for later
+        workers[worker_name] = worker
+
 	# This is how generate_status() is called
         worker_current_status = worker.generate_status()
 
-	# use the last stored worker status if the worker can't
-	# generate_status
-	if worker_status.get("implemented") == 0:
-	    worker_current_status = last_status(worker_name)
-	
 	# add the worker status to the global status
-	add_status(worker_current_status,global_current_status)
+        current_status.append(worker_current_status)
 
-    # iterate through all work units
-    work_iter = get_work_units(get_desired_status(),global_current_status)
-    work_batch = [work_iter.next()]
-    for wuwu in work_iter:
-    	if get_worker_name(work_batch[-1]) == get_worker_name(wuwu):
-	    # the same worker as last time - add wuwu to current batch
-	    work_batch.append(wuwu)
-	else:
-	    # different worker, call what we have batched and reset
-	    worker = machination.workers.worker_name()
-	    # this is how do_work is called
-	    results = worker.do_work(generate_work_xml(work_batch))
-	    deal_with_results(results)
-	    work_batch = [wuwu]
+    # ...
+    # Some magic to compare desired status with current status goes
+    # here. Required changes are generated (basically an XML-wise diff)
+    # ...
 
-Lines 8 and 29 call the workers' ``generate_status`` and ``do_work``
-methods respectively.
+    # ...
+    # Dependency calculations are done and the changes are ordered and
+    # then encoded as units of work (workunits, or 'wus') for the
+    # workers.
+    # ...
+
+    # Iterate through all work unit parcels generated above and hand
+    # them to the appropriate workers. These have the form:
+    #
+    # <wus worker='workername'>
+    #   <wu id='xpath-to-change' op='add|remove|datamod|deepmod|move'>
+    #     <!-- some types of wu (add, *mod) have data in here -->
+    #   </wu>
+    #   ...
+    # </wus>
+    for p in work_parcels:
+      results = workers[p.get('worker')].do_work(p)
+
+Lines 8 and 9 illustrate how your module is loaded and the worker
+object instantiated. Line 15 shows an invokaction of
+``generate_status()``, and line 21 shows an invokation of
+``do_work()``.
+
+Other Language Workers
+""""""""""""""""""""""
 
 Workers implemented in other languages (OL workers) will be handed
 their input as an XML string on ``STDIN``. The input will be

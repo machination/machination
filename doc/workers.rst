@@ -333,9 +333,12 @@ The wu element needs to be added. This usually corresponds to an
 object (package, printer, environment variable) being added to the
 system. The wu element will contain the XML to be added and a ``pos``
 attribute indicating the relative xpath of an existing sibling to be
-added after (where ordering is important).
+added after (where ordering is important). The special relative xpath
+'<first>' indiciates that the element should be added as the first
+child of its parent.
 
 .. code-block:: xml
+
   <!-- add emacs after vi -->
 
   <wu id='/status/worker[@id="packageman"]/package[@id="emacs"]'
@@ -354,6 +357,7 @@ object (package, printer, environment variable) being removed from the
 system.
 
 .. code-block:: xml
+
   <!-- remove word -->
 
   <wu id='/status/worker[@id="packageman"]/package[@id="word"]'
@@ -365,9 +369,14 @@ system.
 The wu element needs to be moved (the element is present in both
 current and desired status but not in the same position). This is only
 relevant for workers where the order of items is important (for
-example the order of firewall rules).
+example the order of firewall rules). The ``id`` attribute contains
+the absolute xpath of the element to be moved, the ``pos`` attribute
+contains the xpath of the sibling it is to be placed after, relative
+to their parent. The special relative xpath '<first>' indicates that
+the element should be placed as the first child of the parent.
 
 .. code-block:: xml
+
   <!-- move vi after emacs -->
 
   <wu id='/status/worker[@id="packageman"]/package[@id="vi"]'
@@ -379,15 +388,80 @@ example the order of firewall rules).
 
 The wu element's text (but nothing else) needs to be modified.
 
+.. code-block:: xml
+
+  <!-- change environment variable 'LICENSE_SERVER' to
+    'server1.example.com' -->
+
+  <wu id='/status/worker[@id="environment"]/var[@id="LICENSE_SERVER"]'
+      op='datamod'>
+    <var id='LICENSE_SERVER'>server1.example.com</var>
+  </wu>
+
 ``deepmod``
 ^^^^^^^^^^^
 
-Something other than (bu possibly including) the wu element's text has
+Something other than (but possibly including) the wu element's text has
 been modified. It may have had attributes changed or its children may
 have changed.
 
+.. code-block:: xml
+
+  <!-- deep modify the XML representing an ini file -->
+
+  <wu id='/status/worker[@id="example"]/inifile[@id="something"]'
+      op='deepmod'>
+    <inifile id="something">
+      <comment>This file does nothing</comment>
+      <section id='section 1'>
+        <keyvalue id='key1.1'>value1.1</keyvalue>
+        <keyvalue id='key1.2'>value1.2</keyvalue>
+      </section>
+      <section id='section 2'>
+        <keyvalue id='key2.1'>value2.1</keyvalue>
+        <keyvalue id='key2.2'>value2.2</keyvalue>
+      </section>
+    </inifile>
+  </wu>
+
 .. caution::
-   If there are
+   If there are work unit descendants of a ``deepmod`` workunit, they
+   will be sent separately. To prevent work from being done again, the
+   ``deepmod`` wu will be constructed *with the wu descendant elements
+   removed.* For example, if the example worker above is capable if
+   changing individual sections without re-writing the entire file, it
+   might designate ``inifile/section`` elements as wus. In that case,
+   the same changes that resulted in the wu given above would instead
+   generate something like:
+
+   .. code-block:: xml
+
+     <wus worker="example">
+       <wu id='/status/worker[@id="example"]/inifile[@id="something"]'
+           op='deepmod'>
+         <inifile id='something'>
+           <comment>This file does nothing</comment>
+         </inifile>
+       <wu>
+       <wu id='/status/worker[@id="example"]/inifile[@id="something"]/section[@id="section 1"]'
+           op='add'
+           pos='<first>'>
+         <section id='section 1'>
+           <keyvalue id='key1.1'>value1.1</keyvalue>
+           <keyvalue id='key1.2'>value1.2</keyvalue>
+         </section>
+       </wu>
+       <wu id='/status/worker[@id="example"]/inifile[@id="something"]/section[@id="section 2"]'
+           op='deepmod'>
+         <section id='section 2'>
+           <keyvalue id='key2.1'>value2.1</keyvalue>
+           <keyvalue id='key2.2'>value2.2</keyvalue>
+         </section>
+       </wu>
+     </wus>
+
+   where the changes are assumed to have come from an ``add`` of
+   section 1 and a ``deepmod`` of section 2.
 
 .. _workerdesc:
 

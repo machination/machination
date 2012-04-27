@@ -237,15 +237,17 @@ Example ``do_work`` call to the tweaks worker
 
     <!-- outer 'call' element only for OL workers -->
     <call method="do_work">
-      <wu id="/Time/NtpEnabled" op="modify">
-        <NtpEnabled>1</NtpEnabled>
-      </wu>
-      <wu id="/Time/TimeServer1" op="add">
-        <TimeServer1>timeserver1</TimeServer1>
-      </wu>
-      <wu id="/AutomaticUpdates/NoAutoReboot" op="modify">
-        <NoAutoReboot>1</NoAutoReboot>
-      </wu>
+      <wus worker='tweaks'>
+        <wu id="/Time/NtpEnabled" op="modify">
+          <NtpEnabled>1</NtpEnabled>
+        </wu>
+        <wu id="/Time/TimeServer1" op="add">
+          <TimeServer1>timeserver1</TimeServer1>
+        </wu>
+        <wu id="/AutomaticUpdates/NoAutoReboot" op="modify">
+          <NoAutoReboot>1</NoAutoReboot>
+        </wu>
+      </wus>
     </call>
 
 Example ``do_work`` return from tweaks.
@@ -254,43 +256,140 @@ Example ``do_work`` return from tweaks.
 
     <!-- outer 'return' element only for OL workers -->
     <return method="do_work">
-      <wu id="/Time/NtpEnabled" status="success"/>
-      <wu id="/Time/TimeServer1" status="error" message="something"/>
+      <results>
+        <wu id="/Time/NtpEnabled" status="success"/>
+        <wu id="/Time/TimeServer1" status="error" message="something"/>
+      </results>
     </return>
 
-Information Given on All Method Calls
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Work Units
+----------
 
-The ``generate_status`` Method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A worker's state (current or desired) is represented by XML. This in
+turn is a representation of some aspect of the system: printers,
+packages, firewall rules and so on. When the current and desired
+states are different, something needs to be done. A package may need
+to be added or removed or a firewall rule changed. For the most part,
+an individual element or attribute of XML is too small a detail to
+change on its own - it is likely to be a piece of information related
+to a larger logical unit which the worker operates on as a whole.
 
-Input
-"""""
+For example, the ``printerman`` worker may have status XML that looks
+like this:
 
-Output
-""""""
+.. code-block:: xml
+  :linenos:
+  :emphasize-lines: 3
 
-Example
-"""""""
+  <worker id='printerman'>
+    <printer id='queue1'>
+      <displayName>Friendly Name 1</displayName>
+      <!-- some other details -->
+    </printer>
+    <!-- other printers -->
+  </worker>
 
+and operate on ``/worker/printer`` elements as logical units since
+they are the full representations of printers.
 
-The ``do_work`` Method
-^^^^^^^^^^^^^^^^^^^^^^
+Now lets say we want to change the status to the following:
 
-Input
-"""""
+.. code-block:: xml
+  :linenos:
+  :emphasize-lines: 3
 
-Output
-""""""
+  <worker id='printerman'>
+    <printer id='queue1'>
+      <displayName>Another Name</displayName>
+      <!-- some other details -->
+    </printer>
+    <!-- other printers -->
+  </worker>
 
-Example
-"""""""
+So we've changed the ``/worker/printer[queue1]/displayName`` element's
+content to 'Another Name'. The ``update`` program now has to tell
+``printerman`` that something has changed. ``printerman`` only
+operates on whole printers, so ``update`` should tell ``printerman``
+that ``/worker/printer[queue1]`` has changed - an ancestor of
+``/worker/printer[queue1]/displayName``. Xpaths of the form
+``/worker/printer`` are the *work units* of ``printerman``.
 
+To collect the XML-wise changes into work units properly, ``update``
+needs to know which xpaths a given worker thinks of as units of
+work. To do this it will look at a worker's worker description file
+(see :ref:`workerdesc`). If there is no worker description file, or if
+no work units are defined in it, then all direct child elements of
+``/worker`` are assumed to be valid work units and all others are not.
 
-Configuration Information
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Now that ``update`` knows which xpaths to treat as work units (wus),
+it needs to communicate what has changed to the worker. In Machination
+wus are codified as one of five types of change:
 
+``add``
+^^^^^^^
+
+The wu element needs to be added. This usually corresponds to an
+object (package, printer, environment variable) being added to the
+system. The wu element will contain the XML to be added and a ``pos``
+attribute indicating the relative xpath of an existing sibling to be
+added after (where ordering is important).
+
+.. code-block:: xml
+  <!-- add emacs after vi -->
+
+  <wu id='/status/worker[@id="packageman"]/package[@id="emacs"]'
+      op='add'
+      pos='package[@id="vi"]'>
+    <package id='emacs'>
+      <!-- package information -->
+    </package>
+  </wu>
+
+``remove``
+^^^^^^^^^^
+
+The wu element needs to be removed. This usually corresponds to an
+object (package, printer, environment variable) being removed from the
+system.
+
+.. code-block:: xml
+  <!-- remove word -->
+
+  <wu id='/status/worker[@id="packageman"]/package[@id="word"]'
+      op='remove'/>
+
+``move``
+^^^^^^^^
+
+The wu element needs to be moved (the element is present in both
+current and desired status but not in the same position). This is only
+relevant for workers where the order of items is important (for
+example the order of firewall rules).
+
+.. code-block:: xml
+  <!-- move vi after emacs -->
+
+  <wu id='/status/worker[@id="packageman"]/package[@id="vi"]'
+      op='move'
+      pos='package[@id="emacs"]'>
+
+``datamod``
+^^^^^^^^^^^
+
+The wu element's text (but nothing else) needs to be modified.
+
+``deepmod``
+^^^^^^^^^^^
+
+Something other than (bu possibly including) the wu element's text has
+been modified. It may have had attributes changed or its children may
+have changed.
+
+.. caution::
+   If there are
+
+.. _workerdesc:
 
 Worker Description Files
 ------------------------

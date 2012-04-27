@@ -40,14 +40,12 @@ and make sure it connects ok.
 
 Ubuntu 8.04,8.10
 
-# apt-get install libdbi-perl
-# apt-get install libdbd-pgsql
-# apt-get install libdbd-pg-perl
+# apt-get install libdbi-perl, libdbd-pgsql, libdbd-pg-perl, postgresql-plperl
 
 2.1) Other deps:
 
-# apt-get install libxml-libxml-perl
-# apt-get install postgresql-plperl
+# apt-get install libxml-libxml-perl, libexception-class-perl, libmoose-perl, \
+    libexception-class-dbi-perl, 
 
 3) Create database tables etc.
 

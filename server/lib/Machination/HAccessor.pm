@@ -3058,7 +3058,7 @@ sub op_add_object_type {
 	my $fks = $opts->{fks};
 	$fks = [] unless defined $fks;
 
-  my $direct_attachable = $agroup || ($type eq "set");
+  my $direct_attachable = int($agroup || ($type eq "set"));
 
   my $dbc = $self->dbc;
   my $dbh = $dbc->dbh;
@@ -3127,6 +3127,7 @@ sub op_add_object_type {
 		$sth->execute($type,$plural,$entity,$direct_attachable,$agroup_type_id,$rev);
 	};
 	if (my $e = $@) {
+    print "ent: '$entity'\natt: '$direct_attachable'\n";
 		croak $e;
 	}
 	$sth->finish;

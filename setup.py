@@ -66,7 +66,7 @@ def clean_all():
     setup(script_name="setup.py", script_args=["clean", "--all"])
 
 
-def run_setup(pkgname, pkglist):
+def run_setup(pkgname, pkglist, datalist=[], scriptlist=[]):
 
     #Cleanup at end of successful setup
     clean_all()
@@ -88,7 +88,8 @@ def run_setup(pkgname, pkglist):
         keywords="configuration management machination",
         url="http://www.github.com/machination/machination",
         packages=pkglist,
-        scripts=["machination/service/win32/msi-post-install"],
+        package_data={pkgname: datalist},
+        scripts=scriptlist,
         classifiers=[
             "Development Status :: 3 - Alpha",
             "Topic :: Utilities",
@@ -100,14 +101,18 @@ def run_setup(pkgname, pkglist):
 if __name__ == "__main__":
 
     # Build machination core (without workers or tests)
-    run_setup("machination", (find_packages(exclude=["tests",
-                                                     "*.workers",
-                                                     "*.workers.*",
-                                                     "workers.*",
-                                                     "workers"])))
+    run_setup("machination",
+              find_packages(exclude=["tests",
+                                      "*.workers",
+                                      "*.workers.*",
+                                      "workers.*",
+                                      "workers"]),
+              ["desired-status.xml"],
+              ["machination/service/win32/msi-post-install"],)
 
     # Build each worker package
     basedir = "machination/workers"
     for item in os.listdir(basedir):
         if os.path.isdir(os.path.join(basedir, item)):
-            run_setup("machination-" + item, ["machination.workers." + item])
+            run_setup("machination-" + item,
+                      ["machination.workers." + item])

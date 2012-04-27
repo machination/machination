@@ -5,6 +5,7 @@ from distutils.command.clean import clean
 import os
 import errno
 import subprocess
+import sys
 
 
 def git_describe(abbrev=4):
@@ -66,7 +67,8 @@ def clean_all():
     setup(script_name="setup.py", script_args=["clean", "--all"])
 
 
-def run_setup(pkgname, pkglist, datalist=[], scriptlist=[]):
+def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
+              scriptargs=sys.argv[1:]):
 
     #Cleanup at end of successful setup
     clean_all()
@@ -79,6 +81,7 @@ def run_setup(pkgname, pkglist, datalist=[], scriptlist=[]):
             raise
 
     setup(
+        script_args=scriptargs,
         name=pkgname,
         version=get_git_version(),
         author="Colin Higgs, Bruce Duncan, Matthew Richardson, Stewart Wilson",
@@ -100,6 +103,14 @@ def run_setup(pkgname, pkglist, datalist=[], scriptlist=[]):
 
 if __name__ == "__main__":
 
+    if sys.argv[1] == 'bdist_msi':
+        scriptdir = "machination/service/win32/"
+        scriptfile = "msi-post-install"
+        scripts = [scriptdir + scriptfile]
+
+        # Append an install-script to bdist_msi options
+        scriptargs = [sys.argv[1:], '--install-script', scriptfile]
+
     # Build machination core (without workers or tests)
     run_setup("machination",
               find_packages(exclude=["tests",
@@ -108,7 +119,8 @@ if __name__ == "__main__":
                                       "workers.*",
                                       "workers"]),
               ["desired-status.xml"],
-              ["machination/service/win32/msi-post-install"],)
+              scripts,
+              scriptargs)
 
     # Build each worker package
     basedir = "machination/workers"

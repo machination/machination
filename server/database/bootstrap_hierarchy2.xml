@@ -1,0 +1,77 @@
+<hc name="machination:root" is_mp="1" owner="chiggs1">
+  <macro name="initial_owner">chiggs1</macro>
+  <attachments>
+    <attach mandatory="0" ref="agroup_authz_inst:default-deny"/>
+    <attach mandatory="1" ref="agroup_authz_inst:global-admins-allow"/>
+  </attachments>
+  <contents>
+    <hc name="system" is_mp="1">
+      <contents>
+	<hc name="sets"/>
+	<hc name="agroup_authz_insts">
+	  <contents>
+	    <object type="agroup_authz_inst" name="global default deny"
+		    label="agroup_authz_inst:default-deny">
+	      <field name="channel_id">{f:channel_id(machination:hierarchy)}</field>
+	    </object>
+	    <object type="agroup_authz_inst" name="global admins allow"
+		    label="agroup_authz_inst:global-admins-allow">
+	      <field name="channel_id">{f:channel_id(machination:hierarchy)}</field>
+	    </object>
+	  </contents>
+	</hc>
+	<hc name="authz_insts">
+	  <contents>
+	    <object type="authz_inst" name="global default deny"
+		    label="authz_inst:default-deny">
+	      <field name="is_allow">0</field>
+	      <field name="entities">["nof",1,{f:fetch_path_id(/system/sets/universal/set:external::string)}]</field>
+	      <field name="op">ALL</field>
+	      <field name="xpath">//*</field>
+	      <field name="agroup">{ref_id(agroup_authz_inst:default-deny)}</field>
+	    </object>
+	    <object type="authz_inst" name="global admins allow"
+		    label="authz_inst:global-admins-allow">
+	      <field name="is_allow">1</field>
+	      <field name="entities">["nof",1,{f:fetch_path_id(/system/sets/authz_groups/set:global_admins)}]</field>
+	      <field name="op">ALL</field>
+	      <field name="xpath">//*</field>
+	      <field name="agroup">{ref_id(agroup_authz_inst:global-admins-allow)}</field>
+	    </object>
+	  </contents>
+	</hc>
+      </contents>
+    </hc>
+    <hc name="bh-test1" is_mp="1">
+      <contents>
+	<object type="os_instance" name="wintest3"
+		label="os_instance:wintest3">
+	  <field name="os_id">2</field>
+	  <field name="pubkey">splat</field>
+	</object>
+	<objlink ref="{ref(os_instance:wintest5)}"/>
+      </contents>
+    </hc>
+    <hc name="bh-test2" is_mp="1">
+      <contents>
+	<objlink ref="{ref(os_instance:wintest4)}"/>
+	<object type="set" name="bh-set1">
+	  <field name="is_internal">1</field>
+	  <field name="member_type">{f:type_id(os_instance)}</field>
+	  <member>{ref_id(os_instance:wintest3)}</member>
+	  <member>{ref_id(os_instance:wintest4)}</member>
+	</object>
+	<object type="os_instance" name="wintest4"
+		label="os_instance:wintest4">
+	  <field name="os_id">2</field>
+	  <field name="pubkey">frog</field>
+	</object>
+	<object type="os_instance" name="wintest5"
+		label="os_instance:wintest5">
+	  <field name="os_id">2</field>
+	  <field name="pubkey">mince</field>
+	</object>
+      </contents>
+    </hc>
+  </contents>
+</hc>

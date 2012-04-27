@@ -1,0 +1,24 @@
+<validOses>
+  <os name="Windows"
+      major_version="XP"
+      minor_version="SP3"
+      bitness="32"/>
+  <os name="Windows"
+      major_version="7"
+      minor_version="0"
+      bitness="64"/>
+  <os name="Windows"
+      major_version="7"
+      minor_version="0"
+      bitness="32"/>
+
+  <os name="Ubuntu"
+      major_version="10.04"
+      minor_version="Desktop"
+      bitness="32"/>
+  <os name="Ubuntu"
+      major_version="10.04"
+      minor_version="Desktop"
+      bitness="64"/>
+      
+</validOses>

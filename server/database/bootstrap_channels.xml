@@ -1,0 +1,14 @@
+<channels>
+  <channel name="machination:hierarchy"
+	   root_tag="hc"
+	   scratch_mpath="machination:scratch"
+	   keep_scratch="1"/>
+  <channel name="machination:osprofile"
+	   root_tag="profile"
+	   scratch_mpath="machination:scratch"
+	   keep_scratch="1"/>
+  <channel name="machination:userprofile"
+	   root_tag="profile"
+	   scratch_mpath="machination:scratch"
+	   keep_scratch="1"/>
+</channels>

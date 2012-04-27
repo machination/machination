@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 46
+/svn/machination/!svn/ver/68/trunk/devel-notes
+END
+authz-notes.txt
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/machination/!svn/ver/3/trunk/devel-notes/authz-notes.txt
+END
+xml-instructions.txt
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/machination/!svn/ver/3/trunk/devel-notes/xml-instructions.txt
+END
+dependencies.txt
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/machination/!svn/ver/59/trunk/devel-notes/dependencies.txt
+END
+new-fetcher.txt
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/machination/!svn/ver/68/trunk/devel-notes/new-fetcher.txt
+END
+xml-rules.txt
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/machination/!svn/ver/3/trunk/devel-notes/xml-rules.txt
+END
+hierarchy-representation.txt
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/machination/!svn/ver/66/trunk/devel-notes/hierarchy-representation.txt
+END
+ass-order.txt
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/machination/!svn/ver/68/trunk/devel-notes/ass-order.txt
+END

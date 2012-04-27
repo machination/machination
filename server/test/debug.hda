@@ -1,0 +1,55 @@
+# object creation
+#/system/dynamic/all/os_instances;
+#/test/splat/frog/one;
+#/test/splat/frog/two;
+#/test/splat/frog/os_instance:frogos os_id=2 pubkey=splat;
+/test/splat/frog/three;
+/test/splat/frog/three/os_instance:splatos os_id=2 pubkey=splat;
+
+/test/splat/frog/three/next/mince/os_instance:splatos os_id=2 pubkey=splat;
+/test/frog/mince;
+./os_instance:splatos os_id=2 pubkey=splat;
+
+# unlink or delete an object
+# unlink unless link count is 1, then delete
+!/test/frog/mince/os_instance:splatos
+
+# same as above explicitly stated
+#!/test/frog/mince/os_instance:splatos |mode=unlinkordelete
+
+# unlink only, never delete
+!/test/frog/mince/os_instance:splatos |mode=unlink
+
+# definitely delete
+#!/test/frog/mince/os_instance:splatos |mode=delete
+
+
+# delete an hc
+# unlink any contained objects if their link count > 1, otherwise delete
+#!/test/splat/frog/three
+
+# same as above
+#!/test/splat/frog/three |mode=unlinkordelete
+
+# unlink only
+#!/test/splat/frog/three |mode=unlink
+
+# definitely delete
+#!/test/splat/frog/three |mode=delete
+
+# links
+
+# create link for os_instance:splatos in /test/splat/link
+#+/test/splat/link /test/splat/frog/three/os_instance:splatos
+
+# same as above if the object has type_id, obj_id (4,10)
+#+/test/splat/link 4:10
+
+# same again
+#+/test/splat/link os_instance:10
+
+# should remove the link created above
+#!+/test/splat/link/os_instance:splatos
+
+setvar(splat,frog)
+E/test/splat/set:group getvar(splat) /member2

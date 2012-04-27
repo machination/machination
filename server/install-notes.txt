@@ -1,0 +1,105 @@
+Setting up a Machination Server
+-------------------------------
+
+0) You will need...
+
+
+
+1) Set up a machination database.
+
+1.1) Install postgresql if not already there.
+
+Ubuntu 8.04, 8.10:
+
+root# apt-get install postgresql
+
+1.2) Create a machination database:
+
+- connect to database server as the admin user (usually "postgres"):
+
+  root# su - postgres
+  postgres$ psql postgres
+
+- create the machination user
+
+  postgres=# create user machination with password 'whatever';
+
+- create the machination database with the owner set to "machination"
+
+  postgres=# create database machination with owner machination;
+
+1.3) Make sure the machination server can talk to the database server:
+
+- From a shell on the machination server:
+
+ $ psql -h dbserver -U machination machination
+
+and make sure it connects ok.
+
+2) Make sure DBI and associated modules are installed:
+
+Ubuntu 8.04,8.10
+
+# apt-get install libdbi-perl
+# apt-get install libdbd-pgsql
+# apt-get install libdbd-pg-perl
+
+2.1) Other deps:
+
+# apt-get install libxml-libxml-perl
+# apt-get install postgresql-plperl
+
+3) Create database tables etc.
+
+# not any more
+#####$ cd server
+#####$ perl test-dbconfig.pl test-dbconfig.xml
+
+$ perl -Ilib bin/ha.pl bootstrap_all
+
+If there's still a dependencey on XML::Twig:
+
+# apt-get install libxml-twig-perl
+
+4) Install web server
+
+Ubuntu 8.04,8.10:
+
+# apt-get install apache2
+
+5) Install mod_perl
+
+Ubuntu 8.04,8.10:
+
+# apt-get install libapache2-mod-perl2 libapache-dbi-perl
+
+5.1) Configure mod_perl
+
+- locate the perl module configuration:
+
+  Ubuntu 8.04: /etc/apahe2/mods-available/perl.conf
+  RHE 5: /etc/httpd/conf.d/perl.conf
+
+- you'll need a line like the following:
+
+PerlRequire /var/www/perl/startup.pl
+
+  This file is included near the beginning of all mod_perl
+  interpreters. It's usually used to make sure the library path is
+  correct.
+
+- In the PerlRequire file, make sure the machination lib path is
+  included:
+
+use lib qw(/machination/lib/path [other paths]);
+1;
+
+- Back in perl.conf (or the mod-perl bit of your httpd.conf), you need
+  something like the following to enable the machination web service:
+
+<Location /machination/hierarchy>
+    SetHandler perl-script
+    PerlResponseHandler Machination::WebHierarchy
+</Location>
+
+

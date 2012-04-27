@@ -1,0 +1,65 @@
+History Tables and Support for Revisions in the Machination DB
+--------------------------------------------------------------
+
+\h1 Tracking History Information
+
+\h2 Storing History Information
+
+- All DB tables should have a corresponding history table
+-- Table names are too long to have history table called oldname_hist
+-- Call histroy tables history_table_1 and so on
+-- Have a table to map history tables to "real" tables
+
+history_table_n:
+  history_id		  int seq, primary key
+  history_timestamp	  timestamp
+  history_db_op		  char(1), I,U or D
+  history_deletes	  bool
+  original table...
+
+the original table should have triggers added to copy data here on
+INSERT, UPDATE and DELETE.
+
+on INSERT:
+   new row -> history, history_deletes = false
+on DELETE:
+   old row -> history, history_deletes = true
+on UPDATE with no key change:
+   new row -> history, history_deletes = false (same as INSERT)
+on UPDATE with key change:
+   old row -> history, history_deletes = true (same as DELETE)
+   new row -> history, history_deletes = false (same as INSERT)
+   
+history_table_map:
+  original_table	name, primary key
+  history_table		name
+
+\h2 Retrieving Historical Versions of Data
+
+- Searching for a unique answer (e.g. searching by key):
+
+  Find the last row in the table (ordered by history_id) which matches
+  the search and has a history_id less than some value. If
+  history_deletes is false then return this row, otherwise this row
+  has been deleted.
+
+\h1 Operations
+  
+history_valid_ops:
+  id			int seq, primary key
+  name			string
+
+history_operations:
+  id			int seq, primary key
+  vop_id		int -> history_valid_ops:id
+  parent		id of parent
+  revision		int
+
+history_changes:
+  op_id			int -> history_operations:id
+  history_table		name -> history_table_map:history_table
+  change_id		int -> history_table_n:id
+  			# can't do this constraint: would need to
+  			# break this table up into many, which would
+			# make searching difficult
+

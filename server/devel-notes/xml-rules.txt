@@ -1,0 +1,18 @@
+Rules for Machination XML
+-------------------------
+
+Most of these rules are there to make sure that XML nodes are uniquely
+identifiable, even when moved (relative to siblings). You should never
+rely on position to find a node (i.e. don't go looking for
+/path/child[1] or similar, look for /path/child[@id="id"]
+
+1) Wherever multiple sibling elements *could* exist with the same tag,
+   (i.e. the schema allows more than one element with this tag at this
+   level), these *must* be identified with an "id" attribute. The
+   identification must be unique at that level, but need not be unique
+   elsewhere.
+
+2) The "id" attribute in any element is reserved for the purpose above.
+
+3) No mixed content. A node must have text content, data or element
+   children. No combinations allowed.

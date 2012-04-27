@@ -1,0 +1,79 @@
+<hc name="machination:root" is_mp="1" owner="chiggs1">
+  <macro name="initial_owner">chiggs1</macro>
+  <contents>
+    <hc name="system" is_mp="1">
+      <contents>
+	<hc name="sets">
+	  <contents>
+	    <hc name="universal"/>
+	    <hc name="empty"/>
+	    <hc name="authz_groups">
+	      <contents>
+		<object type="set" name="global_admins">
+		  <field name="is_internal">false</field>
+		  <field name="member_type">string</field>
+		  <member>{$initial_owner}</member>
+		  <member>eggy</member>
+		</object>
+	      </contents>
+	    </hc>
+	    <object type="set" name="test_oses">
+	      <field name="is_internal">true</field>
+	      <field name="member_type">{type_id(os_instance)}</field>
+	      <member>{ref_id(os_instance:testxp)}</member>
+	      <member>{ref_id(os_instance:test-ubuntu-10.04)}</member>
+	    </object>
+	  </contents>
+	</hc>
+	<hc name="people"/>
+	<hc name="os_instances">
+	  <contents>
+	    <object type="os_instance" name="testxp"
+		    label="os_instance:testxp">
+	      <field name="os_id">{osid(Windows,XP,SP3,32)}</field>
+	      <field name="pubkey">splat</field>
+	    </object>
+	    <object type="os_instance" name="test-ubuntu-10.04"
+		    label="os_instance:test-ubuntu-10.04">
+	      <field name="os_id">{osid(Ubuntu,10.04,Desktop,64)}</field>
+	      <field name="pubkey">frog</field>
+	    </object>
+	  </contents>
+	</hc>
+	<hc name="mpolicies"/>
+	<hc name="ag_mpolicies"/>
+	<hc name="authz_insts"/>
+	<hc name="ag_authz_insts"/>
+	<hc name="assertions"/>
+	<hc name="ag_assertions"/>
+      </contents>
+    </hc>
+    <hc name="by_os" is_mp="1">
+      <contents>
+	<hc name="windows">
+	  <contents>
+	    <hc name="by_version">
+	      <contents>
+		<hc name="xp">
+		  <contents>
+		    <objlink ref="{ref(os_instance:testxp)}"/>
+		  </contents>
+		</hc>
+		<hc name="7"/>
+	      </contents>
+	    </hc>
+	  </contents>
+	</hc>
+	<hc name="ubuntu">
+	  <contents>
+	    <hc name="by_version">
+	      <contents>
+		<hc name="10.04"/>
+	      </contents>
+	    </hc>
+	  </contents>
+	</hc>
+      </contents>
+    </hc>
+  </contents>
+</hc>

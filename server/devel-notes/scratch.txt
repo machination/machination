@@ -1,0 +1,11 @@
++ in assertion objects, "arg" should be allowed to be null.
+
++ when creating an object which belongs in an agroup, automatically
+  determine the ag_ordinal.
+
++ add column to object_types to track whether the type belongs in an agroup
+
++ allow creation of objects with no parent and/or name=id as an option
+  to create_obj. Allows objects like assertions to be auto named since
+  these probably never need to exist outside their agroups.
+

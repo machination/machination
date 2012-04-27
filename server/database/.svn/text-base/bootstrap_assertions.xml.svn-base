@@ -1,0 +1,98 @@
+<assertions>
+  <action_ops>
+    <!-- complete, non overlay actions -->
+    <op id="create"
+	complete="1"
+	overlay="0"
+	description="create element or attribute in mpath"/>
+    <op id="delete"
+	complete="1"
+	overlay="0"
+	description="delete element or attribute in mpath"/>
+    <op id="settext"
+	complete="1"
+	overlay="0"
+	arg_meaning="text to set"
+	description="set element text or attribute value to action_arg"/>
+    <op id="reorderfirst"
+	complete="1"
+	overlay="0"
+	description="make element mpath the first child of its parent"/>
+    <op id="reorderlast"
+	complete="1"
+	overlay="0"
+	description="make element mpath the last child of its parent"/>
+    <op id="reorderbefore"
+	complete="1"
+	overlay="0"
+	arg_meaning="sibling mpath"
+	description="move element mpath immediately before sibling action_arg"/>
+    <op id="reorderafter"
+	complete="1"
+	overlay="0"
+	arg_meaning="sibling mpath"
+	description="move element mpath immediately after sibling mpath"/>
+
+    <!-- don't change anything, but required for authorisation -->
+    <!-- not using exists any more - replaced by listchildren on parent
+    <op id="exists"
+	complete="1"
+	overlay="0"
+	description="required for permission to check existence of element or attribute"/> -->
+    <op id="listchildren"
+	complete="1"
+	overlay="0"
+	description="required to list (see tag and id of) child elements"
+	/>
+    <op id="readtext"
+	complete="1"
+	overlay="1"
+	description="required to read text content of element or attribute"
+	/>
+
+    <!-- incomplete, non overlay actions -->
+    <op id="addlib"
+	complete="0"
+	overlay="0"
+	description="add library item providing mpath"/>
+    <op id="choosetext"
+	complete="0"
+	overlay="0"
+	arg_meaning="restriction"
+	description="allow user to choose at attachment time subject to restriction described in action_arg"/>
+
+    <!-- complete overlay actions -->
+    <op id="overlay:addlib"
+	complete="1"
+	overlay="1"
+	arg_meaning="library item id"
+	description="add specific library item"/>
+    <op id="overlay:choosetext"
+	complete="1"
+	overlay="1"
+	arg_meaning="text"
+	description="specific choice of text"/>
+
+    <!-- for authz purposes only -->
+    <op id="ALL"
+	complete="0"
+	overlay="0"
+	description="fake op representing all other ops as authz instruction target"/>
+    
+  </action_ops>
+  <assertion_ops>
+    <op id="exists"/>
+    <op id="notexists"/>
+    <op id="hastext"/>
+    <op id="hastextfromlist"/>
+    <op id="hastextmatching"/>
+    <op id="requires"/>
+    <op id="requiresordered"/>
+    <op id="excludes"/>
+    <op id="excludesordered"/>
+    <op id="first"/>
+    <op id="last"/>
+    <op id="before"/>
+    <op id="after"/>
+  </assertion_ops>
+</assertions>

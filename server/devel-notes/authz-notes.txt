@@ -1,0 +1,260 @@
+Queries:
+--------
+
+is ENTITY allowed to OPERATION OBJECT/PART?
+
+is_allowed($entity_list,$operation,$object_path,$object_xml);
+
+$entity_list = [{id=>$id},...]
+
+$operation = {op=>"read|write...",
+	      xpath=>"/path/to/sub/part/of/object",
+	      value=>"xml to add/create/set"}
+
+$object = "/path/to/obj/in/tree"
+
+$object_xml = xml representing object as it currently exists
+
+
+Restrictions:
+-------------
+
+allow ENTITIES to OPERATION OBJECTS/PARTS (by default | by decree)
+
+attach_restriction(
+	$hc,
+	$applies_to_group,
+	$applies_to_object_type,
+	"allow|deny",
+	$allow_override,
+	$entities,
+	$operation,
+	$part
+	);
+
+$allow_override = 0|1 (0 = decree, 1 = default)
+
+$entities = ENTITIES_SPECIFICATION
+
+$operation = {op=>"valid op", value=>VALUE_RESTRICTION}
+
+$part = "xpath within object type XML";
+
+
+
+
+
+
+1) The sorts of things we want to authorise
+
+- actions on the hierarchy
+
+-- create/delete objects
+-- move objects
+
+
+
+- actions on objects in the hierarchy
+
+-- objects whose data is in the database
+
+-- objects whose data is outside the database
+
+- actions on objects outside the hierarchy?
+-- No - attach these to a notional point in the hierarchy
+
+
+08-09-2007
+----------
+
+New idea - authorisation applies to operations on an XML
+representation. Set of ops based on those used for the profile
+compiler:
+
+- get/set att
+
+- get/set child
+
+- delete
+
+- order
+
+This implies that everything upon which actions are to be authorised
+should have an XML representation.
+
+examples:
+
+ - on an hc (not necessarily the representation for hcs that will be used):
+
+<hc id="parent">
+  <hc id="child1"/>
+  <person id="person1"/>
+</hc>
+
+- ops can be allowed or denied.
+
+- ops can be qualified:
+
+-- set_att applied to a pattern or enumerated list
+
+-- set_child restricted to matches on a schema
+
+
+25-1-2008
+---------
+
+authz instruction:
+
+for <svc_id>
+<allow|deny> <entities> to <action> in <xpath> [subject to <pattern>] ::
+attached to <container> as <mandatory|default> [applies to <set>]
+
+request:
+
+for <svc_id>
+as <entities>, attach <config instruction> to <container>
+
+config instructions:
+
+mostly:
+for <svc_id>
+as <entities>, <action> <unique xpath> [<value>] [applying to <set>]
+
+e.g.
+set_att /profile/@id w1234
+set_text /profile/machination/codeRepo http://machination/code
+set_child /profile/worker[id="packageman-1"] <package id="pkg1"/>
+delete /profile/worker[id="packageman-1"]/package[@id="pkg2"]
+
+or for "order" instructions:
+
+order <xpath> <first|last>
+order <xpath1> <before|after> <xpath2>
+
+interface:
+
+1) Attempt to attach a config instruction to a container.
+
+1.1) Check if <entities> have permission to add the xml representing
+     <config instruction> to <container> (op on xml for
+     $svc_id="machination_hierarchy").
+
+1.1.1) Continue if allowed, error if not allowed, or prompt if could be.
+
+1.2) Check if <config instruction> would be allowed under current
+     authz rules on the target xml for <svc_id>.
+
+1.2.1) Continue if allowed for all in applies to set.
+
+1.2.2) Error if not allowed for any and no signatures could help.
+
+1.2.3) If allowed for subset of applies to set, show which would get
+       the change and which wouldn't and ask whether to proceed. If
+       the instruction would apply to more targets if it had more
+       signatures, ask if they should be sought.
+
+2) Evaluate authz for instruction during compile.
+
+2.1) check if <config instruction> is allowed under current authz
+     rules on target xml for <svc_id>.
+
+2.1.1) Continue if allowed for this object (during compilation we are
+       evaluating for only one object - no sets).
+
+2.1.2) Ignore if not allowed (ignore possibility of adding sigs).
+
+
+30-1-2008
+---------
+
+Sorts of authorisation questions
+--------------------------------
+
+- When attaching a CI:
+
+-- Would this CI be allowed with current rules, EXCLUDING set and
+   entity tests?
+
+-- What set of objects will this CI apply to (with current entities)?
+   The interface should give a warning if this set is only a subset of
+   the "applies_to" set.
+
+-- What entities would give more privilege?
+
+- When compiling:
+
+-- Does this CI apply to this object?
+
+- When attaching an AI:
+
+
+5-2-2008
+--------
+
+Entity Descriptions
+-------------------
+
+- Authz instructions allow or deny certain entities or entity
+  combinations to perform an action.
+
+- The property storing the description of which entities are matched
+  we call the "entity description".
+
+- in the form:
+
+  $ref or [func, $arg, $arg, ...]
+
+  + $ref is a DB ref to an entity object.
+
+  + funcs are things like "or", "and", "nof". All should evaluate to a
+    boolean or a set. 
+
+  + examples:
+
+    - "object:1" (object:1 might represent user jbloggs)
+
+    - [ "nof", "2", "set:2" ] (at least 2 members of set:2)
+
+    - "set:2" (a set on it's own is short for "1 of" that set)
+
+    - [ "and", "object:1", "set:2" ] (object:1 and one of set:2. This
+      is a logical and, so this condition could be met by one entity
+      if it is both object:1 and a member of set:2)
+
+    - [ "and", "object:1", ["intersect", "set:1", "set:2"] ]
+
+    
+2008-07-22:
+-----------
+
+"Patterns" in authz instructions
+--------------------------------
+
+Pattern will mean a different thing for each type of instruction.
+
+add_elt, del_elt:
+  pattern = { tag=>condition, id=>condition }
+
+set_text:
+  pattern = condition
+
+set_att, del_att:
+  pattern = { att=>condition, value=>condition}
+
+conditions:
+
+  {type=>"string",value=>"example"}
+
+  {type=>"string_list",value=>{list=>undef,as=>undef,keys=>undef}}
+
+  {type=>"regex",value=>"expression"}
+
+#  {type=>"glob",value=>"expression"}
+
+  {type=>"set",value=>{set_id=>$id,obj_type=>$type,match_field=>"field"}}
+    (default match_field is "name")
+
+  {type=>"program",value=>"shell cmd"}
+    the shell command should return a list of possible values
+
+

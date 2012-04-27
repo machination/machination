@@ -1,0 +1,8 @@
+<setConditions>
+  <op id="="/>
+  <op id="!="/>
+  <op id="is"/>
+  <op id="is not"/>
+  <op id="like"/>
+  <op id="test"/>
+</setConditions>

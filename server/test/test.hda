@@ -1,0 +1,34 @@
+exists(/path1,a=1,join(:,b=,2));
+/path2 a=1 b=2;#comment 1
+# comment 2
+!/path3;
+
+/top/set:test
+/top/os_instance:test_xp
+members_exist(/top/set:test,/top/os_instance:testxp)
+
+setvar(SYS:default_owner,chiggs1)
+getvar(SYS:default_owner)
+
+# equivalnet
+exists(/mpath, a=1, b=2)
+/mpath a=1 b=2
+
+# equivalent
+notexists(/mpath);
+!/mpath;
+
+# '.' = previous mpath, '..' = parent of previous mpath
+/path 		 	# /path
+./child			# /path/child
+../sibling		# /path/sibling
+../../path2		# /path2
+
+# equivalent
+members_exist(/path/set:splat, /member1, /member2)
+E/path/set:splat /member1 /member2
+
+# equivalent
+attached(/target/mpath, /attachment1, /attachment2)
+@/target/mpath /attachment1 /attachment2
+

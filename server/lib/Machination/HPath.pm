@@ -370,7 +370,23 @@ sub parent_id {
   } else {
     $rep = $self->{rep};
   }
-  @$rep == 1 ? return undef : return $self->id_path($rep)->[-2];
+  return undef if @$rep == 1; # the root
+  if (@$rep == 0) {
+    IndexException->
+      throw("Cannot access the parent of a zero length HPath");
+  }
+  my ($def, $rem) = $self->defined_id_path($rep);
+  if(@$rem > 1) {
+    HierarchyException->
+      throw("Cannot get parent id: there is more than one undefined id in ancestry");
+  }
+  if(@$rem) {
+    # a remainder - $def goes up to parent
+    return $def->[-1];
+  } else {
+    # no remainder - whole path in $def
+    return $self->id_path($rep)->[-2];
+  }
 }
 
 =item B<string_to_rep>

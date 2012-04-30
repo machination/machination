@@ -2796,7 +2796,7 @@ sub _bootstrap_hierarchy {
         } else {
           # a "real" error
           $e = Exception::Class->caught;
-          ref $e ? $e->rethrow : die $e;
+          ref $e ? $e->rethrow : die Dumper($e);
         }
 
         # link is done if we get this far

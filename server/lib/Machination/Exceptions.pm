@@ -19,6 +19,10 @@ package Machination::Exceptions;
 
 use Exception::Class
   (
+   IndexException =>
+   {
+    description => "Index error",
+   },
    MachinationException =>
    {
     description => "Machination generic exception",

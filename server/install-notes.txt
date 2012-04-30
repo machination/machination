@@ -45,7 +45,7 @@ Ubuntu 8.04,8.10
 2.1) Other deps:
 
 # apt-get install libxml-libxml-perl, libexception-class-perl, libmoose-perl, \
-    libexception-class-dbi-perl, 
+    libexception-class-dbi-perl
 
 3) Create database tables etc.
 
@@ -54,6 +54,12 @@ Ubuntu 8.04,8.10
 #####$ perl test-dbconfig.pl test-dbconfig.xml
 
 $ perl -Ilib bin/ha.pl bootstrap_all
+
+- currently this fails during bootstrap_hierarchy, but running
+  bootstrap_hierarchy again works (which is part of why it's taking a
+  while to track down). Either run bootstrap_all again or
+  bottstrap_hierarchy, bootstrap_special_sets, bootstrap_hierarchy2
+  for just the last bit.
 
 If there's still a dependencey on XML::Twig:
 

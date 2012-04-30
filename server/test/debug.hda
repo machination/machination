@@ -51,5 +51,10 @@
 # should remove the link created above
 #!+/test/splat/link/os_instance:splatos
 
-setvar(splat,frog)
-E/test/splat/set:group getvar(splat) /member2
+/person:p1
+/person:p2
+/test/splat/set:group is_internal=1 cat('member_type=',type_id(person))
+E/test/splat/set:group /person:p1 /person:p2
+
+/test/splat/set:exgroup is_internal=0 member_type=string
+E/test/splat/set:exgroup splat frog

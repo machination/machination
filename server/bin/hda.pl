@@ -338,21 +338,31 @@ sub func_members_exist {
   # $path ought to refer to a set
   die "tried to add members to a non set object $path"
     unless $hp->type eq "set";
+  # $path ought to exist
+  die "tried to add members to a set that does not exist: $path"
+    unless $hp->id;
+
   my $set = Machination::HSet->new($client,$hp->id);
 
   # Make sure all the members exist and are of the correct type
   my @members;
   foreach my $memp (@$args) {
-    my $mhp = Machination::HPath->new($client,$memp);
-    die "prospective member $memp does not exist"
-      unless $mhp->id;
-
+    print " queueing member $memp\n";
+    if($set->is_internal) {
+      my $mhp = Machination::HPath->new($client,$memp);
+      die "prospective member $memp does not exist"
+        unless $mhp->id;
+      die "prospective member $memp is of type " . $mhp->type .
+        ". Set contains members of type " . $set->member_type
+          unless $set->member_type == $mhp->type_id;
+      push @members, $mhp->id;
+    } else {
+      push @members, $memp;
+    }
   }
 
   # add all members to the set
-  foreach my $mhp (@members) {
-    $client->add_to_set();
-  }
+  $client->add_to_set({actor=>$user}, $set->id, @members);
 
   return "";
 }

@@ -58,3 +58,4 @@ E/test/splat/set:group /person:p1 /person:p2
 
 /test/splat/set:exgroup is_internal=0 member_type=string
 E/test/splat/set:exgroup splat frog
+!E/test/splat/set:exgroup splat

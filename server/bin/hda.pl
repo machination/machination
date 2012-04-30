@@ -368,6 +368,36 @@ sub func_members_exist {
 }
 sub func_notmembers_exist {
   showfn(@_);
+  my ($args) = getargs(@_);
+  my $path = shift @$args;
+  my $hp = Machination::HPath->new($client,$path);
+
+  # $path ought to refer to a set
+  die "tried to remove members from a non set object $path"
+    unless $hp->type eq "set";
+  # $path ought to exist
+  die "tried to remove members from a set that does not exist: $path"
+    unless $hp->id;
+
+  my $set = Machination::HSet->new($client,$hp->id);
+
+  # Make sure all the member paths are of the correct type
+  my @members;
+  foreach my $memp (@$args) {
+    print " ensuring no member $memp\n";
+    if($set->is_internal) {
+      my $mhp = Machination::HPath->new($client,$memp);
+      die "removal path $memp is of type " . $mhp->type .
+        ". Set contains members of type " . $set->member_type
+          unless $set->member_type == $mhp->type_id;
+      push @members, $mhp->id;
+    } else {
+      push @members, $memp;
+    }
+  }
+
+  # add all members to the set
+  $client->remove_from_set({actor=>$user}, $set->id, @members);
   return "";
 }
 

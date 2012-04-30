@@ -3,12 +3,12 @@ use warnings;
 use Machination::HAccessor;
 use Machination::MPath;
 use Machination::HPath;
-use Machination::WebClient;
 use Data::Dumper;
 use Getopt::Long;
 
 use HOP::Lexer ':all';
 use Machination::Parser ':all';
+use Machination::WebClient;
 #use HOP::Parser ':all';
 use HOP::Stream ':all';
 
@@ -333,25 +333,25 @@ sub func_members_exist {
   showfn(@_);
   my ($args) = getargs(@_);
   my $path = shift @$args;
-  my $hp = Machination::HPath->new($self->ha,$path);
+  my $hp = Machination::HPath->new($client,$path);
 
   # $path ought to refer to a set
   die "tried to add members to a non set object $path"
     unless $hp->type eq "set";
-  my $set = Machination::HSet->new($self->ha,$hp->id);
+  my $set = Machination::HSet->new($client,$hp->id);
 
   # Make sure all the members exist and are of the correct type
   my @members;
   foreach my $memp (@$args) {
-    my $mhp = Machination::HPath->new($self->ha,$memp);
+    my $mhp = Machination::HPath->new($client,$memp);
     die "prospective member $memp does not exist"
       unless $mhp->id;
-    
+
   }
 
   # add all members to the set
   foreach my $mhp (@members) {
-    $self->ha->add_to_set();
+    $client->add_to_set();
   }
 
   return "";

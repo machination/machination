@@ -47,6 +47,12 @@ Ubuntu 8.04,8.10
 # apt-get install libxml-libxml-perl, libexception-class-perl, libmoose-perl, \
     libexception-class-dbi-perl
 
+install cpanminus to get modules not in ubunut package list:
+
+# apt-get install cpanminus
+
+# cpanm HOP::Lexer
+
 3) Create database tables etc.
 
 # not any more

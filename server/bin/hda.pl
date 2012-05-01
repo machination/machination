@@ -67,6 +67,7 @@ close $f;
 my $funcs =
   {
    echo => \&func_echo,
+   token => \&func_token,
    cat => \&func_cat,
    join => \&func_join,
    setvar => \&func_setvar,
@@ -86,7 +87,7 @@ my $funcs =
 my $vars = {};
 my $last_hpath;
 
-my ($prog,$statement,$func,$atom,$base,$expression,$option,$keyvalue);
+my ($prog,$statement,$func,$atom,$base,$expression,$option,$keyvalue,$string);
 my $Prog = parser { $prog->(@_) };
 my $Statement = sub { $statement->(@_) };
 my $Expression = sub { $expression->(@_) };
@@ -95,6 +96,7 @@ my $Atom = sub { $atom->(@_) };
 my $Base = sub { $base->(@_) };
 my $Option = parser { $option->(@_) };
 my $Keyvalue = parser { $keyvalue->(@_) };
+my $String = parser { $string->(@_) };
 
 $Machination::Parser::N{$Prog} = 'prog';
 $Machination::Parser::N{$Statement} = 'statement';
@@ -104,6 +106,10 @@ $Machination::Parser::N{$Atom} = 'atom';
 $Machination::Parser::N{$Base} = 'base';
 $Machination::Parser::N{$Option} = 'option';
 $Machination::Parser::N{$Keyvalue} = 'keyvalue';
+$Machination::Parser::N{$String} = 'string';
+
+# strings can be made of STRING tokens or the results of functions
+$string = alternate(lookfor("STRING"), $Func);
 
 $func = T
   (
@@ -115,11 +121,11 @@ $func = T
     absorb(lookfor('RPAREN')),
    ),
    sub {
-     my $f = $_[0];
-     if(exists $funcs->{$f}) {
-       return $funcs->{$f}->(arg2str(@{$_[1]}));
+     my $fname = $_[0];
+     if(exists $funcs->{$fname}) {
+       return $funcs->{$fname}->(arg2str(@{$_[1]}));
      } else {
-       die "tried to call unknown function $f";
+       die "tried to call unknown function $fname";
      }
    }
   );
@@ -128,9 +134,9 @@ $keyvalue = T
   (
    concatenate
    (
-    lookfor("STRING"),
+    $String,
     lookfor("EQUALS"),
-    lookfor("STRING"),
+    $String
    ),
    sub {
      return ["keyvalue", $_[0], $_[2]];
@@ -260,6 +266,11 @@ sub func_echo {
   return $_[0];
 }
 
+sub func_token {
+  print "token returning $_[0], $_[1]\n";
+  return  [$_[0], $_[1]];
+}
+
 sub func_cat {
   return join("",@_);
 }
@@ -288,6 +299,7 @@ sub func_exists {
     $fields->{$_} = undef if($fields->{$_} eq "<undef>")
   } keys %$fields;
 
+  print Dumper($args);
   print Dumper($fields);
 
   if($client_type eq "ha") {
@@ -532,7 +544,7 @@ sub func_notattached {
 
 sub func_type_id {
   if($client_type eq "ha") {
-    return ['STRING', $client->type_id($_[0])];
+    return $client->type_id($_[0]);
   } else {
     return $client->call("TypeId",$_[0]);
   }

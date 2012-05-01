@@ -47,7 +47,11 @@ Ubuntu 8.04,8.10
 # apt-get install libxml-libxml-perl, libexception-class-perl, libmoose-perl, \
     libexception-class-dbi-perl
 
-install cpanminus to get modules not in ubunut package list:
+for the hshell:
+
+# apt-get install libterm-readline-zoid-perl
+
+install cpanminus to get modules not in ubuntu package list:
 
 # apt-get install cpanminus
 

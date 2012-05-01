@@ -12,7 +12,7 @@ use Machination::WebClient;
 #use HOP::Parser ':all';
 use HOP::Stream ':all';
 
-Exception::Class::Base->Trace(1);
+Exception::Class::Base->Trace(1) if $ENV{DEBUG};
 
 my $client_type = "ha";
 my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
@@ -67,7 +67,7 @@ close $f;
 my $funcs =
   {
    echo => \&func_echo,
-   token => \&func_token,
+   print => \&func_print,
    cat => \&func_cat,
    join => \&func_join,
    setvar => \&func_setvar,
@@ -80,7 +80,9 @@ my $funcs =
    notmembers_exist => \&func_notmembers_exist,
 
    type_id => \&func_type_id,
+   obj_id => \&func_obj_id,
    os_id=>\&func_os_id,
+   channel_id=>\&channel_id,
    last_hpath=>\&func_last_hpath,
   };
 
@@ -266,6 +268,11 @@ sub func_echo {
   return $_[0];
 }
 
+sub func_print {
+  print "$_[0]\n";
+  return "";
+}
+
 sub func_token {
   print "token returning $_[0], $_[1]\n";
   return  [$_[0], $_[1]];
@@ -298,9 +305,6 @@ sub func_exists {
   map {
     $fields->{$_} = undef if($fields->{$_} eq "<undef>")
   } keys %$fields;
-
-  print Dumper($args);
-  print Dumper($fields);
 
   if($client_type eq "ha") {
     my $hp = Machination::HPath->new($client,$path);
@@ -550,12 +554,21 @@ sub func_type_id {
   }
 }
 
+sub func_obj_id {
+  my $hp = Machination::HPath->new($client, $_[0]);
+  return $hp->id;
+}
+
 sub func_os_id {
   if($client_type eq "ha") {
     return $client->os_id(@_);
   } else {
     return $client->call("OsId",@_);
   }
+}
+
+sub channel_id {
+  return $client->channel_id(@_);
 }
 
 sub func_last_hpath {

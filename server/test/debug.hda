@@ -66,3 +66,7 @@ E/test/splat/set:exgroup splat frog
 &/system /test/splat/set:group
 #!&/test/splat /test/splat/set:group
 #!&/system /system/set:group |del_orphans=1
+
+/test/agroup_assertion:testag channel_id=channel_id(machination:osprofile)
+
+/test/assertion:testass1 mpath=/system/worker[splat] ass_op=exists action_op=create agroup=obj_id(/test/agroup_assertion:testag)

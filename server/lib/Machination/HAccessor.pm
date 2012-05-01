@@ -873,6 +873,41 @@ sub object_exists {
   return $id;
 }
 
+=item B<attachment_exists>
+
+$bool = $ha->attachment_exists($hc_id, $type_id, $id, $mandatory)
+
+=cut
+
+sub attachment_exists {
+  my ($self, $hc, $tid, $id, $man) = @_;
+
+  my $ret = 0;
+  $man = 0 unless defined $man;
+
+  my $sql = "select * from hcatt_$tid where obj_id=? and hc_id=?";
+  my @params = ($id, $hc);
+  # get column names
+  my $sth = $self->write_dbh->prepare("select * from hcatt_$tid where 0=1");
+  $sth->execute();
+  my $has_man;
+  foreach my $name ($sth->{NAME_lc}) {
+    if($name eq "is_mandatory") {
+      $sql .= " and is_mandatory=?";
+      push @params, $man;
+      last;
+    }
+  }
+  $sth = $self->write_dbh->prepare_cached
+    ($sql, {dbi_dummy=>"HAccessor.attachment_exists"});
+  $sth->execute(@params);
+  if($sth->fetchrow_arrayref) {
+    $ret = 1;
+  }
+  $sth->finish;
+  return $ret;
+}
+
 =item B<fetch_root_id>
 
 $id = $ha->fetch_root_id($opts)
@@ -4027,9 +4062,10 @@ sub op_attach_to_hc {
     push @params, $mandatory,$active,$set_id;
   }
   push @params, $actor,$rev;
+#  print "$sql (@params)";
 	my $sth = $self->dbc->dbh->prepare_cached
 		($sql,{dbi_dummy=>"HAccessor.attach_to_hc"});
-	$sth->execute();
+	$sth->execute(@params);
 	$sth->finish;
 }
 

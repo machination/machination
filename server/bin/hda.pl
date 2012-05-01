@@ -175,6 +175,8 @@ $statement = T
        $f .= "attached";
      } elsif ($hpath =~ s/^\+//) {
        $f .= "linked";
+     } elsif ($hpath =~ s/^AG//) {
+       $f .= "agroup";
      } else {
        $f .= "exists";
      }
@@ -329,6 +331,19 @@ sub func_notexists {
   return "";
 }
 
+sub func_linked {
+  showfn(@_);
+  my ($args,$kv,$opts) = getargs(@_);
+  $hchp = Machination::HPath->new($client, shift @$args);
+  die "hc (" . $hchp->to_string . ") does not exist" unless $hchc->id;
+  return "";
+}
+sub func_notlinked {
+  showfn(@_);
+  my ($args,$kv,$opts) = getargs(@_);
+  return "";
+}
+
 sub func_members_exist {
   showfn(@_);
   my ($args) = getargs(@_);
@@ -403,10 +418,69 @@ sub func_notmembers_exist {
 
 sub func_attached {
   showfn(@_);
+  my ($args,$kv,$opts) = getargs(@_);
+  $kv->{mandatory} = 0 unless exists $kv->{mandatory};
+  $kv->{active} = 1 unless exists $kv->{active};
+  my $path = shift @$args;
+  my $hp = Machination::HPath->new($client,$path);
+
+  # $path ought to refer to an hc
+  die "cannot attach to a " . $hp->type
+    unless not defined $hp->type or $hp->type eq "machination:hc";
+  # $path ought to exist
+  die "tried to attach to an hc that does not exist: $path"
+    unless $hp->id;
+
+  foreach my $attp (@$args) {
+    my $ahp = Machination::HPath->new($client,$attp);
+    # make sure it exists
+    die "cannot attach non existant item $attp"
+      unless $ahp->id;
+    # make sure it is attachable
+    die "cannot attach $attp, type " . $ahp->type . " is not attachable"
+      unless $client->type_info($ahp->type_id)->{is_attachable};
+    # see if it is already attached
+    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id, $kv->{mandatory})) {
+      print "  $attp attached\n";
+      next;
+    }
+    # do the attachment
+    print "  $attp not attached - attaching\n";
+    $client->attach_to_hc({actor=>$user},
+                          $ahp->type_id, $ahp->id, $hp->id,
+                          $kv->{mandatory}, $kv->{active},
+                          $kv->{applies_to});
+  }
+
   return "";
 }
 sub func_notattached {
   showfn(@_);
+  my ($args,$kv) = getargs(@_);
+  $kv->{mandatory} = 0 unless exists $kv->{mandatory};
+  my $path = shift @$args;
+  my $hp = Machination::HPath->new($client,$path);
+
+  # $path ought to refer to an hc
+  die "cannot detach from a " . $hp->type
+    unless not defined $hp->type or $hp->type eq "machination:hc";
+  # $path ought to exist
+  die "tried to detach from an hc that does not exist: $path"
+    unless $hp->id;
+
+  foreach my $attp (@$args) {
+    my $ahp = Machination::HPath->new($client,$attp);
+    # see if it is attached
+    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id)) {
+      print "  $attp attached - detaching\n";
+      $client->detach_from_hc({actor=>$user},
+                              $ahp->type_id, $ahp->id, $hp->id);
+      next;
+    }
+    print "  $attp not attached\n";
+  }
+
+
   return "";
 }
 

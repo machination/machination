@@ -173,8 +173,8 @@ $statement = T
        $f .= "members_exist";
      } elsif ($hpath =~ s/^@//) {
        $f .= "attached";
-     } elsif ($hpath =~ s/^\+//) {
-       $f .= "linked";
+     } elsif ($hpath =~ s/^\&//) {
+       $f .= "inhc";
      } elsif ($hpath =~ s/^AG//) {
        $f .= "agroup";
      } else {
@@ -222,8 +222,12 @@ my $parser = $prog;
 my @res;
 
 eval { @res=$parser->($stream); };
-if($@) {
-  print "Parser died: " . Dumper($@);
+if(my $e = $@) {
+  if(ref $e eq "ARRAY") {
+    print "Parser died: " . Dumper($e);
+  } else {
+    die $e;
+  }
 }
 #@res = $parser->($stream);
 print Dumper(\@res);
@@ -284,6 +288,8 @@ sub func_exists {
     $fields->{$_} = undef if($fields->{$_} eq "<undef>")
   } keys %$fields;
 
+  print Dumper($fields);
+
   if($client_type eq "ha") {
     my $hp = Machination::HPath->new($client,$path);
     if(defined $hp->id) {
@@ -331,16 +337,56 @@ sub func_notexists {
   return "";
 }
 
-sub func_linked {
+sub func_inhc {
   showfn(@_);
   my ($args,$kv,$opts) = getargs(@_);
-  $hchp = Machination::HPath->new($client, shift @$args);
-  die "hc (" . $hchp->to_string . ") does not exist" unless $hchc->id;
+
+  # hc should exist
+  my $hchp = Machination::HPath->new($client, shift @$args);
+  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->id;
+
+  # object should exist
+  my $objhp = Machination::HPath->new($client, shift@$args);
+  die "object to link (" . $objhp->to_string . ") does not exist"
+    unless $objhp->id;
+
+  if($client->object_in_hc($objhp->type_id, $objhp->id, $hchp->id)) {
+    print "  already in hc\n";
+  } else {
+    print "  not in hc - adding\n";
+    $client->add_to_hc({actor=>$user}, $objhp->type_id, $objhp->id, $hchp->id);
+  }
+
   return "";
 }
-sub func_notlinked {
+sub func_notinhc {
   showfn(@_);
   my ($args,$kv,$opts) = getargs(@_);
+  $opts->{del_orphans} = 0 unless exists $opts->{del_orphans};
+
+  # hc should exist
+  my $hchp = Machination::HPath->new($client, shift @$args);
+  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->id;
+
+  my $objhp = Machination::HPath->new($client, shift@$args);
+  # trivially true if object doesn't exist
+  if (not $objhp->id) {
+    print "  " . $objhp->to_string . " doesn't exist\n";
+    return "";
+  }
+
+  if($client->object_in_hc($objhp->type_id, $objhp->id, $hchp->id)) {
+    print "  in hc - removing\n";
+    $client->remove_from_hc({actor=>$user},
+                            $objhp->type_id, $objhp->id, $hchp->id);
+    if($opts->{del_orphans} and not
+       $client->fetch_parents($objhp->type_id, $objhp->id)) {
+      $client->delete_obj({actor=>$user},$objhp->type_id,$objhp->id);
+    }
+  } else {
+    print "  not in hc\n";
+  }
+
   return "";
 }
 
@@ -486,7 +532,7 @@ sub func_notattached {
 
 sub func_type_id {
   if($client_type eq "ha") {
-    return $client->type_id($_[0]);
+    return ['STRING', $client->type_id($_[0])];
   } else {
     return $client->call("TypeId",$_[0]);
   }

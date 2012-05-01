@@ -873,6 +873,23 @@ sub object_exists {
   return $id;
 }
 
+=item B<object_in_hc>
+
+$id = $ha->object_in_hc($type, $id, $hc_id)
+
+=cut
+
+sub object_in_hc {
+  my ($self, $tid, $id, $hc, $opts) = @_;
+  my $sth = $self->read_dbh->prepare_cached
+    ("select obj_id from hccont_$tid where obj_id=? and hc_id=?",
+     {dbi_dummy=>"HAccessor.object_in_hc"});
+  $sth->execute($id, $hc);
+  my $row = $sth->fetchrow_arrayref;
+  return unless $row;
+  return $id;
+}
+
 =item B<attachment_exists>
 
 $bool = $ha->attachment_exists($hc_id, $type_id, $id, $mandatory)
@@ -3825,6 +3842,22 @@ sub op_delete_obj {
 			 {dbi_dummy=>"HAccessor.delete_obj"});
 		$sth->execute($obj_id);
 		$sth->finish;
+
+    # remove members if this is a set
+    if($type_id eq $self->type_id("set")) {
+      my $set = Machination::HSet->new($self, $obj_id);
+      if ($set->is_internal) {
+        $sth = $dbh->prepare_cached
+          ("delete from setmembers_" . $set->member_type . " where set_id=?",
+           {dbi_dummy=>"HAccessor.delete_obj"});
+        $sth->execute($obj_id);
+      } else {
+        $sth = $dbh->prepare_cached
+          ("delete from setmembers_external where set_id=?",
+           {dbi_dummy=>"HAccessor.delete_obj"});
+        $sth->execute($obj_id);
+      }
+    }
 
 		# detach from hcs (if attachable)
 		if ($self->type_info($type_id)->{is_attachable}) {

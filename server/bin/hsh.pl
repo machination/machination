@@ -36,7 +36,7 @@ GetOptions(
            );
 
 # set up our list of commands
-my @cmds = qw(config pwd cd ls show);
+my @cmds = qw(config pwd cd ls show reload);
 my %cmds = map {$_ => \&{"_".$_}, } @cmds;
 
 my $term = Term::ReadLine->new('Machination hsh');
@@ -78,8 +78,13 @@ sub _cd {
   return $pwd;
 }
 
+sub _reload {
+  exec "perl -I$INC[0] $0";
+}
+
 sub __abs_path {
   my ($p) = @_;
+
   my $base = $pwd;
   if(defined $p) {
     if ($p=~/^\//) {
@@ -125,7 +130,8 @@ sub _show {
   my $d = Machination::HObject->new($ha, $hp->type_id, $hp->id)
     ->fetch_data;
   my @ret;
-  push @ret, colored([$colors->{title}], $path);
+#  push @ret, colored([$colors->{title}], $path);
+  push @ret, __colorize_path($path);
   foreach my $f (sort keys %$d) {
     my $str = "  " . colored([$colors->{key}],sprintf('%-15s',"$f:"));
     if (defined $d->{$f}) {
@@ -136,4 +142,19 @@ sub _show {
     push @ret, $str;
   }
   return join("\n", @ret);
+}
+
+sub __colorize_path {
+  my $path = shift;
+  my $hp = Machination::HPath->new($ha, $path);
+  if ($hp->type eq "machination:hc") {
+    return colored([$colors->{container}], $path);
+  } else {
+    my $str = $hp->parent->to_string;
+    $str .= "/" unless ($str =~ /\/$/);
+    $str = colored([$colors->{container}], $str);
+    $str .= colored([$colors->{key}], $hp->type . ":") .
+      colored([$colors->{value}], $hp->name);
+    return $str;
+  }
 }

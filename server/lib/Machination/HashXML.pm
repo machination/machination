@@ -103,9 +103,9 @@ sub to_xml {
   my $aref = shift;
   my $indent = shift;
   $indent = 0 unless(defined $indent);
-  
+
   my ($tag,$content,$atts) = @$aref;
-  
+
   my $istr = " " x $indent;
   my $str = "$istr<$tag";
   foreach my $att (keys %$atts) {

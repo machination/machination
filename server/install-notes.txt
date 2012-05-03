@@ -91,7 +91,7 @@ Ubuntu 8.04,8.10:
 
 - locate the perl module configuration:
 
-  Ubuntu 8.04: /etc/apahe2/mods-available/perl.conf
+  Ubuntu 8.04: /etc/apache2/mods-available/perl.conf
   RHE 5: /etc/httpd/conf.d/perl.conf
 
 - you'll need a line like the following:
@@ -116,4 +116,11 @@ use lib qw(/machination/lib/path [other paths]);
     PerlResponseHandler Machination::WebHierarchy
 </Location>
 
+- Ubuntu (12.04): make a link to the conf file in mods-enabled:
 
+  # cd /etc/apache2/mods-enabled
+  # ln -s ../mods-available/perl.conf
+
+- reload apache:
+
+  # /etc/init.d/apache2 reload

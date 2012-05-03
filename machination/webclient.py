@@ -31,7 +31,7 @@ class WebClient(object):
                   ' application/x-www-form-urlencoded;charset={}'.format(self.encoding)})
         f=urllib.request.urlopen(r)
         s = f.read().decode(self.encoding)
-        print("got:\n" + s)
+#        print("got:\n" + s)
         elt = etree.fromstring(s)
         if elt.tag == 'error':
             raise Exception('error at the server end:\n' + elt[0].text)

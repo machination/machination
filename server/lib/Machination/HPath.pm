@@ -526,7 +526,7 @@ sub to_mpath {
       $rep = $self->string_to_rep($rep);
     }
   } else {
-    $rep = $self->{rep};
+    $rep = [@{$self->{rep}}];
   }
 
   shift @$rep; # remove the root entry

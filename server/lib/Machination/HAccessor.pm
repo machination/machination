@@ -243,7 +243,7 @@ sub new {
     $log = Machination::Log->new;
     my $elt = ($self->dbc->conf->doc->
       getElementById("subconfig.haccess")->findnodes("log"))[0];
-    print "starting logging to " . $self->dbc->conf->get_file("file.haccess.LOG") . "\n";
+#    print "starting logging to " . $self->dbc->conf->get_file("file.haccess.LOG") . "\n";
     $elt->appendTextChild("logFile",
                           $self->dbc->conf->get_file("file.haccess.LOG"));
     $log->from_xml($elt);
@@ -1520,6 +1520,7 @@ sub fetch_attachment_list {
   my $self = shift;
   my ($channel,$hlist,$type,$opts) = @_;
 
+  $self->log->dmsg("HAccessor.fetch_attachment_list", "in fn", 10);
   if(ref($hlist) ne "ARRAY") {
     my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
 #    my @hlist = ($hpath->id, @{$hpath->parent_path});
@@ -1639,6 +1640,9 @@ sub fetch_authz_list {
 
   $opts->{obj_fields} = ["op","is_allow","entities","xpath"];
   $opts->{obj_conditions} = [["(o.op=? or o.op=?)",[$op,"ALL"]]];
+#  $self->log->dmsg("Haccessor.fetch_authz_list","args:\n $channel, " .
+#                   "$hpath, 'authz_inst', " .
+#                   Data::Dumper->Dump([$opts],[qw(opts)]),9);
   return $self->fetch_attachment_list
     ($channel,$hpath,"authz_inst",$opts);
 }
@@ -1725,7 +1729,6 @@ sub action_allowed {
 	my $self = shift;
   my ($req,$hc_id,$opts) = @_;
   my $cat = "HAccessor.action_allowed";
-
   $self->log->dmsg($cat,"\n" . Dumper($req),8);
 
   my $authz_list = $self->

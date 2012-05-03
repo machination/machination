@@ -350,19 +350,20 @@ sub call_ListContents {
 
   $ha->log->dmsg("WebHierarchy.ListContents",
                  "owner: $owner, approval: $approval, hc: $hc, " .
-                 "opts: " . Dumper($opts),9);
+                 "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
 
   my $hp = Machination::HPath->new($ha,$hc);
 
   die "hc $hc does not exist" unless(defined $hp->id);
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
-
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listcontents",
              mpath=>$hp->to_mpath,
              owner=>$owner,
              approval=>$approval};
+#  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
+
   die "could not get listcontents permission for " . $req->{mpath}
     unless($ha->action_allowed($req,$hp));
 
@@ -370,18 +371,15 @@ sub call_ListContents {
 
   my $pass_opts = {};
   $pass_opts->{fields} = ["name"] if($opts->{fetch_names});
-  my @contents;
 
-  if($opts->{types}) {
-    foreach my $type (@{$opts->{types}}) {
-      my $tid = $ha->type_id($type);
-      push @contents, $ha->list_all_contents_of_type($tid,$hp->id,$pass_opts);
-    }
-  } else {
-    @contents = $ha->list_contents($hp->id,$pass_opts);
-  }
+  my $types = $opts->{types};
+  $types = ['machination:hc', keys %{$ha->all_types_info}]
+    unless defined($types);
+  my $contents = $ha->get_contents_handle($hp->id, $types)->
+    fetchall_arrayref({Slice=>{}});
 
-  return \@contents;
+
+  return $contents;
 }
 
 =item B<GetListContentsIterator>

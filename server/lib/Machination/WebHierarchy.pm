@@ -217,6 +217,7 @@ sub handler {
     &error("your call didn't work because:\n$@");
     return Apache2::Const::OK;
   }
+  $log->dmsg($cat, "call worked - answer:\n" . Dumper($ret), 4);
 #  my $rep = &perl_to_xrep($ret);
 
   print $xmld->to_xml($ret)->toString . "\n";
@@ -246,7 +247,7 @@ sub call_Help {
   $info .= "MPM: " . Apache2::MPM->show() . "\n";
   $info .= "threaded: " . Apache2::MPM->is_threaded() . "\n";
 
-  my $t = threads->create(\&splat);
+#  my $t = threads->create(\&splat);
   return $info;
 }
 
@@ -364,6 +365,8 @@ sub call_ListContents {
              approval=>$approval};
   die "could not get listcontents permission for " . $req->{mpath}
     unless($ha->action_allowed($req,$hp));
+
+  $ha->log->dmsg("WebHierarchy.ListContents","after action_allowed",9);
 
   my $pass_opts = {};
   $pass_opts->{fields} = ["name"] if($opts->{fetch_names});
@@ -1223,6 +1226,7 @@ sub error {
     my $m = XML::LibXML::Element->new('message');
     $m->appendText($error);
     $e->appendChild($m);
+    $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4);
     print $e->toString . "\n";
 
 }

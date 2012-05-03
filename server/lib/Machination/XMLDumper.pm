@@ -1,6 +1,6 @@
-package Machination::HashXML;
+package Machination::XMLDumper;
 
-# Copyright 2008 Colin Higgs and Matthew Richardson
+# Copyright 2011 Colin Higgs
 #
 # This file is part of Machination.
 #
@@ -17,23 +17,37 @@ package Machination::HashXML;
 # You should have received a copy of the GNU General Public License
 # along with Machination.  If not, see <http://www.gnu.org/licenses/>.
 
-BEGIN {
-  use Exporter ();
-  our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
-  $VERSION = 0.001;
-  @ISA = qw(Exporter);
-  @EXPORT = qw(
-                &xml_to_perl
-                &perl_to_xrep
-                &to_xml
-             );
-  @EXPORT_OK = qw(
-                );
-}
-
 use XML::LibXML;
 
-sub xml_to_perl {
+=pod
+
+=head1 Machination::XMLDumper
+
+=head2 Convert between perl data structures and a very simple XML
+representation
+
+
+=head2 Synopsis
+
+$xd = Machination::XMLDumper->new;
+
+$xml_elt = $xd->to_xml({text=>"some text",array=>[1,2,3]});
+
+$perl_var = $xd->to_perl(XML::LibXML::Element or $xml_string);
+
+=cut
+
+sub new {
+  my $this = shift;
+  my $class = ref($this) || $this;
+  my $self = {};
+  bless $self,$class;
+
+  return $self;
+}
+
+sub to_perl {
+  my $self = shift;
   my ($elt) = @_;
 
   unless(ref $elt) {
@@ -45,7 +59,7 @@ sub xml_to_perl {
   if($tag eq "r" || $tag eq "a") {
     $obj = [];
     foreach ($elt->findnodes("*")) {
-	    push @$obj, &xml_to_perl($_);
+	    push @$obj, $self->to_perl($_);
     }
   } elsif($tag eq "u") {
     $obj = undef;
@@ -58,7 +72,7 @@ sub xml_to_perl {
         die "attempt to specify a hash item with no id";
 	    }
 	    if(my @nodes = $_->findnodes("*")) {
-        $obj->{$_->getAttribute("id")} = &xml_to_perl($nodes[0]);
+        $obj->{$_->getAttribute("id")} = $self->to_perl($nodes[0]);
 	    } else {
         my $text = $_->textContent;
         if($text eq "") {
@@ -73,65 +87,34 @@ sub xml_to_perl {
   return $obj;
 }
 
-sub perl_to_xrep {
-  my ($obj) = @_;
+sub to_xml {
+  my $self = shift;
+  my $obj = shift;
 
-#    my $xrep;
   if(!defined $obj) {
-    return ["u"];
-  } elsif(ref $obj eq "HASH") {
-    my @items;
-    foreach my $item (keys %$obj) {
-	    push @items, ["k",&perl_to_xrep($obj->{$item}),{id=>$item}];
-    }
-    return ["h",\@items];
-  } elsif(ref $obj eq "ARRAY") {
-    return ["a"] unless(@$obj);
-    my @items;
-    foreach my $item (@$obj) {
-	    push @items, &perl_to_xrep($item);
-    }
-    return ["a",\@items];
+    return XML::LibXML::Element->new("u");
   } elsif(! ref $obj) {
-    return ["s",$obj];
+    my $elt = XML::LibXML::Element->new("s");
+    $elt->appendText($obj);
+    return $elt;
+  } elsif(ref $obj eq "HASH") {
+    my $elt = XML::LibXML::Element->new("h");
+    foreach my $k (keys %$obj) {
+      my $item = XML::LibXML::Element->new("k");
+      $item->setAttribute("id",$k);
+      $item->appendChild($self->to_xml($obj->{$k}));
+      $elt->appendChild($item);
+    }
+    return $elt;
+  } elsif(ref $obj eq "ARRAY") {
+    my $elt = XML::LibXML::Element->new("a");
+    foreach my $item (@$obj) {
+      $elt->appendChild($self->to_xml($item));
+    }
+    return $elt;
   } else {
     die "don't know how to turn a " . ref $obj . " into xml";
   }
-}
-
-sub to_xml {
-  my $aref = shift;
-  my $indent = shift;
-  $indent = 0 unless(defined $indent);
-
-  my ($tag,$content,$atts) = @$aref;
-
-  my $istr = " " x $indent;
-  my $str = "$istr<$tag";
-  foreach my $att (keys %$atts) {
-    $str .= " $att=\"" . $atts->{$att} . "\"";
-  }
-  unless(defined $content) {
-    $str .= "/>";
-    return $str;
-  }
-  if(ref $content) {
-    if(ref $content->[0]) {
-	    $str .= ">\n";
-	    foreach (@{$content}) {
-        $str .= to_xml($_,$indent+2) . "\n";
-	    }
-	    $str .= "$istr</$tag>";
-    } elsif(exists $content->[0]) {
-	    $content = to_xml($content,$indent+2);
-	    $str .= ">\n$content\n$istr</$tag>";
-    } else {
-	    $str .= "/>";
-    }
-  } else {
-    $str .= ">$content</$tag>";
-  }
-  return $str;
 }
 
 1;

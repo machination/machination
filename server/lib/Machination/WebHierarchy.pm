@@ -40,7 +40,7 @@ use XML::LibXML;
 use File::Path qw(make_path);
 
 use Machination::HAccessor;
-use Machination::HashXML;
+use Machination::XMLDumper;
 use Machination::Exceptions;
 
 use Apache::DataIterator::Reader;
@@ -111,6 +111,8 @@ our $log;
 our $ha;
 our $hierarchy_channel;
 our $shared_memory_dir;
+
+my $xmld = Machination::XMLDumper->new;
 
 =head3 Functions:
 
@@ -188,7 +190,7 @@ sub handler {
 
   my $args;
   eval {
-    $args = &xml_to_perl($req);
+    $args = $xmld->to_perl($req);
   };
   if($@) {
     error($@);
@@ -204,7 +206,7 @@ sub handler {
 
 #    print Dumper($args);
 
-  my $call_args = &xml_to_perl($req);
+  my $call_args = $xmld->to_perl($req);
   $log->dmsg($cat,"calling:\n$call($rem_user,[" .
              join(",",@approval) . "],\n" . Dumper($call_args) . ")",4);
   my $ret;
@@ -215,9 +217,9 @@ sub handler {
     &error("your call didn't work because:\n$@");
     return Apache2::Const::OK;
   }
-  my $rep = &perl_to_xrep($ret);
+#  my $rep = &perl_to_xrep($ret);
 
-  print to_xml($rep) . "\n";
+  print $xmld->to_xml($ret)->toString . "\n";
 
   return Apache2::Const::OK;
 }
@@ -737,9 +739,9 @@ $hc = path string or id
 
 sub call_Link {
     my ($ent,$item,$hc) = @_;
-    
+
     my $item_hp = Machination::HPath->new($ha,$item);
-    
+
     my $hc_id;
     if($hc=~/^\//) {
 	my $hp = Machination::HPath->new($ha,$hc);
@@ -787,7 +789,7 @@ $item_path = path string
 
 sub call_Unlink {
     my ($ent,$item) = @_;
-    
+
     my $item_hp = Machination::HPath->new($ha,$item);
 
     # need del_elt permission to the path where the link is to be removed
@@ -834,13 +836,13 @@ sub call_ContentsCount {
 	$hc
 	);
 
-    
+
     my $types = $opts->{types};
     unless($types) {
 	my @types = $ha->object_types;
 	$types = \@types;
     }
-    
+
     my $contents = {total=>0,types=>{}};
     foreach my $type (@$types) {
 	my $num = $ha->hcontainer->list_contents_of_type($type,$hc);
@@ -967,7 +969,7 @@ sub call_Attach {
 	);
 
     $ha->hobject->attach_to_hc($hc,$ent,$set,$mandatory,$atype,$aid);
-    
+
     return 1;
 }
 
@@ -1119,7 +1121,7 @@ $thing can be:
 
 =item - an hc id
 
-=item - an authz instruction in hash ref form (see 
+=item - an authz instruction in hash ref form (see
  Machination::HInternalIface->action_allowed)
 
 =item - a ref to an array of authz instructions as above
@@ -1217,7 +1219,11 @@ sub error {
     my ($error,$opts) = @_;
 
     $log->emsg("WebHierarchy.error",$error,1);
-    print to_xml(['error',['message',$error]]) . "\n";
+    my $e = XML::LibXML::Element->new('error');
+    my $m = XML::LibXML::Element->new('message');
+    $m->appendText($error);
+    $e->appendChild($m);
+    print $e->toString . "\n";
 
 }
 

@@ -23,7 +23,7 @@ use Machination::Exceptions;
 #use XML::Twig::XPath;
 use Data::Dumper;
 use LWP::UserAgent;
-use Machination::HashXML;
+use Machination::XMLDumper;
 use XML::LibXML;
 
 =pod
@@ -52,6 +52,7 @@ sub new {
   $self->user($opts{user}) if(exists $opts{user});
   $self->log($opts{log}) if exists $opts{log};
   $self->ua(LWP::UserAgent->new);
+  $self->xmld(Machination::XMLDumper->new);
 
   return $self;
 }
@@ -101,6 +102,15 @@ sub ua {
   return $self->{'ua'};
 }
 
+sub xmld {
+  my ($self,$in) = @_;
+
+  if($in) {
+    $self->{'xmld'} = $in;
+  }
+  return $self->{'xmld'};
+}
+
 sub user {
   my ($self,$in) = @_;
 
@@ -114,14 +124,13 @@ sub call {
   my $self = shift;
   my $call = shift;
 
-  my $xml = '<r call="' . $call . '" user="' . $self->user . '">';
+  my $celt = XML::LibXML::Element("r");
+  $celt->setAttribute('call', $call);
+  $celt->setAttribute('user', $user);
 
   foreach (@_) {
-    $xml .= to_xml(perl_to_xrep($_));
+    $celt->appendChild($self->xmld->to_xml($_));
   }
-  $xml .= '</r>';
-
-  #    print "sending:\n$xml\n";
 
   my $res = $self->ua->post($self->url,Content=>$xml);
   unless($res->is_success) {
@@ -135,7 +144,7 @@ sub call {
 
   die $self->get_error($xml) if($xml =~ /^<error>/);
 
-  return xml_to_perl($xml);
+  return $self->xmld->to_perl($xml);
 }
 
 sub get_error {

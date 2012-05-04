@@ -219,20 +219,20 @@ sub defined_id_path {
     my $id;
     if(!@path) {
       $id = $self->ha->fetch_root_id;
-      $id = ["machination:hc",$id] if(!@$rep);
+#      $id = ["machination:hc",$id] if(!@$rep);
     } else {
       if(ref $elt) {
         # last entry
         my ($branch,$type,$name) = @$elt;
 
-        my $obj_id = $self->ha->
+        $id = $self->ha->
           fetch_id(
                    $type_id,
                    $name,
                    $path[-1]
                   );
-        $id = [$type_id,$obj_id];
-        $id = undef if(!defined $obj_id);
+#        $id = [$type_id,$obj_id];
+#        $id = undef if(!defined $obj_id);
       } else {
         $id = $self->ha->fetch_id(undef,$elt,$path[-1]);
       }
@@ -259,7 +259,7 @@ sub id {
 
   my $idpath = $self->id_path($rep);
   return undef unless defined $idpath;
-  return $idpath->[-1]->[1];
+  return $idpath->[-1];
 }
 
 =item B<type>

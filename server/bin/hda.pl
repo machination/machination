@@ -86,7 +86,7 @@ my $funcs =
    last_hpath=>\&func_last_hpath,
   };
 
-my $vars = {};
+my $vars = {_USER_=>$user};
 my $last_hpath;
 
 my ($prog,$statement,$func,$atom,$base,$expression,$option,$keyvalue,$string);
@@ -323,14 +323,14 @@ sub func_exists {
         }
         if($different) {
           print "  different from what we want: modifying\n";
-          $obj->modify_data({actor=>$user},%$fields);
+          $obj->modify_data({actor=>$vars->{_USER_}},%$fields);
         } else {
           print "  as requested\n";
         }
       }
     } else {
       print "  does not exist\n";
-      $client->create_path({actor=>$user},$path,$fields);
+      $client->create_path({actor=>$vars->{_USER_}},$path,$fields);
     }
   } elsif($client_type eq "web") {
 #    $client->
@@ -344,7 +344,7 @@ sub func_notexists {
   if($client_type eq "ha") {
     my $hp = Machination::HPath->new($client,$path);
     if(defined $hp->id) {
-      $client->delete_obj({actor=>$user},$hp->type_id,$hp->id,
+      $client->delete_obj({actor=>$vars->{_USER_}},$hp->type_id,$hp->id,
                          {'delete_obj:recursive'=>1});
     }
   } elsif($client_type eq "web") {
@@ -370,7 +370,7 @@ sub func_inhc {
     print "  already in hc\n";
   } else {
     print "  not in hc - adding\n";
-    $client->add_to_hc({actor=>$user}, $objhp->type_id, $objhp->id, $hchp->id);
+    $client->add_to_hc({actor=>$vars->{_USER_}}, $objhp->type_id, $objhp->id, $hchp->id);
   }
 
   return "";
@@ -393,11 +393,11 @@ sub func_notinhc {
 
   if($client->object_in_hc($objhp->type_id, $objhp->id, $hchp->id)) {
     print "  in hc - removing\n";
-    $client->remove_from_hc({actor=>$user},
+    $client->remove_from_hc({actor=>$vars->{_USER_}},
                             $objhp->type_id, $objhp->id, $hchp->id);
     if($opts->{del_orphans} and not
        $client->fetch_parents($objhp->type_id, $objhp->id)) {
-      $client->delete_obj({actor=>$user},$objhp->type_id,$objhp->id);
+      $client->delete_obj({actor=>$vars->{_USER_}},$objhp->type_id,$objhp->id);
     }
   } else {
     print "  not in hc\n";
@@ -439,7 +439,7 @@ sub func_members_exist {
   }
 
   # add all members to the set
-  $client->add_to_set({actor=>$user}, $set->id, @members);
+  $client->add_to_set({actor=>$vars->{_USER_}}, $set->id, @members);
 
   return "";
 }
@@ -474,7 +474,7 @@ sub func_notmembers_exist {
   }
 
   # add all members to the set
-  $client->remove_from_set({actor=>$user}, $set->id, @members);
+  $client->remove_from_set({actor=>$vars->{_USER_}}, $set->id, @members);
   return "";
 }
 
@@ -508,7 +508,7 @@ sub func_attached {
     }
     # do the attachment
     print "  $attp not attached - attaching\n";
-    $client->attach_to_hc({actor=>$user},
+    $client->attach_to_hc({actor=>$vars->{_USER_}},
                           $ahp->type_id, $ahp->id, $hp->id,
                           $kv->{mandatory}, $kv->{active},
                           $kv->{applies_to});
@@ -535,7 +535,7 @@ sub func_notattached {
     # see if it is attached
     if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id)) {
       print "  $attp attached - detaching\n";
-      $client->detach_from_hc({actor=>$user},
+      $client->detach_from_hc({actor=>$vars->{_USER_}},
                               $ahp->type_id, $ahp->id, $hp->id);
       next;
     }

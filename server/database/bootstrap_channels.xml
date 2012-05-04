@@ -4,11 +4,11 @@
 	   scratch_mpath="machination:scratch"
 	   keep_scratch="1"/>
   <channel name="machination:osprofile"
-	   root_tag="profile"
+	   root_tag="status"
 	   scratch_mpath="machination:scratch"
 	   keep_scratch="1"/>
   <channel name="machination:userprofile"
-	   root_tag="profile"
+	   root_tag="status"
 	   scratch_mpath="machination:scratch"
 	   keep_scratch="1"/>
 </channels>

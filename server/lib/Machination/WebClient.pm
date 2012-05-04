@@ -126,13 +126,13 @@ sub call {
 
   my $celt = XML::LibXML::Element("r");
   $celt->setAttribute('call', $call);
-  $celt->setAttribute('user', $user);
+  $celt->setAttribute('user', $self->user);
 
   foreach (@_) {
     $celt->appendChild($self->xmld->to_xml($_));
   }
 
-  my $res = $self->ua->post($self->url,Content=>$xml);
+  my $res = $self->ua->post($self->url,Content=>$celt->toString);
   unless($res->is_success) {
     WebException->throw("Error contacting web service:\n" .
                         $res->status_line . "\n");
@@ -140,7 +140,7 @@ sub call {
 
 #    print $res->content;
 
-  $xml = $res->content;
+  my $xml = $res->content;
 
   die $self->get_error($xml) if($xml =~ /^<error>/);
 

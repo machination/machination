@@ -1520,12 +1520,13 @@ sub fetch_attachment_list {
   my $self = shift;
   my ($channel,$hlist,$type,$opts) = @_;
 
-  $self->log->dmsg("HAccessor.fetch_attachment_list", "in fn", 10);
+
   if(ref($hlist) ne "ARRAY") {
     my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
-#    my @hlist = ($hpath->id, @{$hpath->parent_path});
-    my @hlist = reverse @{$hpath->id_path};
-    $hlist = \@hlist;
+    HierarchyException->throw
+      ("Can only fetch attachment list for an hc")
+        unless $hpath->type_id eq 'machination:hc';
+    $hlist = [ reverse @{$hpath->id_path} ];
   }
 
   my @q;
@@ -1588,17 +1589,19 @@ sub fetch_attachment_list {
       unshift @{$idx->{$hc_id}->{$mand}}, $row;
     }
   }
-  my $res;
+  my $res = {mandatory=>[], default=>[]};
   foreach my $hc (@$hlist) {
-    $res->{mandatory} = []
-      unless $res->{mandatory};
+#    $res->{mandatory} = []
+#      unless $res->{mandatory};
     push @{$res->{mandatory}}, @{$idx->{$hc}->{1}}
       if(defined $idx->{$hc}->{1});
-    $res->{default} = []
-      unless $res->{default};
+#    $res->{default} = []
+#      unless $res->{default};
     unshift @{$res->{default}}, @{$idx->{$hc}->{0}}
       if(defined $idx->{$hc}->{0});
   }
+  $self->log->dmesg("HAccessor.fetch_attachment_list",
+                    "returning:\n" . Dumper($res),9);
   return $res;
 }
 
@@ -2271,6 +2274,7 @@ sub bootstrap_all {
 	$self->bootstrap_functions;
 	$self->bootstrap_tables;
 	$self->bootstrap_ops;
+  $self->bootstrap_basehcs;
 	$self->bootstrap_object_types;
   $self->bootstrap_postobj_tables;
   $self->bootstrap_set_conditions;
@@ -2278,9 +2282,9 @@ sub bootstrap_all {
   $self->bootstrap_oses;
   $self->bootstrap_assertions;
 	$self->bootstrap_channels;
-  $self->bootstrap_hierarchy;
-  $self->bootstrap_special_sets;
-  $self->bootstrap_hierarchy2;
+#  $self->bootstrap_hierarchy;
+#  $self->bootstrap_special_sets;
+#  $self->bootstrap_hierarchy2;
 }
 
 =item B<bootstrap_functions>
@@ -2625,6 +2629,31 @@ sub mexpand {
 
 	#    print $outstack[0] . "\n";
 	return $outstack[0];
+}
+
+=item B<bootstrap_basehcs>
+
+Create the basic hcs needed for things further on
+
+=cut
+
+sub bootstrap_basehcs {
+  my $self = shift;
+
+  # [ path, is_mp ]
+  my @info =
+    (
+     ['/',1],
+     ['/system',1],
+     ['/system/sets/universal',0],
+     ['/system/sets/empty',0],
+    );
+
+  foreach my $i (@info) {
+    my $hp = Machination::HPath->new($self,$i->[0]);
+    print $hp->to_string . "\n";
+    $self->create_path({}, $hp, {is_mp=>$i->[1]});
+  }
 }
 
 =item B<bootstrap_hierarchy>
@@ -3365,6 +3394,32 @@ sub op_add_object_type {
   $self->do_op("add_setmember_type",{actor=>$actor,parent=>$rev},
                $type_id,1,$is_set);
 
+  print "creating special sets...\n";
+#  return $type_id;
+  # create a universal and empty set for this type
+  my $uhp = Machination::HPath->new($self, "/system/sets/universal");
+  my $ehp = Machination::HPath->new($self, "/system/sets/empty");
+  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
+               $set_type_id,
+               $type, # as the name of the set
+               $uhp->id,
+               {
+                is_internal=>1,
+                member_type=>$type_id,
+                direct=>'UNIVERSAL',
+               }
+              );
+  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
+               $set_type_id,
+               $type, # as the name of the set
+               $ehp->id,
+               {
+                is_internal=>1,
+                member_type=>$type_id,
+                direct=>'EMPTY',
+               }
+              );
+
 	return $type_id;
 }
 
@@ -3460,7 +3515,8 @@ sub create_path {
 sub op_create_path {
 	my ($self,$actor,$rev,$path,$fields) = @_;
 
-  my $hp = Machination::HPath->new($self,$path)
+  my $hp = $path;
+  $hp = Machination::HPath->new($self,$path)
     unless(eval {$path->isa("Machination::HPath")});
   my ($idpath,$remainder) = $hp->defined_id_path;
 

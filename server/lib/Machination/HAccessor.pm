@@ -239,6 +239,7 @@ sub new {
 	$self->dbc(Machination::DBConstructor->new($conf)) if($conf);
 	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
+  $self->{type_info} = {};
   unless (defined $log) {
     $log = Machination::Log->new;
     my $elt = ($self->dbc->conf->doc->
@@ -2283,7 +2284,7 @@ sub bootstrap_all {
   $self->bootstrap_assertions;
 	$self->bootstrap_channels;
 #  $self->bootstrap_hierarchy;
-#  $self->bootstrap_special_sets;
+  $self->bootstrap_special_sets;
 #  $self->bootstrap_hierarchy2;
 }
 
@@ -2316,6 +2317,31 @@ sub bootstrap_ops {
 	}
 }
 
+=item B<bootstrap_basehcs>
+
+Create the basic hcs needed for things further on
+
+=cut
+
+sub bootstrap_basehcs {
+  my $self = shift;
+
+  # [ path, is_mp ]
+  my @info =
+    (
+     ['/',1],
+     ['/system',1],
+     ['/system/sets/universal',0],
+     ['/system/sets/empty',0],
+    );
+
+  foreach my $i (@info) {
+    my $hp = Machination::HPath->new($self,$i->[0]);
+    print $hp->to_string . "\n";
+    $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]});
+  }
+}
+
 =item B<bootstrap_object_types>
 
 =cut
@@ -2324,7 +2350,7 @@ sub bootstrap_object_types {
 	my $self = shift;
 
 	foreach my $info (@{$self->def_obj_types}) {
-		$self->add_object_type({},$info->{name},$info->{plural},$info)
+		$self->add_object_type({actor=>'Machination:System'},$info->{name},$info->{plural},$info)
 			unless ($self->type_exists_byname($info->{name},{cache=>0}));
 	}
 }
@@ -2629,31 +2655,6 @@ sub mexpand {
 
 	#    print $outstack[0] . "\n";
 	return $outstack[0];
-}
-
-=item B<bootstrap_basehcs>
-
-Create the basic hcs needed for things further on
-
-=cut
-
-sub bootstrap_basehcs {
-  my $self = shift;
-
-  # [ path, is_mp ]
-  my @info =
-    (
-     ['/',1],
-     ['/system',1],
-     ['/system/sets/universal',0],
-     ['/system/sets/empty',0],
-    );
-
-  foreach my $i (@info) {
-    my $hp = Machination::HPath->new($self,$i->[0]);
-    print $hp->to_string . "\n";
-    $self->create_path({}, $hp, {is_mp=>$i->[1]});
-  }
 }
 
 =item B<bootstrap_hierarchy>
@@ -3396,6 +3397,7 @@ sub op_add_object_type {
 
   print "creating special sets...\n";
 #  return $type_id;
+  print "here2\n";
   # create a universal and empty set for this type
   my $uhp = Machination::HPath->new($self, "/system/sets/universal");
   my $ehp = Machination::HPath->new($self, "/system/sets/empty");
@@ -3449,7 +3451,7 @@ sub op_add_setmember_type {
      {
      },$type,$is_internal,$is_set,$rev);
 
-  eval {$self->create_special_sets($type);};
+#  eval {$self->create_special_sets($type);};
 }
 
 
@@ -3523,6 +3525,7 @@ sub op_create_path {
   # path already exists if there is no remainder
   return unless(@$remainder);
 
+#  print Data::Dumper->Dump([$idpath, $remainder],[qw(idpath remainder)]);
   my $parent_hc = $idpath->[-1];
   if(!@$idpath && @$remainder == @{$hp->{rep}}) {
     shift @$remainder;
@@ -3530,6 +3533,8 @@ sub op_create_path {
     $parent_hc = $self->do_op
       ("create_obj",{actor=>$actor,parent=>$rev},
        undef,"machination:root",undef);
+    # path is only the root element, return
+    return $parent_hc if(@{$hp->{rep}} == 1);
   }
 
   my $lastelt = pop @$remainder;
@@ -3737,12 +3742,14 @@ sub op_create_obj {
   my $sql = "insert into $table (" .
     join(",",@fieldnames) . ") " .
       "values (" . join(",",@q) . ")";
-  print "$sql (" . join(",",@values) . ")\n";
+  print "create_obj: $sql (" . join(",",@values) . ")\n";
 	my $sth = $dbh->
 		prepare_cached($sql,
                    {dbi_dummy=>"HAccessor.create_obj"});
+  print "statement prepared\n";
 	$sth->execute(@values);
 	$sth->finish;
+  print "created obj\n";
 
 	# get the id for the entry we just made
 	$sth = $dbh->

@@ -1,0 +1,40 @@
+setvar(_USER_,chiggs1@EASE.ED.AC.UK)
+/ is_mp=1
+/system is_mp=1
+./sets/universal
+../empty
+../authz_groups
+/system/people
+../os_instances
+../mpolicies
+../ag_mpolicies
+../authz_insts
+../ag_authz_insts
+../assertions
+../ag_assertions
+
+/system/sets/authz_groups/set:global_admins is_internal=0 member_type=string
+E. getvar(_USER_) eggy
+/system/ag_authz_insts/agroup_authz_inst:global_default_deny \
+    channel_id=channel_id(machination:hierarchy)
+/system/ag_authz_insts/agroup_authz_inst:global_admins_allow \
+    channel_id=channel_id(machination:hierarchy)
+/system/authz_insts/authz_inst:global_default_deny \
+    is_allow=0 \
+    entities=cat('["nof",1,',obj_id(/system/sets/universal/set:external::string),]) \
+    op=ALL \
+    xpath=/ \
+    agroup=obj_id(/system/ag_authz_insts/agroup_authz_inst:global_default_deny)
+
+/by_os is_mp=1
+./windows
+./by_version
+./xp
+../7
+./os_instance:test-win7-1 os_id=os_id(Windows,7,0,64) pubkey=splat
+setvar(test-win7-1,last_hpath())
+
+/system/sets/set:test_oses is_internal=1\
+			   member_type=type_id(os_instance)\
+			   expression=<undef>
+E. getvar(test-win7-1)

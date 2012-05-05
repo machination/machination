@@ -172,6 +172,30 @@ sub to_string {
   return join("/",@path);
 }
 
+=item B<construct_elt>
+
+=cut
+
+sub construct_elt {
+  my $self = shift;
+
+  my $doc = XML::LibXML::Element->new('doc');
+  my $p = $doc;
+  foreach my $node (@{$self->{rep}}) {
+    next if $node eq "";
+    my $e;
+    if(ref $node) {
+      $e = XML::LibXML::Element->new($node->[0]);
+      $e->setAttribute("id",$node->[1]);
+    } else {
+      $e = XML::LibXML::Element->new($node);
+    }
+    $p->appendChild($e);
+    $p = $e;
+  }
+  return $doc->firstChild;
+}
+
 =item B<to_xpath>
 
 =cut

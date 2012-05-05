@@ -1740,9 +1740,8 @@ sub action_allowed {
 
   $self->log->dmsg($cat,"\n" . Dumper($authz_list),8);
 
-  foreach my $authz (@{$authz_list->{mandatory}},
-                     @{$authz_list->{default}}) {
-    $self->log->dmsg($cat,"\n" . Dumper($authz),8);
+  foreach my $authz (@$authz_list) {
+#    $self->log->dmsg($cat,"\n" . Dumper($authz),8);
     unless($self->relevant_xpath($req->{channel_id},$req->{mpath},$authz->{xpath})) {
 #      print "xpath not relevant\n";
       next;
@@ -1771,15 +1770,19 @@ sub relevant_xpath {
   my $self = shift;
   my ($channel,$mpath,$xpath) = @_;
 
+  $self->log->dmsg("HAccessor.relevant_xpath",
+                   "ch:$channel, mp:$mpath, xp:$xpath",9);
   my $root_tag = $self->fetch("valid_channels",
                               {fields=>["root_tag"],
                                params=>[$channel]})->{root_tag};
-  my $con = Machination::XMLConstructor->new($root_tag);
-  $con->create($mpath,auto_viv=>1);
+#  my $con = Machination::XMLConstructor->new($root_tag);
+#  $con->create($mpath,auto_viv=>1);
 #  my $node = $con->doc;
 #  print $node . "\n";
-  my @nodes = $con->doc->documentElement->findnodes($xpath);
-  return scalar @nodes;
+#  my @nodes = $con->doc->documentElement->findnodes($xpath);
+
+  my $elt = Machination::MPath->new($mpath)->construct_elt;
+  return scalar $elt->findnodes($xpath);
 }
 
 =item B<relevant_entities>

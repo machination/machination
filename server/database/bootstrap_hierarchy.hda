@@ -1,9 +1,4 @@
 setvar(_USER_,chiggs1@EASE.ED.AC.UK)
-/ is_mp=1
-/system is_mp=1
-./sets/universal
-../empty
-../authz_groups
 /system/people
 ../os_instances
 ../mpolicies
@@ -12,19 +7,32 @@ setvar(_USER_,chiggs1@EASE.ED.AC.UK)
 ../ag_authz_insts
 ../assertions
 ../ag_assertions
+/system/sets/authz_groups
+
+setvar(everyone,/system/sets/universal/set:external::string)
+/system/ag_authz_insts/agroup_authz_inst:default_deny \
+    channel_id=channel_id(machination:hierarchy)
+/system/authz_insts/authz_inst:default_deny \
+    is_allow=0 \
+    entities=cat('["nof",1,',obj_id(getvar(everyone)),]) \
+    op=ALL \
+    xpath=/ \
+    agroup=obj_id(/system/ag_authz_insts/agroup_authz_inst:default_deny)
+@/ /system/ag_authz_insts/agroup_authz_inst:default_deny
 
 /system/sets/authz_groups/set:global_admins is_internal=0 member_type=string
 E. getvar(_USER_) eggy
-/system/ag_authz_insts/agroup_authz_inst:global_default_deny \
+setvar(global_admins,/system/sets/authz_groups/set:global_admins)
+/system/ag_authz_insts/agroup_authz_inst:admins_allow \
     channel_id=channel_id(machination:hierarchy)
-/system/ag_authz_insts/agroup_authz_inst:global_admins_allow \
-    channel_id=channel_id(machination:hierarchy)
-/system/authz_insts/authz_inst:global_default_deny \
-    is_allow=0 \
-    entities=cat('["nof",1,',obj_id(/system/sets/universal/set:external::string),]) \
+/system/authz_insts/authz_inst:admins_allow \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(getvar(global_admins)),]) \
     op=ALL \
     xpath=/ \
-    agroup=obj_id(/system/ag_authz_insts/agroup_authz_inst:global_default_deny)
+    agroup=obj_id(/system/ag_authz_insts/agroup_authz_inst:admins_allow)
+@/ /system/ag_authz_insts/agroup_authz_inst:admins_allow is_mandatory=1
+
 
 /by_os is_mp=1
 ./windows

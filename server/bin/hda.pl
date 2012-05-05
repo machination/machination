@@ -481,8 +481,8 @@ sub func_notmembers_exist {
 sub func_attached {
   showfn(@_);
   my ($args,$kv,$opts) = getargs(@_);
-  $kv->{mandatory} = 0 unless exists $kv->{mandatory};
-  $kv->{active} = 1 unless exists $kv->{active};
+  $kv->{is_mandatory} = 0 unless exists $kv->{is_mandatory};
+  $kv->{is_active} = 1 unless exists $kv->{is_active};
   my $path = shift @$args;
   my $hp = Machination::HPath->new($client,$path);
 
@@ -502,7 +502,7 @@ sub func_attached {
     die "cannot attach $attp, type " . $ahp->type . " is not attachable"
       unless $client->type_info($ahp->type_id)->{is_attachable};
     # see if it is already attached
-    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id, $kv->{mandatory})) {
+    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id, $kv->{is_mandatory})) {
       print "  $attp attached\n";
       next;
     }
@@ -510,8 +510,8 @@ sub func_attached {
     print "  $attp not attached - attaching\n";
     $client->attach_to_hc({actor=>$vars->{_USER_}},
                           $ahp->type_id, $ahp->id, $hp->id,
-                          $kv->{mandatory}, $kv->{active},
-                          $kv->{applies_to});
+                          $kv->{is_mandatory}, $kv->{is_active},
+                          $kv->{applies_to_set});
   }
 
   return "";
@@ -519,7 +519,7 @@ sub func_attached {
 sub func_notattached {
   showfn(@_);
   my ($args,$kv) = getargs(@_);
-  $kv->{mandatory} = 0 unless exists $kv->{mandatory};
+  $kv->{is_mandatory} = 0 unless exists $kv->{is_mandatory};
   my $path = shift @$args;
   my $hp = Machination::HPath->new($client,$path);
 
@@ -533,7 +533,7 @@ sub func_notattached {
   foreach my $attp (@$args) {
     my $ahp = Machination::HPath->new($client,$attp);
     # see if it is attached
-    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id)) {
+    if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id, $kv->{is_mandatory})) {
       print "  $attp attached - detaching\n";
       $client->detach_from_hc({actor=>$vars->{_USER_}},
                               $ahp->type_id, $ahp->id, $hp->id);

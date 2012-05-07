@@ -20,7 +20,7 @@ Exception::Class::Base->Trace(1) if $ENV{DEBUG};
 # they should be configurable.
 my $colors = {
               container => 'bold bright_blue',
-              attach => 'bold blue',
+              attach => 'blue',
               key => 'yellow',
               value => 'bright_yellow',
               title => 'bold bright_red',
@@ -155,12 +155,19 @@ sub _ls {
           ($channel, [$hp->id] , $atype);
         while (my $att = $sth->fetchrow_hashref) {
           my $indicator;
+          my $bold = "";
           if($att->{is_mandatory}) {
-            $indicator = "*@";
+            $indicator = "*";
+            $bold = "bold ";
           } else {
-            $indicator = "@";
+            $indicator = "";
           }
-          my $item = colored([$colors->{attach}],"($channel)$indicator") .
+          my $cname = $ha->fetch
+            ('valid_channels',{fields=>['name'],
+                               params=>[$channel]})
+              ->{name};
+          my $item = colored([$bold . $colors->{attach}],
+                             "\@$indicator($cname)$indicator") .
             colored([$colors->{key}],"$atype:") .
             colored([$colors->{value}],$att->{name});
           push @res, $item;

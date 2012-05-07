@@ -1,0 +1,78 @@
+/test/by_os is_mp=1
+./Windows
+../7
+./x64
+../x86
+
+/test/by_teaching is_mp=1
+./chem
+../civ
+../mech
+../ee
+
+/test/by_research is_mp=1
+./idcom
+../ies
+../iie
+../imns
+../imp
+
+/test/by_os/Windows/7/x64/os_instance:win7-1 \
+    os_id=os_id(Windows,7,0,64) pubkey=splat
+setvar(win7-1, last_hpath())
+/test/by_os/Windows/7/x64/os_instance:win7-2 \
+    os_id=os_id(Windows,7,0,64) pubkey=splat
+setvar(win7-2, last_hpath())
+
+inhc(/test/by_teaching/mech,getvar(win7-1))
+&/test/by_research/imp getvar(win7-1)
+&/test/by_teaching/ee getvar(win7-2)
+&/test/by_research/imns getvar(win7-2)
+
+/test/authz/set:mech-admins \
+    is_internal=0 member_type=string
+E. mechuser1
+
+/test/authz/set:mech-pkgadmins \
+    is_internal=0 member_type=string
+E. mechuser2
+
+/test/authz/set:imp-admins \
+    is_internal=0 member_type=string
+E. impuser1 impuser2
+
+# allow group mech-admins to manipulate the hierarchy under
+# /test/by_teaching/mech
+/test/authz/agroup_authz_inst:mech-admin-tree \
+    channel_id=channel_id(machination:hierarchy)
+/test/authz/authz_inst:mech-admin-tree \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(/test/authz/set:mech-admins),]) \
+    op=ALL \
+    xpath=/ \
+    agroup=obj_id(/test/authz/agroup_authz_inst:mech-admin-tree)
+@/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-admin-tree
+
+# allow group mech-admins to manipulate the profiles of oses under
+# /test/by_teaching/mech
+/test/authz/agroup_authz_inst:mech-admin-prof \
+    channel_id=channel_id(machination:osprofile)
+/test/authz/authz_inst:mech-admin-prof \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(/test/authz/set:mech-admins),]) \
+    op=ALL \
+    xpath=/ \
+    agroup=obj_id(/test/authz/agroup_authz_inst:mech-admin-prof)
+@/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-admin-prof
+
+# allow group mech-pkadmin to manipulate the pkgman worker
+# section of os profiles under /test/by_teaching/mech
+/test/authz/agroup_authz_inst:mech-pkgadmin \
+    channel_id=channel_id(machination:osprofile)
+/test/authz/authz_inst:mech-pkgadmin \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(/test/authz/set:mech-pkgadmins),]) \
+    op=ALL \
+    xpath='/status/worker[@id="pkgman"]' \
+    agroup=obj_id(/test/authz/agroup_authz_inst:mech-pkgadmin)
+@/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-pkgadmin

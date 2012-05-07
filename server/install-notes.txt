@@ -54,8 +54,15 @@ for the hshell:
 install cpanminus to get modules not in ubuntu package list:
 
 # apt-get install cpanminus
-
 # cpanm HOP::Lexer
+
+2012-05-06:
+Ubuntu 12.04 ships with perl 5.14.2 and XML::LibXML 1.89. This
+combination appears to be broken. Worked for me after upgrading
+XML::LibXML (to 1.92):
+
+# apt-get install libxml2-dev, zlib1g-dev
+# cpanm XML::LibXML
 
 3) Create database tables etc.
 

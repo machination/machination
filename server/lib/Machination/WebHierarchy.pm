@@ -24,6 +24,9 @@ use warnings;
 =head1 Machination::WebHierarchy
 
 =cut
+BEGIN {
+  use threads;
+}
 
 use Apache::DBI;
 use APR::Table;
@@ -47,7 +50,6 @@ use Apache::DataIterator::Reader;
 use Apache::DataIterator::Writer;
 use Machination::WebIterator::HCContents;
 
-use threads;
 use Thread::Queue;
 
 Exception::Class::Base->Trace(1);
@@ -376,7 +378,7 @@ sub call_ListContents {
   $types = ['machination:hc', keys %{$ha->all_types_info}]
     unless defined($types);
   my $contents = $ha->get_contents_handle($hp->id, $types)->
-    fetchall_arrayref({Slice=>{}});
+    fetchall_arrayref({});
 
 
   return $contents;

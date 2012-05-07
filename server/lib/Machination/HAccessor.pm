@@ -232,7 +232,7 @@ Create a new Machination::HAccessor
 
 sub new {
 	my $class = shift;
-	my ($conf,$log) = @_;
+	my ($conf,$log,$dodgy_libxml) = @_;
 	my $self = {};
 	bless $self,$class;
 
@@ -254,6 +254,8 @@ sub new {
   $self->log->dmsg("HAccessor","*" x 10 . " START " . "*" x 10,1);
   $self->log->dmsg("HAccessor","*" x 27,1);
 
+  $self->dodgy_libxml($dodgy_libxml);
+
 	return $self;
 }
 
@@ -266,6 +268,18 @@ sub log {
   return $self->{log};
 }
 
+=item B<dodgy_libxml>
+
+=cut
+
+sub dodgy_libxml {
+  my $self = shift;
+
+  if(@_) {
+    $self->{dodgy_libxml} = shift;
+  }
+  return $self->{dosgy_libxml};
+}
 
 =item B<dlev>
 
@@ -1513,11 +1527,13 @@ sub fetch_from_agroup {
 	return @ids;
 }
 
-=item B<fetch_attachment_list>
+=item B<get_attachments_handle>
+
+$sth = $ha->get_attachments_handle($channel, $hlist, $type, $opts)
 
 =cut
 
-sub fetch_attachment_list {
+sub get_attachments_handle {
   my $self = shift;
   my ($channel,$hlist,$type,$opts) = @_;
 
@@ -1550,6 +1566,8 @@ sub fetch_attachment_list {
         "and g.channel_id=? and a.active=true) as q ";
   $query .= "where o.agroup = q.gid and " .
     "(select q.hc_id in (" . join(",",@q) . "))";
+#  $query .= " and q.is_mandatory=?";
+#  push @params, $mand;
   if($opts->{obj_conditions}) {
     foreach my $cond (@{$opts->{obj_conditions}}) {
       $query .= " and " . $cond->[0];
@@ -1559,7 +1577,7 @@ sub fetch_attachment_list {
   $query .= " order by ";
   my $i=0;
   $query .= " case";
-  foreach my $hc_id (@$hlist) {
+  foreach my $hc_id (@$hlist){
     $query .= " when q.hc_id=? then $i";
     push @params, $hc_id;
     $i++;
@@ -1577,7 +1595,8 @@ sub fetch_attachment_list {
   my $sth = $self->read_dbh->
     prepare_cached($query,{dbi_dummy=>"HAccessor.fetch_attachment_list"});
   $sth->execute($channel,@params);
-  return $sth->fetchall_arrayref({});
+#  return $sth->fetchall_arrayref({});
+  return $sth;
 
   while (my $row = $sth->fetchrow_hashref) {
     my $hc_id = $row->{hc_id};
@@ -1606,7 +1625,7 @@ sub fetch_attachment_list {
   return $res;
 }
 
-=item B<fetch_authz_list>
+=item B<get_authz_handle>
 
 $ha->fetch_authz_list($channel,$hpath,$op,$opts)
 $ha->fetch_authz_list($channel,$hc_id,$op,$opts)
@@ -1638,16 +1657,17 @@ match when checking authorisation.
 
 =cut
 
-sub fetch_authz_list {
+sub get_authz_handle {
   my $self = shift;
   my ($channel,$hpath,$op,$opts) = @_;
 
   $opts->{obj_fields} = ["op","is_allow","entities","xpath"];
+  $opts->{att_fields} = [];
   $opts->{obj_conditions} = [["(o.op=? or o.op=?)",[$op,"ALL"]]];
 #  $self->log->dmsg("Haccessor.fetch_authz_list","args:\n $channel, " .
 #                   "$hpath, 'authz_inst', " .
 #                   Data::Dumper->Dump([$opts],[qw(opts)]),9);
-  return $self->fetch_attachment_list
+  return $self->get_attachments_handle
     ($channel,$hpath,"authz_inst",$opts);
 }
 
@@ -1735,15 +1755,13 @@ sub action_allowed {
   my $cat = "HAccessor.action_allowed";
   $self->log->dmsg($cat,"\n" . Dumper($req),8);
 
-  my $authz_list = $self->
-    fetch_authz_list($req->{channel_id},$hc_id,$req->{op},$opts);
+  my $sth = $self->
+    get_authz_handle($req->{channel_id},$hc_id,$req->{op},$opts);
+  my $it = $self->att_iterator($sth);
 
-  $self->log->dmsg($cat,"\n" . Dumper($authz_list),8);
-
-  foreach my $authz (@$authz_list) {
-#    $self->log->dmsg($cat,"\n" . Dumper($authz),8);
+  while(my $authz = $it->()) {
+    $self->log->dmsg($cat,"\n" . Dumper($authz),8);
     unless($self->relevant_xpath($req->{channel_id},$req->{mpath},$authz->{xpath})) {
-#      print "xpath not relevant\n";
       next;
     }
     next unless($self->relevant_entities
@@ -1760,6 +1778,28 @@ sub action_allowed {
           Dumper($req));
 }
 
+sub att_iterator {
+  my $self = shift;
+  my $sth = shift;
+  my @defs;
+  return sub {
+    my $ret;
+    while(!$ret) {
+      if (my $a = $sth->fetchrow_hashref) {
+        if($a->{is_mandatory}) {
+          $ret = $a;
+        } else {
+          push @defs, $a;
+        }
+      } else {
+        $ret = pop @defs;
+        return unless defined $ret;
+      }
+    }
+    return $ret;
+  };
+}
+
 =item B<relevant_xpath>
 
 $relevant = $ha->relevant_xpath($mpath,$xpath)
@@ -1772,17 +1812,27 @@ sub relevant_xpath {
 
   $self->log->dmsg("HAccessor.relevant_xpath",
                    "ch:$channel, mp:$mpath, xp:$xpath",9);
-  my $root_tag = $self->fetch("valid_channels",
-                              {fields=>["root_tag"],
-                               params=>[$channel]})->{root_tag};
+#  my $root_tag = $self->fetch("valid_channels",
+#                              {fields=>["root_tag"],
+#                               params=>[$channel]})->{root_tag};
 #  my $con = Machination::XMLConstructor->new($root_tag);
 #  $con->create($mpath,auto_viv=>1);
 #  my $node = $con->doc;
 #  print $node . "\n";
 #  my @nodes = $con->doc->documentElement->findnodes($xpath);
 
+#  print $XML::LibXML::VERSION . "\n";
   my $elt = Machination::MPath->new($mpath)->construct_elt;
-  return scalar $elt->findnodes($xpath);
+  my @nodes;
+  if($ENV{DODGY_XMLLIBXML}) {
+    use XML::XPath;
+    $self->log->dmsg("HAccessor.relevant_xpath", "via XML::LibXPath",9);
+    @nodes = XML::XPath->new(xml=>$elt->toString)->findnodes($xpath);
+  } else {
+    $self->log->dmsg("HAccessor.relevant_xpath", "via XML::LibXML",9);
+    @nodes = $elt->findnodes($xpath);
+  }
+  return scalar @nodes;
 }
 
 =item B<relevant_entities>

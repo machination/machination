@@ -1547,7 +1547,7 @@ sub get_attachments_handle {
   }
 
   my @q;
-  my @params;
+  my @params = ($channel);
   foreach (@$hlist) {
     push @q, "?";
     push @params, $_;
@@ -1594,7 +1594,7 @@ sub get_attachments_handle {
   my $idx = {};
   my $sth = $self->read_dbh->
     prepare_cached($query,{dbi_dummy=>"HAccessor.fetch_attachment_list"});
-  $sth->execute($channel,@params);
+  $sth->execute(@params);
 #  return $sth->fetchall_arrayref({});
   return $sth;
 

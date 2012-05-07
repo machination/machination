@@ -5,7 +5,7 @@ use Machination::HAccessor;
 use Machination::MPath;
 use Machination::HPath;
 use Data::Dumper;
-use Getopt::Long;
+use Getopt::Long qw(GetOptionsFromArray);
 use Text::ParseWords;
 use Term::ANSIColor;
 
@@ -20,6 +20,7 @@ Exception::Class::Base->Trace(1) if $ENV{DEBUG};
 # they should be configurable.
 my $colors = {
               container => 'bold bright_blue',
+              attach => 'bold blue',
               key => 'yellow',
               value => 'bright_yellow',
               title => 'bold bright_red',
@@ -99,28 +100,92 @@ sub __abs_path {
 }
 
 sub _ls {
-  my ($path) = @_;
+  my @types;
+  my @atypes;
+  my @channels;
+  my $contents = 1;
+  my $attachments = 0;
+  GetOptionsFromArray
+    (
+     \@_,
+     'types=s' => \@types,
+     'atypes=s' => \@atypes,
+     'channels=s' => \@channels,
+     'contents!' => \$contents,
+     'attachments!' => \$attachments,
+    );
+  my @type_ids;
+  if(@types) {
+    @types = split(/,/,join(",",@types));
+    @type_ids = map {$ha->type_id($_)} @types;
+  } else {
+    @type_ids = ('machination:hc', keys %{$ha->all_types_info});
+  }
+  my @channel_ids;
+  if (@channels) {
+    @channels = split(/,/,join(",",@channels));
+    @channel_ids = map {$ha->channel_id($_)} @channels;
+  } else {
+    @channel_ids = map {$_->{id}}
+      $ha->fetch('valid_channels',{fields=>['id'],condition=>""});
+  }
+  if($attachments and not @atypes) {
+    # not very databasey, but this lot's probably in memory...
+    my $info = $ha->all_types_info;
+    foreach my $t (keys %$info) {
+      my $name = $info->{$t}->{name};
+      $name =~ s/^agroup_//;
+      # TODO(colin) deal with sets properly
+      next if $name eq "set";
+      push @atypes, $name if $info->{$t}->{is_attachable};
+    }
+  }
+
+  my $path = shift;
   $path = __abs_path($path);
   my $hp = Machination::HPath->new($ha, $path);
   die "$path does not exist" unless $hp->id;
   my $maxlen = 0;
-  my @cont;
-  my $sth = $ha->get_contents_handle
-    ($hp->id, ['machination:hc', keys %{$ha->all_types_info}]);
-  while (my $ent = $sth->fetchrow_hashref) {
-    my $name = $ent->{name};
-    my $type = $ha->type_name($ent->{type});
-    if($ent->{type} eq 'machination:hc') {
-      $name .= "/";
-      $name = colored([$colors->{container}], $name);
-    } else {
-      $name = colored([$colors->{key}],"$type:") .
-        colored([$colors->{value}],"$name");
+
+  my @res;
+  if($attachments) {
+    foreach my $channel (@channel_ids) {
+      foreach my $atype (@atypes) {
+        my $sth = $ha->get_attachments_handle
+          ($channel, [$hp->id] , $atype);
+        while (my $att = $sth->fetchrow_hashref) {
+          my $indicator;
+          if($att->{is_mandatory}) {
+            $indicator = "*@";
+          } else {
+            $indicator = "@";
+          }
+          my $item = colored([$colors->{attach}],"($channel)$indicator") .
+            colored([$colors->{key}],"$atype:") .
+            colored([$colors->{value}],$att->{name});
+          push @res, $item;
+        }
+      }
     }
-    $maxlen = length($name) if(length($name) > $maxlen);
-    push @cont, $name;
   }
-  return join("\n",@cont);
+  if($contents) {
+    my $sth = $ha->get_contents_handle
+      ($hp->id, [@type_ids]);
+    while (my $ent = $sth->fetchrow_hashref) {
+      my $name = $ent->{name};
+      my $type = $ha->type_name($ent->{type});
+      if($ent->{type} eq 'machination:hc') {
+        $name .= "/";
+        $name = colored([$colors->{container}], $name);
+      } else {
+        $name = colored([$colors->{key}],"$type:") .
+          colored([$colors->{value}],"$name");
+      }
+      $maxlen = length($name) if(length($name) > $maxlen);
+      push @res, $name;
+    }
+  }
+  return join("\n",@res);
 }
 
 sub _show {

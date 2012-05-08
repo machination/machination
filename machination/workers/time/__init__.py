@@ -10,8 +10,7 @@ from lxml import etree
 from os import popen
 import machination
 
-class tweaks(object):
-    logger = None
+class worker(object):
     #Define a shorthand constant for HKLM.
     sync_map{"NTP": "MANUAL",
              "NT5DS": "DOMHIER",
@@ -20,8 +19,10 @@ class tweaks(object):
     cmd = "w32tm"
     
     def __init__(self, logger):
-        self.logger = logger
-
+        self.name = self.__module__.split('.')[-1]
+        self.wd = xmltools.WorkerDescription(self.name,
+                                             prefix = '/status')
+                                              
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
@@ -45,7 +46,7 @@ class tweaks(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            logger.wmsg("Could not set time server list: " + stream)
+            wmsg("Could not set time server list: " + stream)
         return res
 
     def __remove(self, work):
@@ -58,7 +59,7 @@ class tweaks(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            logger.wmsg("Could not clear time server list: " + stream)
+            wmsg("Could not clear time server list: " + stream)
         return res
 
     def __modify(self, work):
@@ -75,7 +76,7 @@ class tweaks(object):
             msg = "{0} passed to modify.".format(switch)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            logger.wmsg(msg)
+            wmsg(msg)
             return res
         command = "{0} /config /{1}:{2}".format(self.cmd, switch, opt)
         stream = popen(command)
@@ -85,7 +86,7 @@ class tweaks(object):
             msg = "Could not modify {0}: {1}".format(work[1].tag, stream)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            logger.wmsg(msg)
+            wmsg(msg)
         return res
 
     def __order(self, work)
@@ -95,7 +96,7 @@ class tweaks(object):
     def generate_status(self):
         type = ""
         srvlist = []
-        status_elt = etree.Element("Time")
+        w_elt = etree.Element("Time")
         command = self.cmd + " /query /configuration"
         stream = popen(command)
         output = stream.read().splitlines()
@@ -110,5 +111,5 @@ class tweaks(object):
                     peer = etree.Element("Peer")
                     peer.attrib["id"] = srv
                     elt.append(peer)
-            status_elt.append(elt)
-        return status_elt
+            w_elt.append(elt)
+        return w_elt

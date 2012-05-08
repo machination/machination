@@ -11,7 +11,7 @@ import shutil
 import stat
 
 
-class shortcut(object):
+class worker(object):
     logger = None
     shell = None
     windowstyles = {"normal": 1,
@@ -32,7 +32,9 @@ class shortcut(object):
                "folderName": ""}
 
     def __init__(self, logger):
-        self.logger = logger
+        self.name = self.__module__.split('.')[-1]
+        self.wd = xmltools.WorkerDescription(self.name,
+                                             prefix = '/status')
         shell = win32com.client.Dispatch("WScript.Shell")
 
     def do_work(self, work_list):
@@ -65,7 +67,7 @@ class shortcut(object):
             msg = "Must provide shortcut for target"
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            logger.emsg(msg)
+            emsg(msg)
 
         dest = shell.SpecialFolders(s_props["destination"])
 
@@ -136,7 +138,7 @@ class shortcut(object):
             raise
 
     def generate_status(self):
-        ret = etree.Element("Return")
-        ret.attrib["method"] = "generate_status"
-        ret.attrib["implemented"] = 0
-        return ret
+        w_elt = etree.Element("Return")
+        w_elt.attrib["method"] = "generate_status"
+        w_elt.attrib["implemented"] = 0
+        return w_elt

@@ -13,10 +13,12 @@ import wmi
 from platform import uname
 
 
-class usergroup(object):
-    logger = None
-
-    def __init__(self, logger):
+class worker(object):
+    
+    def __init__(self):
+        self.name = self.__module__.split('.')[-1]
+        self.wd = xmltools.WorkerDescription(self.name,
+                                             prefix = '/status')
         u = {}
 
         sp_users = ("Administrator",
@@ -35,8 +37,7 @@ class usergroup(object):
                      "Users",
                      "HelpServicesGroup")
 
-        self.logger = logger
-
+        
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
@@ -189,7 +190,7 @@ class usergroup(object):
 
         res.attrib["status"] = "success"
         if test:
-            logger.emsg(test)
+            emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
             
@@ -216,7 +217,7 @@ class usergroup(object):
 
         res.attrib["status"] = "success"
         if test:
-            logger.emsg(test)
+            emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
@@ -246,7 +247,7 @@ class usergroup(object):
         res.attrib["status"] = "success"
 
         if test:
-            logger.emsg(test)
+            emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
@@ -257,7 +258,7 @@ class usergroup(object):
 
     def generate_status(self):
         c = wmi.WMI()
-        root = etree.Element("usergroup")
+        w_elt = etree.Element("usergroup")
         sysname = uname()[1]
         
         # Build a list of local group elements
@@ -278,7 +279,7 @@ class usergroup(object):
                 g_elt.append(m_elt)
                 
             # We're only interested in groups with members
-            if len(g_elt) > 0: root.append(g_elt)
+            if len(g_elt) > 0: w_elt.append(g_elt)
         
         # Iterate over local user elements only
         for user in c.Win32_UserAccount(LocalAccount=True):
@@ -288,7 +289,7 @@ class usergroup(object):
             d = etree.Element("Description")
             d.text = user.Description
             u_elt.append(d)
-            root.append(u_elt)
+            w_elt.append(u_elt)
 
-        return root
+        return w_elt
         

@@ -77,6 +77,7 @@ my %calls =
 
    # objects
    FetchObject => undef,
+   IdPair => undef,
 
    # assertions/instructions/profiles
    GetAssertionList => undef,
@@ -220,6 +221,7 @@ sub handler {
     return Apache2::Const::OK;
   }
   $log->dmsg($cat, "call worked - answer:\n" . Dumper($ret), 4);
+  $log->dmsg($cat, $xmld->to_xml($ret)->toString , 9);
 #  my $rep = &perl_to_xrep($ret);
 
   print $xmld->to_xml($ret)->toString . "\n";
@@ -554,7 +556,6 @@ sub call_GetAssertionList {
           push @hc_info, $hc;
           push @hc_ids, $hc->{id};
 #          my $lin = $ha->fetch_lineage($hc->{id});
-          print "generating id_path for " . $hc->{id} . "\n";
           my $hp = Machination::HPath->new($ha,$hc->{id});
           my $id_path = $hp->id_path;
           push @hc_path, $id_path;
@@ -664,6 +665,27 @@ sub call_RevokeIdentity {
 =item B<FetchObject>
 
 =cut
+
+=item B<IdPair>
+
+=cut
+
+sub call_IdPair {
+  my ($caller, $approval, $path) = @_;
+
+  my $hp = Machination::HPath->new($ha,$path);
+
+  return {type_id=>$hp->type_id, id=>$hp->id};
+}
+
+sub call_ProfChannel {
+  my ($caller, $approval, $type) = @_;
+
+  my $type_id = $type;
+  $type_id = $ha->type_id($type) unless($type =~ /^\d+$/);
+
+  return $ha->profchannel($type_id);
+}
 
 
 =item * call_Create($ent,$path,$fields)

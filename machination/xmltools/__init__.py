@@ -33,7 +33,7 @@ from machination import context
 from machination import utils
 
 def pstring(e, top = True, depth = 0, istring = '  '):
-    """pretty string represetnation of an etree element"""
+    """pretty string representation of an etree element"""
     rep = []
     rep.append('{}<{}'.format(istring * depth, e.tag))
     for att in e.keys():
@@ -1364,3 +1364,70 @@ class XMLCompare(object):
 
         return topdeps
 
+class XMLConstructor(object):
+    """Compile XML assertions into a document"""
+
+    def __init__(self, wc):
+        """Instantiate XMLConstructor
+        Args:
+          wc: a machination.webclient.WebClient
+        """
+        self.doc = etree.ElementTree();
+        self.wc = wc
+
+    def compile(self, path):
+        """Fetch assertions for object at path in the hierarchy and compile
+
+        """
+        idpair = wc.call("IdPair", path)
+        channel = wc.call("ProfChannel", idpair['type_id'])
+        data = wc.call("GetAssertionList", path, channel)
+        mpolicies = {}
+        res_idx = {}
+        mp_map = {}
+        mps = set()
+        for mp in data['mps']:
+            mps.add(mp[-1])
+        for hcp in data['hcs']:
+            hc = hcp[-1]
+            l = []
+            for hid in hcp:
+                if hid in mps:
+                    l.append(hid)
+            mp_map[hc] = l
+        mpolicies['mp_map'] = mp_map
+        mpolicies['data'] = data
+        stack = data['attachments']
+        while stack:
+            a = stack.pop(0)
+            if not self.try_assert(a):
+                self.act(a, res_idx, self.get_poldir(a,mpolicies),stack)
+        return self.doc, res_idx
+
+    def try_assert(self, assertion):
+        mpath = MRXPath(assertion['mpath'])
+        op = assertion['op']
+        arg = assertion['arg']
+
+        # tests
+        if op == 'exists':
+            if self.doc.xpath(mpath.to_xpath()):
+                return True
+            else:
+                return False
+        elif op == 'hastext':
+            nodes = self.doc.xpath(mpath.to_xpath())
+            if nodes is None:
+                return False
+            if isinstance(nodes[0], etree._Element):
+                # element
+                content = nodes[0].text
+            else:
+                # attribute
+                content = nodes[0]
+            if content == arg:
+                return True
+            else:
+                return False
+        else:
+            raise Exception("Assertion op '{}' unknown".format(op))

@@ -800,6 +800,31 @@ sub channel_id {
 	return $self->{channel_id}->{$channel};
 }
 
+=item B<profchannel>
+
+Find the correct channel for assertions affecting type $type_id
+
+$channel_id = $ha->profchannel($type_id)
+
+=cut
+
+sub profchannel {
+  my $self = shift;
+  my ($type_id) = @_;
+
+  # TODO(colin) this should change to some link in the database
+  # between object_type and valid_channels
+  if($self->type_name($type_id) eq "os_instance") {
+    return $self->channel_id('machination:osprofile');
+  } elsif($self->type_name($type_id) eq "person") {
+    return $self->channel_id('machination:userprofile');
+  } else {
+    HierarchyException->throw
+      ("There is no channel associated with type " .
+       $self->type_name($type_id));
+  }
+}
+
 =item B<fetch_path_id>
 
 $id = $ha->fetch_path_id($path,$opts)

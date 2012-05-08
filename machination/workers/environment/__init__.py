@@ -9,11 +9,11 @@ import machination
 import os
 
 
-class environment(object):
+class worker(object):
     "Manipulates environment variables in Windows."
 
     r = None
-    logger = None
+    
     #Define a shorthand constant for HKLM.
     __HLKM = 2147483650
     envloc = "system\currentcontrolset\control\session manager\environment"
@@ -32,8 +32,10 @@ class environment(object):
                   "PATHEXT": ";",
                   "TZ": ","}
 
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
+        self.name = self.__module__.split('.')[-1]
+        self.wd = xmltools.WorkerDescription(self.name,
+                                             prefix = '/status')
         self.r = wmi.Registry()
 
     def do_work(self, work_list):
@@ -67,8 +69,8 @@ class environment(object):
         if result:
             msg = "Could not set {0} to {1}".format(varname, val)
             ext_msg = msg + "Error code: {}".format(result)
-            logger.wmsg(message)
-            logger.dmsg(ext_msg)
+            wmsg(message)
+            dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:
@@ -104,8 +106,8 @@ class environment(object):
         if result:
             msg = "Could not remove environment variable {}".format(varname)
             ext_msg = msg + "Error code: {}".format(result)
-            logger.wmsg(message)
-            logger.dmsg(ext_msg)
+            wmsg(message)
+            dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:
@@ -116,7 +118,7 @@ class environment(object):
         "Generate a status XML for this worker."
         # Get the environment variables
         env_dict = self.__parse_env()
-        env_stat = etree.Element("environment")
+        w_elt = etree.Element("environment")
 
         # Build status xml
         for key in env_dict:
@@ -126,8 +128,8 @@ class environment(object):
                 line = etree.Element("var")
                 line.attrib["id"] = key
                 line.text = env_dict[key][1]
-            env_stat.append(line)
-        return env_stat
+            w_elt.append(line)
+        return w_elt
 
     def __parse_env(self):
         "Generate a dictionary of environment variables"
@@ -136,7 +138,7 @@ class environment(object):
         [result, names, types] = r.EnumValues(hDefKey=__HKLM,
                                               sSubKeyName=envloc)
         if result:
-            logger.emsg("Could not parse environment vars: {0}".format(result))
+            emsg("Could not parse environment vars: {0}".format(result))
 
         for key, type in zip(names, types):
             method = "Get{0}Value".format(methods(type))
@@ -144,7 +146,7 @@ class environment(object):
                                                sSubKeyName=envloc,
                                                sValueName=key)
             if result:
-                logger.emsg("Could not get {0} value: {1}".format(key, result))
+                emsg("Could not get {0} value: {1}".format(key, result))
             else:
                 env[key] = [methods(type), value]
         return env

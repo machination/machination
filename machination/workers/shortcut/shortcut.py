@@ -87,7 +87,7 @@ class shortcut(object):
         return res
 
     def __modify(self, work):
-        d = self.__delete(work)
+        d = self.__remove(work)
         if d.attrib["status"] == "error":
             return d
         a = self.__add(work)

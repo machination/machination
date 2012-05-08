@@ -76,3 +76,21 @@ E. impuser1 impuser2
     xpath='/status/worker[@id="pkgman"]' \
     agroup=obj_id(/test/authz/agroup_authz_inst:mech-pkgadmin)
 @/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-pkgadmin
+
+# some defaults in the __machination__ worker
+
+# put this service in
+/system/ag_assertions/agroup_assertion:basicprof \
+    channel_id=channel_id(machination:osprofile)
+/system/assertions/basicprof/assertion:svc-1 \
+    mpath=/status/worker[__machination__]/services/service[machination.example.com] \
+    ass_op=exists \
+    action_op=create \
+    agroup=obj_id(/system/ag_assertions/agroup_assertion:basicprof)
+/system/assertions/basicprof/assertion:svc-2 \
+    mpath=/status/worker[__machination__]/services/service[machination.example.com]/@mid \
+    ass_op=hastext \
+    ass_arg=someid \
+    action_op=settext \
+    agroup=obj_id(/system/ag_assertions/agroup_assertion:basicprof)
+@/ /system/ag_assertions/agroup_assertion:basicprof

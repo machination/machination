@@ -1527,6 +1527,51 @@ sub fetch_from_agroup {
 	return @ids;
 }
 
+=item B<get_attached_handle>
+
+Get a handle to the direct attachments of an hc
+
+$sth = $ha->get_agroup_handle($hc, \@channel_ids, \@type_ids)
+
+=cut
+
+sub get_attached_handle {
+  my $self = shift;
+  my ($hc, $channels, $type_ids) = @_;
+
+  my $hp = Machination::HPath->new($self,$hc);
+
+  my @params;
+  my @subqs;
+  foreach my $tid (@$type_ids) {
+    my $sq = "(select ${tid}::text as type_id, " .
+      "a.obj_id, a.ordinal, ";
+    if ($tid == $self->type_id("set")) {
+      $sq .= $self->channel_id("machination:hierarchy") . " as channel_id";
+      $sq .= ", false as is_mandatory ";
+    } else {
+      $sq .= "o.channel_id, a.is_mandatory ";
+    }
+    $sq .= "from hcatt_$tid as a, objs_$tid as o " .
+      "where a.hc_id=?";
+    push @params, $hp->id;
+    unless($tid == $self->type_id("set")) {
+      $sq .= " and o.channel_id in (" . join(",",('?') x @$channels) . ")";
+      push @params, @$channels;
+    }
+    $sq .= ")";
+    push @subqs, $sq;
+  }
+  my $sql = join(" union ", @subqs) .
+    " order by type_id, ordinal";
+  $self->log->dmsg("HAccessor.get_attached_handle",
+                  "$sql",9);
+  my $sth = $self->read_dbh->
+    prepare_cached($sql,{dbi_dummy=>"HAccessor.get_attached_handle"});
+  $sth->execute(@params);
+  return $sth;
+}
+
 =item B<get_attachments_handle>
 
 $sth = $ha->get_attachments_handle($channel, $hlist, $type, $opts)

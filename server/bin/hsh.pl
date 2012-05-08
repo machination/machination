@@ -135,17 +135,24 @@ sub _ls {
     @channel_ids = map {$_->{id}}
       $ha->fetch('valid_channels',{fields=>['id'],condition=>""});
   }
-  if($attachments and not @atypes) {
-    # not very databasey, but this lot's probably in memory...
-    my $info = $ha->all_types_info;
-    foreach my $t (keys %$info) {
-      my $name = $info->{$t}->{name};
-      $name =~ s/^agroup_//;
-      # TODO(colin) deal with sets properly
-      next if $name eq "set";
-      push @atypes, $name if $info->{$t}->{is_attachable};
+  if(@atypes) {
+    $attachments = 1;
+    @atypes = split(/,/,join(",",@atypes));
+    for (my $i=0; $i<@atypes; $i++) {
+      $atypes[$i] = "agroup_" . $atypes[$i]
+        unless($atypes[$i] =~ /^agroup_/ or $atypes[$i] eq "set");
+    }
+  } else {
+    if($attachments) {
+      # not very databasey, but this lot's probably in memory...
+      my $info = $ha->all_types_info;
+      foreach my $t (keys %$info) {
+        my $name = $info->{$t}->{name};
+        push @atypes, $name if $info->{$t}->{is_attachable};
+      }
     }
   }
+  @atypes = map {$ha->type_id($_)} @atypes;
 
   my $path = shift;
   $path = __abs_path($path);
@@ -155,10 +162,10 @@ sub _ls {
 
   my @res;
   if($attachments) {
-    foreach my $channel (@channel_ids) {
-      foreach my $atype (@atypes) {
-        my $sth = $ha->get_attachments_handle
-          ($channel, [$hp->id] , $atype);
+#    foreach my $channel (@channel_ids) {
+#      foreach my $atype (@atypes) {
+        my $sth = $ha->get_attached_handle
+          ($hp->id, \@channel_ids, \@atypes);
         while (my $att = $sth->fetchrow_hashref) {
           my $indicator;
           my $bold = "";
@@ -170,17 +177,17 @@ sub _ls {
           }
           my $cname = $ha->fetch
             ('valid_channels',{fields=>['name'],
-                               params=>[$channel]})
+                               params=>[$att->{channel_id}]})
               ->{name};
           $cname = _abbreviate($cname);
           my $item = colored([$bold . $colors->{attach}],
                              "\@$indicator($cname)$indicator") .
-            colored([$colors->{key}],"$atype:") .
-            colored([$colors->{value}],$att->{name});
+            colored([$colors->{key}],$ha->type_name($att->{type_id}) . ":") .
+            colored([$colors->{value}],$ha->fetch_name($att->{type_id}, $att->{obj_id}));
           push @res, $item;
         }
-      }
-    }
+#      }
+#    }
   }
   if($contents) {
     my $sth = $ha->get_contents_handle

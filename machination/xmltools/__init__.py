@@ -407,7 +407,7 @@ class MRXpath(object):
             (r"[\[\]]", token_bracket),
             (r"=", token_op),
             (r"@", token_at),
-            (r"\w*", token_name),
+            (r"[\w\*]*", token_name),
             ])
 
     def __init__(self, path=None, att=None):
@@ -698,6 +698,34 @@ class MRXpath(object):
             xpath = self.strip_prefix(prefix)
         return xpath[0].id()
 
+    def could_be_parent_of(self, target):
+        """True if this MRXpath could be the XML-wise parent of path"""
+        target = MRXpath(target)
+        i = 0
+        for myelt in self.rep:
+            if len(target) <= i:
+                return False
+            tgtelt = target.rep[i]
+
+            mytag = myelt[0]
+            myid = None
+            if len(myelt) > 1:
+                myid = myelt[1]
+
+            tgttag = tgtelt[0]
+            tgtid = None
+            if len(tgtelt) > 1:
+                tgtid = tgtelt[1]
+
+            if not (mytag == tgttag or mytag == '*'):
+                return False
+            if myid is not None:
+                if not (myid == tgtid or myid == '*'):
+                    return False
+            i += 1
+        return True
+
+
 class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
@@ -775,6 +803,7 @@ class Status(object):
     def order_after(self, mrx , afterid = ["LAST"]):
         """place element specified by mrx after sibling with id"""
         pass
+
 
 class WorkerDescription:
     """Work with worker description files
@@ -1405,6 +1434,7 @@ class XMLConstructor(object):
         return self.doc, res_idx
 
     def try_assert(self, assertion):
+        """test an assertion and return True or False"""
         mpath = MRXPath(assertion['mpath'])
         op = assertion['op']
         arg = assertion['arg']
@@ -1431,3 +1461,17 @@ class XMLConstructor(object):
                 return False
         else:
             raise Exception("Assertion op '{}' unknown".format(op))
+
+    def get_poldir(self, assertion, mpolicies):
+        """Find which direction a policy points
+        """
+        pols = self.get_mpolicy(assertion['hc_id'], mpolicies)
+        pols.reverse()
+        direction = 0
+        for pol in pols:
+            pol_mrx = MRXpath(pol['mpath'])
+            if pol_mrx.could_be_parent_of(assertion['mpath']):
+                direction = pol['policy_direction']
+                break
+
+        return direction

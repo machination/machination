@@ -1473,5 +1473,48 @@ class XMLConstructor(object):
             if pol_mrx.could_be_parent_of(assertion['mpath']):
                 direction = pol['policy_direction']
                 break
-
         return direction
+
+    def get_mpolicy(self, hc, mpolicies):
+        """Find the merge policies for a given hc
+        """
+        data = mpolicies['data']
+        mplist = mpolicies['mp_map'][hc]
+
+        pols = []
+        for mp in mplist:
+            if mp in data['mpolicy_attachments']:
+                pols.extend(data['mpolicy_attachments'][mp])
+        return pols
+
+    def act(self, assertion, res_idx, poldir, stack):
+        """Act to fix a failed assertion
+        """
+        mpath = MRXpath(assertion['mpath'])
+        op = assertion['action_op']
+        arg = assertion['action_arg']
+
+        # call the specific action
+        getattr(self, "action_{}".format(op))(mpath,
+                                              assertion,
+                                              res_idx,
+                                              poldir,
+                                              stack)
+
+    def action_create(self, mpath, a, res_idx, poldir, stack):
+        """Create an element or attribute"""
+
+        mpath = MRXpath(mpath)
+        if poldir == -1:
+            # see if the node doesn't exist because of a previous "notexists"
+            # on mpath or parents
+            lineage = [mpath]
+            lineage.extend(mpath.ancestors())
+            for p in lineage:
+                if p.to_string in res_idx:
+                    if res_idx[p.to_string()]['ass_op'] == 'notexists':
+                        return
+        elif poldir == 0:
+            # check there is no mandatory notextists for mpath or parents
+            pass
+

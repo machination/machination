@@ -554,8 +554,9 @@ sub call_GetAssertionList {
           push @hc_info, $hc;
           push @hc_ids, $hc->{id};
 #          my $lin = $ha->fetch_lineage($hc->{id});
-          my $id_path = Machination::HPath->new($ha,$hc->{id})->parent_path;
-          push @$id_path, $hc->{id};
+          print "generating id_path for " . $hc->{id} . "\n";
+          my $hp = Machination::HPath->new($ha,$hc->{id});
+          my $id_path = $hp->id_path;
           push @hc_path, $id_path;
           if($hc->{is_mp}) {
             push @hc_mp_path, $id_path;
@@ -566,15 +567,18 @@ sub call_GetAssertionList {
   }
 
   $info->{hcs} = \@hc_path;
-  $info->{attachments} =
-    $ha->fetch_attachment_list
-      ($channel,\@hc_ids,"assertion",
-       {obj_fields=>["mpath","ass_op","ass_arg","action_op","action_arg"]});
+#  $info->{attachments} =
+#    $ha->fetch_attachment_list
+  my $sth = $ha->get_attachments_handle
+    ($channel,\@hc_ids,"assertion",
+     {obj_fields=>["mpath","ass_op","ass_arg","action_op","action_arg"]});
+  $info->{attachments} = $sth->fetchall_arrayref({});
 #  $info->{mps} = $ha->mps(\@hc_ids);
   $info->{mps} = \@hc_mp_path;
-  my $policies = $ha->fetch_attachment_list
+  $sth = $ha->get_attachments_handle
     ($channel,\@hc_mps,"mpolicy",
      {obj_fields=>["mpath","policy_direction"]});
+  my $policies = $sth->fetchall_arrayref({});
   $info->{mpolicy_attachments} = {};
   foreach my $pol (@$policies) {
     $info->{mpolicy_attachments}->{$pol->{hc_id}} = [] unless

@@ -27,6 +27,12 @@ my $colors = {
               undef => 'magenta',
            };
 
+my $abbrevs = [
+               [qr(^machination:hierarchy$), 'm:h'],
+               [qr(^machination:osprofile$), 'm:os'],
+               [qr(^machination:userprofile$), 'm:usr'],
+              ];
+
 #my $client_type = "ha";
 my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
 my $url = "http://localhost/machination/hierarchy/";
@@ -166,6 +172,7 @@ sub _ls {
             ('valid_channels',{fields=>['name'],
                                params=>[$channel]})
               ->{name};
+          $cname = _abbreviate($cname);
           my $item = colored([$bold . $colors->{attach}],
                              "\@$indicator($cname)$indicator") .
             colored([$colors->{key}],"$atype:") .
@@ -193,6 +200,13 @@ sub _ls {
     }
   }
   return join("\n",@res);
+}
+
+sub _abbreviate {
+  my ($text) = @_;
+  foreach my $re (@$abbrevs) {
+    return $text if($text =~ s/$re->[0]/$re->[1]/);
+  }
 }
 
 sub _show {

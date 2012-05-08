@@ -1,49 +1,54 @@
 <element name="worker"
-xmlns="http://relaxng.org/ns/structure/1.0"
-xmlns:wu="https://github.com/machination/ns/workunit"
-xmlns:gui="https://github.com/machination/ns/guihint"
-xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
-xmlns:secret="https://github.com/machination/ns/secrets"
-xmlns:plat="https://github.com/machination/ns/platforms"
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:wu="https://github.com/machination/ns/workunit"
+    xmlns:plat="https://github.com/machination/ns/platforms"
 
-gui:icon="environment.svg"
-gui:title="Environment worker"
-gui:shorthelp="manipulates environment variables"
-gui:longhelp="longhelp.txt"
-gui:doc="documentation.html"
->
-<attribute name="id">
-<value>environment-1</value>
-</attribute>
-<plat:platforms>
-<plat:platform id="win32"/>
-<plat:platform id="win64"/>
-</plat:platforms>
-<oneOrMore>
-<element name="var" wu:wu="1">
-<attribute name="id">
-<text/>
-</attribute>
-<zeroOrMore>
-<attribute name="type">
-<text/>
-</attribute>
-<attribute name="separator">
-<text/>
-</attribute>
-<attribute name="notpres">
-<text/>
-</attribute>
-</zeroOrMore>
-<zeroOrMore>
-<element name="item">
-<attribute name="id">
-<text/>
-</attribute>
-<text/>
-</element>
-<text/>
-</zeroOrMore>
-</element>
-</oneOrMore>
+    gui:icon="firewall.svg"
+    gui:title="Firewall worker"
+    gui:shorthelp="Creates and maintains Machination-specific firewall rules"
+    gui:longhelp="longhelp.txt"
+    gui:doc="documentation.html"
+    >
+    <attribute name="id">
+        <value>firewall</value>
+    </attribute>
+  
+    <plat:platforms>
+        <plat:platform id="win7_32"/>
+        <plat:platform id="win7_64"/>
+    </plat:platforms>
+
+    <zeroOrMore>
+        <element name="rule" wu:wu="1">
+            <attribute name="id"/>
+            <element name="Description">
+                </text>
+            </element>
+            <element name="Protocol">
+                <choice>
+                    <value>TCP</value>
+                    <value>UDP</value>
+                </choice>
+            </element>
+            <element name="Ports">
+                <text/>
+            </element>
+            <element name="Action">
+                <choice>
+                    <value>Allow</value>
+                    <value>Block</value>
+                </choice>
+            </element>
+            <zeroOrOne>
+                <element name="Application">
+                    <text/>
+                </element>
+            </zeroOrOne>
+            <zeroOrOne>
+                <element name="Service">
+                    <text/>
+                </element>
+            </zeroOrOne>
+        </element>
+    </zeroOrMore>
 </element>

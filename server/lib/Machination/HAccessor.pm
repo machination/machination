@@ -1572,6 +1572,25 @@ sub get_attached_handle {
   return $sth;
 }
 
+=item B<get_att_members_handle>
+
+$sth = $ha->get_att_members_handle($atype_id, $a_id)
+
+=cut
+
+sub get_ag_member_handle {
+  my $self = shift;
+  my ($agtid, $agid) = @_;
+
+  my $tid = $self->read_dbh->selectall_arrayref
+    ("select id from object_types where agroup=?",{},$agtid)->[0]->[0];
+  my $sth = $self->read_dbh->prepare_cached
+    ("select * from objs_$tid where agroup=?",
+     {dbi_dummy=>"get_ag_member_handle"});
+  $sth->execute($agid);
+  return $sth;
+}
+
 =item B<get_attachments_handle>
 
 $sth = $ha->get_attachments_handle($channel, $hlist, $type, $opts)

@@ -185,6 +185,11 @@ sub _ls {
             colored([$colors->{key}],$ha->type_name($att->{type_id}) . ":") .
             colored([$colors->{value}],$ha->fetch_name($att->{type_id}, $att->{obj_id}));
           push @res, $item;
+          my $mh = $ha->get_ag_member_handle($att->{type_id}, $att->{obj_id});
+          while(my $m = $mh->fetchrow_hashref) {
+            push @res, colored([$colors->{attach}],"  (" . $m->{id} . "):") .
+              colored([$colors->{value}],$m->{name});
+          }
         }
 #      }
 #    }
@@ -218,14 +223,38 @@ sub _abbreviate {
 
 sub _show {
   my ($path) = @_;
-  $path = __abs_path($path);
-  my $hp = Machination::HPath->new($ha, $path);
-  die "$path does not exist" unless $hp->id;
+  my @paths;
+  if($path =~ s/^\*//) {
+    my ($type,$id) = $path =~ /^([^\/].*):(\d+)$/;
+    my $type_id;
+    $type =~ /^\d+$/ ?
+      $type_id = $type : $type_id = $ha->type_id($type);
+    my $type_name = $ha->type_name($type_id);
+    my @parents = $ha->fetch_parents($type_id,$id);
+    foreach my $p (@parents) {
+      my $php = Machination::HPath->new($ha, $p);
+      my $last = pop @{$php->{rep}};
+      push @{$php->{rep}}, $last->[2];
+      my $rep = [@{$php->{rep}},
+                 ['contents',
+                  $type_name,
+                  $ha->fetch_name($type_id, $id)
+                 ]
+                ];
+      push @paths, Machination::HPath->new($ha, $rep);
+    }
+  } else {
+    @paths = (Machination::HPath->new($ha,__abs_path($path)));
+  }
+  my @ret;
+  my $hp;
+  foreach my $php (@paths) {
+    die "$path does not exist" unless $php->id;
+    push @ret, __colorize_path($php);
+    $hp = $php;
+  }
   my $d = Machination::HObject->new($ha, $hp->type_id, $hp->id)
     ->fetch_data;
-  my @ret;
-#  push @ret, colored([$colors->{title}], $path);
-  push @ret, __colorize_path($path);
   foreach my $f (sort keys %$d) {
     my $str = "  " . colored([$colors->{key}],sprintf('%-15s',"$f:"));
     if (defined $d->{$f}) {
@@ -242,7 +271,7 @@ sub __colorize_path {
   my $path = shift;
   my $hp = Machination::HPath->new($ha, $path);
   if ($hp->type eq "machination:hc") {
-    return colored([$colors->{container}], $path);
+    return colored([$colors->{container}], $hp->name);
   } else {
     my $str = $hp->parent->to_string;
     $str .= "/" unless ($str =~ /\/$/);

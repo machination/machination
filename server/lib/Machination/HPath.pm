@@ -155,16 +155,26 @@ sub set_path {
         # We need to pick one.
 
         # Try /system/$type_name first
-        my $type_name = $self->type_name($type_id);
+        my $type_name = $self->ha->type_name($type_id);
         my $hp = Machination::HPath->new
           ($self->ha,"/system/$type_name/$type_name:$id");
         if ($hp->id_path) {
+          print "cloning " . $hp->to_string . "\n";
           $self->{rep} = $hp->clone_rep;
         } else {
           # Not in /system/$type_name - try picking first entry of @parents
           my @parents = $self->ha->fetch_parents($type_id,$id);
           if(@parents) {
-            $self->{rep} = Machination::HPath->new($parents[0])->clone_rep;
+            my $php = Machination::HPath->new($self->ha, $parents[0]);
+            my $last = pop @{$php->{rep}};
+            push @{$php->{rep}}, $last->[2];
+            my $rep = [@{$php->{rep}},
+                       ['contents',
+                        $type_name,
+                        $self->ha->fetch_name($type_id, $id)
+                       ]
+                      ];
+            $self->{rep} = Machination::HPath->new($self->ha, $rep)->clone_rep;
           } else {
             # orphaned object
             $self->{rep} = $self->string_to_rep("/::orphaned::$type_id:$id");

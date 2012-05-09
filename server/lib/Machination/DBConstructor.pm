@@ -158,18 +158,6 @@ sub config_base_tables {
 			 history=>1,
 			}
      ),
-# don't think subscriptions are needed any more
-#     $self->gentable
-#     (
-#			{name=>"channel_subscriptions",
-#			 pk=>['type_id','channel_id'],
-#			 cols=>[["type_id",IDREF_TYPE],
-#							['channel_id',IDREF_TYPE]],
-#			 fks=>[{table=>'object_types',cols=>[['type_id','id']]},
-#						 {table=>'valid_channels',cols=>[['channel_id','id']]}],
-#			 history=>1,
-#			}
-#     ),
      $self->gentable
      (
       {name=>"valid_oses",
@@ -287,6 +275,18 @@ sub config_base_tables {
 #       fks=>[{table=>"assertion_actions",cols=>[["action_id","id"]]}],
 #       history=>1,
 #      }),
+     $self->gentable
+     ({name=>'certs',
+       pk=>['serial'],
+       cols=>[
+              ['serial', ID_TYPE],
+              ['name', 'varchar', {nullAllowed=>0}],
+              ['type', 'char(1)', {nullAllowed=>0}],
+              ['expiry_date', 'timestamp', {nullAllowed=>0}],
+              ['rev_date', 'timestamp'],
+             ],
+       cons=>[{type=>'general',text=>"check (type in ('V','E','R'))"}],
+      }),
     );
 
 	$self->config_tables(@tables);
@@ -334,7 +334,7 @@ sub register_op {
 #sub type_exists {
 #	my $self = shift;
 #	my ($type) = @_;
-#	
+#
 #	my $sth = $self->dbh->
 #			prepare_cached("select name from object_types where name=?",
 #										 {dbi_dummy=>"DBConstructor.type_exists"});
@@ -440,6 +440,7 @@ sub gentable {
 	foreach my $con (@{$info->{'cons'}}) {
 		my $celt = $elt->
 				insertNewChild("constraint", {type=>$con->{'type'}});
+    $celt->appendText($con->{text}) if exists $con->{text};
 		foreach my $col (@{$con->{'cols'}}) {
 			$celt->insertNewChild("col", {name=>$col});
 		}
@@ -511,7 +512,7 @@ sub gentable {
 
 		return $htelt,$elt;
 	}
-	
+
 	return $elt;
 }
 

@@ -1,0 +1,62 @@
+<element name="worker"
+xmlns="http://relaxng.org/ns/structure/1.0"
+xmlns:wu="https://github.com/machination/ns/workunit"
+xmlns:gui="https://github.com/machination/ns/guihint"
+xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+xmlns:secret="https://github.com/machination/ns/secrets"
+xmlns:plat="https://github.com/machination/ns/platforms"
+
+gui:icon="packageman.svg"
+gui:title="Package Manager"
+gui:shorthelp="Installs and uninstalls software packages"
+gui:longhelp="longhelp.txt"
+gui:doc="documentation.html"
+>
+    <attribute name="id">
+        <value>packageman</value>
+    </attribute>
+    <plat:platforms>
+        <plat:platform id="winXP_32"/>
+        <plat:platform id="winXP_64"/>
+        <plat:platform id="win7_32"/>
+        <plat:platform id="win7_64"/>
+    </plat:platforms>
+    <oneOrMore>
+        <element name="package" wu:wu="1">
+            <attribute name="id">
+                <text/>
+            </attribute>
+            <element name="bundle">
+                <attribute name="id">
+                    <text/>
+                </attribute>
+            </element>
+            <element name="pkginfo">
+                <attribute name="type">
+                    <choice>
+                        <value>msi</value>
+                        <value>simple</value>
+                    </choice>
+                </attribute>
+                <zeroOrOne>
+                    <element name="startpoint">
+                        <text/>
+                    </element>
+                </zeroOrOne>
+                <zeroOrOne>
+                    <element name="upgrade">
+                        <text/>
+                    </element>
+                </zeroOrOne>
+                <zeroOrMore>
+                    <element name="param">
+                        <attribute name="name">
+                            <text/>
+                        </attribute>
+                        <text/>
+                    </element>
+                </zeroOrMore>
+            </element>
+        </element>
+    </oneOrMore>
+</element>

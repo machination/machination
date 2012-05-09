@@ -8,6 +8,12 @@
       <stream id='stdout' loglevel='6'/>
     </logging>
     <daemon address="" port="1313" sleeptime="10000" />
+    <services>
+      <service id="machination.eng.ed.ac.uk"
+               debugUser="os:win7-1">
+        <hierarchy id="http://localhost/machination/hierarchy"/>
+      </service>
+    </services>
   </worker>
   <worker id='fetcher'>
     <config>

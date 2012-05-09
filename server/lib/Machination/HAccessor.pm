@@ -105,14 +105,10 @@ my $def_obj_types =
 					 ["uname","varchar"],
 					],
 	 },
-	 {name=>"computer", plural=>"computers",
-		is_entity=>1,
-	 },
    {name=>"os_instance", plural=>"os_instances",
     is_entity=>1,
     cols=>[
            ["os_id",Machination::DBConstructor::IDREF_TYPE,{nullAllowed=>0}],
-           ["pubkey","varchar",{nullAllowed=>0}],
           ],
     fks=>[
 					{table=>"valid_oses",cols=>[["os_id","id"]]},
@@ -307,20 +303,27 @@ sub authen_str_to_object {
   my $str = shift;
   my $opts = shift;
 
-  my $type;
-  my $id;
-  if($str=~s/^os://) {
-    $type = $self->type_id("os_instance");
-  } else {
-    $type = $self->type_id("person");
-  }
-#  () = $self->dbh->
-  ($id) = $self->fetch("objs_$type",
-                       {condition=>"name=?",
-                        fields=>["id"],
-                        params=>[$str],
-                        revision=>$opts->{revision}});
-  $id ? return ($type,$id->{id}) : return;
+  my ($type_name, $name) = split(/:/, $str);
+  my $id = $self->entity_id($self->type_id($type_name), $name);
+  $id ? return ($self->type_id($type_name),$id) : return;
+}
+
+=item B<entity_id>
+
+$id = $ha->entity_id($type_id, $name);
+
+=cut
+
+sub entity_id {
+  my $self = shift;
+  my ($tid, $name, $opts) = @_;
+
+	my $info = $self->fetch("objs_$tid",
+													{fields=>["id"],
+													 condition=>"name=?",
+													 params=>[$name],
+													 revision=>$opts->{revision}});
+  $info ? return $info->{id} : return;
 }
 
 =item B<do_op>
@@ -3375,22 +3378,27 @@ sub op_add_object_type {
 
 	my @tables;
 
+  my $objs_table =
+    {name=>"objs_$type_id",
+     pk=>['id'],
+     fks=>$fks,
+     history=>1,
+     cols=>[
+            ['id',Machination::DBConstructor::ID_TYPE],
+            ['name',Machination::DBConstructor::OBJECT_NAME_TYPE,
+             {nullAllowed=>0}],
+            ['owner',Machination::DBConstructor::OBJECT_NAME_TYPE,
+             {nullAllowed=>0}],
+            @$cols,
+           ],
+    };
+  # entities must have globally unique names
+  $objs_table->{cons} = [{type=>"UNIQUE",cols=>['name']}]
+    if($entity);
 	push @tables,
     (
      $dbc->gentable
-     ({name=>"objs_$type_id",
-       pk=>['id'],
-       fks=>$fks,
-       history=>1,
-       cols=>[
-              ['id',Machination::DBConstructor::ID_TYPE],
-              ['name',Machination::DBConstructor::OBJECT_NAME_TYPE,
-               {nullAllowed=>0}],
-              ['owner',Machination::DBConstructor::OBJECT_NAME_TYPE,
-               {nullAllowed=>0}],
-              @$cols,
-             ],
-      }),
+     ($objs_table),
      $dbc->gentable
      ({name=>"hccont_$type_id",
        pk=>["obj_id","hc_id"],

@@ -1501,20 +1501,54 @@ class XMLConstructor(object):
                                               poldir,
                                               stack)
 
-    def action_create(self, mpath, a, res_idx, poldir, stack):
+    def action_create(self, mpath, a, res_idx, poldir, stack,
+                      record_index = True):
         """Create an element or attribute"""
 
         mpath = MRXpath(mpath)
-        if poldir == -1:
-            # see if the node doesn't exist because of a previous "notexists"
-            # on mpath or parents
-            lineage = [mpath]
-            lineage.extend(mpath.ancestors())
-            for p in lineage:
-                if p.to_string in res_idx:
+        lineage = [mpath]
+        lineage.extend(mpath.ancestors())
+        lineage.reverse()
+        pelt = self.doc
+
+        # test to see if a notexists takes precedence
+        for p in lineage:
+            if p.to_string in res_idx:
+                if poldir == -1:
+                    # see if the node doesn't exist because of a
+                    # previous "notexists" on mpath or parents
                     if res_idx[p.to_string()]['ass_op'] == 'notexists':
                         return
-        elif poldir == 0:
-            # check there is no mandatory notextists for mpath or parents
-            pass
+                elif poldir == 0:
+                    # check there is no mandatory notextists for mpath
+                    # or parents
+                    if(res_idx[p.to_string()]['ass_op'] == 'notexists' and
+                       res_idx[p.to_string()]['is_mandatory']):
+                        return
 
+        # now we should go ahead and create the node
+        for p in lineage:
+            children = pelt.xpath(p.to_xpath())
+            if children:
+                # node p already exists
+                pelt = children[0]
+                continue
+
+            context.logger.dmsg('creating element {}'.format(p.to_xpath()))
+            if p.is_attribute():
+                pelt.set(p.name(), "")
+                # can't continue after an attribute
+                break
+            else:
+                new = etree.Element(p.name())
+                if p.id():
+                    new.set('id', p.id())
+                if pelt is self.doc:
+                    # no root node yet - make one
+                    self.doc._setroot(new)
+                else:
+                    pelt.append(new)
+            pelt = new
+
+        if record_index:
+            res_idx[mpath.to_string] = a

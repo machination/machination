@@ -18,10 +18,11 @@ class ServiceLauncher(win32serviceutil.ServiceFramework):
         win32serviceutil.ServiceFramework.__init__(self, args)
 
         #Get config from context
+        dxpath = '/status/worker[@id="__machination__"]/daemon'
         config = context.desired_status.getroot()
-        self.sockcfg = (config.xpath("/status/daemon/@address")[0],
-                        int(config.xpath("/status/daemon/@port")[0]))
-        self.timeout = int(config.xpath("/status/daemon/@sleeptime")[0])
+        self.sockcfg = (config.xpath(dxpath + "/@address")[0],
+                        int(config.xpath(dxpath + "/@port")[0]))
+        self.timeout = int(config.xpath(dxpath + "/@sleeptime")[0])
 
         # Event handler for stop events
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)

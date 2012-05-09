@@ -86,9 +86,10 @@ def _get_dir(name):
     if(desired_status):
         # look it up in desired_status.xml
         try:
-            directories = desired_status.xpath("/status/directories")[0]
+            xpath = '/status/worker[@id="__machination__"]/directories'
+            directories = desired_status.xpath(xpath)[0]
         except IndexError:
-            raise Exception("/status/directories element not found in '%s'"
+            raise Exception("/status/worker[@id='__machination__']/directories element not found in '%s'"
                             % desired_status_file)
         if name in directories.keys():
             return directories.get(name).format(dsdir=os.path.dirname(desired_status_file))
@@ -119,7 +120,7 @@ try:
 except IOError:
     raise IOError("could not find file '%s'" % desired_status_file)
 
-logging_elts = desired_status.xpath('/status/logging')
+logging_elts = desired_status.xpath('/status/worker[@id="__machination__"]/logging')
 if not logging_elts:
     # defaults
     logging_elts = [etree.fromstring('<logging>' +

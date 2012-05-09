@@ -1393,7 +1393,7 @@ class XMLCompare(object):
 
         return topdeps
 
-class XMLConstructor(object):
+class AssertionCompiler(object):
     """Compile XML assertions into a document"""
 
     def __init__(self, wc):
@@ -1552,3 +1552,8 @@ class XMLConstructor(object):
 
         if record_index:
             res_idx[mpath.to_string] = a
+
+    def action_settext(self, mpath, a, res_idx, poldir, stack):
+        """Set the text of an element or attribute"""
+        context.logger.dmsg('empty method')
+        pass

@@ -1,3 +1,5 @@
 <status>
-<daemon address="" port="1313" sleeptime="10000" />
+  <worker id="__machination__">
+    <daemon address="" port="1313" sleeptime="10000" />
+  </worker>
 </status>

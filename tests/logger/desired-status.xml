@@ -1,7 +1,9 @@
 <status>
-  <directories cache="{dsdir}"
-               log="{dsdir}"/>
-  <logging>
-    <file id='log.txt' loglevel='4'/>
-  </logging>
+  <worker id="__machination__">
+    <directories cache="{dsdir}"
+                 log="{dsdir}"/>
+    <logging>
+      <file id='log.txt' loglevel='4'/>
+    </logging>
+  </worker>
 </status>

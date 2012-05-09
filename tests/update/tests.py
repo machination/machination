@@ -32,7 +32,7 @@ class UpdateTestCase(unittest.TestCase):
         self.w = do.Worker()
         self.w.set_status(st)
 
-    def est_desired_status(self):
+    def test_desired_status(self):
         st = self.u.desired_status()
         self.assertEqual(st.tag, 'status')
 
@@ -41,7 +41,7 @@ class UpdateTestCase(unittest.TestCase):
         # make sure the dummyordered worker element is in status
         self.assertNotEqual(len(st.xpath('/status/worker[@id="dummyordered"]')),0)
 
-    def test_do_update(self):
+    def est_do_update(self):
         self.u.do_update()
         st = self.u.gather_status()
         print()

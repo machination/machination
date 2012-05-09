@@ -1,61 +1,63 @@
 <status>
 
-  <directories status_dir="/var/lib/machination2"
-               cache_dir="/var/cache/machination"
-               />
+  <worker id="__machination__">
+    <directories status_dir="/var/lib/machination2"
+                 cache_dir="/var/cache/machination"
+                 />
 
-  <!-- A machination 2 client can attach to more than one service -->
-  <services>
+    <!-- A machination 2 client can attach to more than one service -->
+    <services>
 
-    <service id="machination.eng.ed.ac.uk"
-             mid="myid on eng">
-      <!-- Load balance across these interfaces perhaps, or maybe do
-           load balancing at the server end (DNS round robin, proper
-           clustering)? -->
-      <interface id="https://interface1.machination.eng.ed.ac.uk"/>
-      <interface id="https://interface2.machination.eng.ed.ac.uk"/>
-    </service>
+      <service id="machination.eng.ed.ac.uk"
+               mid="myid on eng">
+        <!-- Load balance across these interfaces perhaps, or maybe do
+             load balancing at the server end (DNS round robin, proper
+             clustering)? -->
+        <interface id="https://interface1.machination.eng.ed.ac.uk"/>
+        <interface id="https://interface2.machination.eng.ed.ac.uk"/>
+      </service>
 
-    <service id="machination.example.com"
-             mid="myid on example.com">
-      <interface id="https://interface.machination.example.com"/>
-    </service>
+      <service id="machination.example.com"
+               mid="myid on example.com">
+        <interface id="https://interface.machination.example.com"/>
+      </service>
 
-    <!-- the localhost 'service' is a planned future extension whereby
-         changes can be made to a local file which will be merged into
-         the profile. Used while disconnected or for changes that
-         don't make sense to keep on any of the other services this
-         client consumes configuration from. -->
-    <service id="localhost"
-             mid="localhost">
-      <interface id="file:///$mdir/services/localhost/desired.xml"/>
-    </service>
+      <!-- the localhost 'service' is a planned future extension whereby
+           changes can be made to a local file which will be merged into
+           the profile. Used while disconnected or for changes that
+           don't make sense to keep on any of the other services this
+           client consumes configuration from. -->
+      <service id="localhost"
+               mid="localhost">
+        <interface id="file:///$mdir/services/localhost/desired.xml"/>
+      </service>
 
-    <!-- Config information from more than one source needs to be
-         merged before a profile is generated -->
-    <mergePolicy>
-      <!-- something complicated goes in here! -->
-    </mergePolicy>
+      <!-- Config information from more than one source needs to be
+           merged before a profile is generated -->
+      <mergePolicy>
+        <!-- something complicated goes in here! -->
+      </mergePolicy>
 
-  </services>
+    </services>
 
-  <logging>
-    <!-- unrooted paths are assumed to be relative to $mdir -->
-    <file id="log.txt" loglevel="4"/>
-    <file id="verboselog.txt" loglevel="8"/>
-    <syslog id="syslog.machination.eng.ed.ac.uk" loglevel="10"/>
-    <syslog id="syslog.machination.example.com" loglevel="4"/>
-  </logging>
+    <logging>
+      <!-- unrooted paths are assumed to be relative to $mdir -->
+      <file id="log.txt" loglevel="4"/>
+      <file id="verboselog.txt" loglevel="8"/>
+      <syslog id="syslog.machination.eng.ed.ac.uk" loglevel="10"/>
+      <syslog id="syslog.machination.example.com" loglevel="4"/>
+    </logging>
 
-  <!-- The daemon or service listening for 'kick' packets-->
-  <daemon port="1313" address="" sleeptime="10"/>
+    <!-- The daemon or service listening for 'kick' packets-->
+    <daemon port="1313" address="" sleeptime="10"/>
 
-  <!-- platforms supported by the client code installed here -->
-  <platforms>
-    <platform id="Win7_64"/>
-    <platform id="WinXP_32"/>
-    <platform id="WinXP_64"/>
-  </platforms>
+    <!-- platforms supported by the client code installed here -->
+    <platforms>
+      <platform id="Win7_64"/>
+      <platform id="WinXP_32"/>
+      <platform id="WinXP_64"/>
+    </platforms>
+  </worker>
 
   <!-- Worker specific configuration -->
   <!-- Workers should be handed an lxml.etree Element as they are

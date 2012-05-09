@@ -1,13 +1,13 @@
 <status>
-  <directories
-      cache='{dsdir}'
-      log='{dsdir}'
-      />
-  <logging>
-    <stream id='stdout' loglevel='6'/>
-  </logging>
   <worker id='__machination__'>
-    <test/>
+    <directories
+        cache='{dsdir}'
+        log='{dsdir}'
+        />
+    <logging>
+      <stream id='stdout' loglevel='6'/>
+    </logging>
+    <daemon address="" port="1313" sleeptime="10000" />
   </worker>
   <worker id='fetcher'>
     <config>

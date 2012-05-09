@@ -1,7 +1,9 @@
 <status>
-  <directories status="{dsdir}"
-               cache="{dsdir}"
-               />
+  <worker id="__machination__">
+    <directories status="{dsdir}"
+                 cache="{dsdir}"
+                 />
+  </worker>
   <worker id="dummyordered">
     <sysitem id="1">sysone</sysitem>
     <sysitem id="2">systwo</sysitem>

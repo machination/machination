@@ -1,7 +1,9 @@
 <status>
-  <directories status="{dsdir}"
-               cache="{dsdir}"
-               />
+  <worker id="__machination__">
+    <directories status="{dsdir}"
+                 cache="{dsdir}"
+                 />
+  </worker>
   <worker id="test">
     <iniFile>
       <section id="section1">

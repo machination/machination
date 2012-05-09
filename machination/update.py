@@ -5,7 +5,9 @@ from machination.xmltools import XMLCompare
 from machination.xmltools import MRXpath
 from machination.xmltools import generate_wus
 from machination.xmltools import pstring
+from machination.xmltools import AssertionCompiler
 from machination import utils
+from machination.webclient import WebClient
 from lxml import etree
 from lxml.builder import E
 import copy

@@ -4,6 +4,7 @@ import sys
 import cgi
 import cgitb
 import time
+import os
 from M2Crypto import m2, RSA, X509, BIO, ASN1
 
 cgitb.enable(display=1)
@@ -96,12 +97,56 @@ def main():
 
     # form has ben submitted
     elif "file" in form:
+
+        joiner = os.environ.get('REMOTE_USER',None)
+        if not joiner:
+            htmlOutput("ERROR: You must authenticate to use this script.")
+            exit(0)
+
         # can be either a 'file submit' from a browser, or a urlencoded string
         fileitem = form["file"]
         if fileitem.file:
-            sign_csr(fileitem.file.read())
+            csrdata = fileitem.file.read()
         else:
-            sign_csr(fileitem.value)
+            csrdata = fileitem.value
+
+        try:
+            csr = X509.load_request_string(csrdata)
+        except X509.X509Error:
+            htmlOutput("ERROR: No valid CSR data received.")
+            exit(0)
+
+        # get object type and name
+        subject_name = csr.get_subject_name
+        obj_typename, obj_name = subject_name.split(":")
+
+        if not object_exists(obj_typename, obj_name):
+            # should have been created by client script
+            htmlOutput("ERROR: object {}:{} does not exist.".format(obj_typename, obj_name))
+            exit(0)
+
+        # We'll need settext permission on the object's 'reset_trust' field
+        req = {
+            'channel_id': wc.call('HierarchyChannel'),
+            'op': 'settext'
+            'mpath': '/hc[machination:root]/contents/hc[system]/hc[{}]/contents/obj[{}:{}]/field[reset_trust]'.format(plural_typename, obj_typename, obj_name),
+            'owner': joiner,
+            'approval': []
+            }
+        allowed = wc.call('ActionAllowed', req,
+                          '/system/{}/{}:{}'.format(plural_typename,
+                                                    obj_typename,
+                                                    obj_name))
+        if allowed != 1:
+            htmlOutput('ERROR: user "{}" is not alowed to reset the trust link for {}:{}'.format(joiner, obj_typename, obj_name))
+            exit(0)
+
+        # now we've got permission to do something
+
+        if fileitem.file:
+            sign_csr(csrdata)
+        else:
+            sign_csr(csrdata)
 
 
 if __name__ == "__main__":

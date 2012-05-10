@@ -68,6 +68,9 @@ my %calls =
    AllTypesInfo => undef,
    TypeId => undef,
 
+   # authorisation
+   ActionAllowed => undef,
+
    # hcs
    Exists => undef,
    ListContents => undef,
@@ -78,6 +81,10 @@ my %calls =
    # objects
    FetchObject => undef,
    IdPair => undef,
+
+   # channels
+   ProfChannel => undef,
+   HierarchyChannel => undef,
 
    # assertions/instructions/profiles
    GetAssertionList => undef,
@@ -106,7 +113,6 @@ my %calls =
     ListAttachments => undef,
     AttachmentsCount => undef,
     FetchAttachmentInfo => undef,
-    ActionAllowed => undef,
     CreateLibItem => undef,
     GetSpecialSet => undef,
     );
@@ -240,7 +246,15 @@ sub hierarchy_channel {
   return $hierarchy_channel;
 }
 
-=item * B<Help>
+=item B<HierarchyChannel>
+
+=cut
+
+sub call_HierarchyChannel {
+  return hierarchy_channel();
+}
+
+=item B<Help>
 
 =cut
 
@@ -259,7 +273,7 @@ sub splat {
   return 1;
 }
 
-=item * B<TypeInfo>
+=item B<TypeInfo>
 
 TypeInfo($type)
 
@@ -271,7 +285,7 @@ sub call_TypeInfo {
   return $ha->type_info($type);
 }
 
-=item * B<AllTypesInfo>
+=item B<AllTypesInfo>
 
 AllTypesInfo($opts)
 
@@ -283,7 +297,7 @@ sub call_AllTypesInfo {
   return $ha->all_types_info($opts);
 }
 
-=item * B<TypeId>
+=item B<TypeId>
 
 TypeId($type_name)
 
@@ -293,6 +307,29 @@ sub call_TypeId {
   my ($owner,$approval,$type) = @_;
 
   return $ha->type_id($type);
+}
+
+=item B<ActionAllowed>
+
+ActionAllowed($req, $hc_id)
+
+$req =
+ {
+  channel_id=>$channel_id
+  op=>$op,
+  mpath=>$mpath,
+  arg=>$arg,
+  owner=>$authen_string,
+  approval=>[$authen_string,$authen_string,...],
+ }
+
+=cut
+
+sub call_ActionAllowed {
+  my ($owner, $approval, $req, $path) = @_;
+  my $hp = Machination::HPath->new($ha, $path);
+
+  return $ha->action_allowed($req, $hp->id);
 }
 
 =item B<Exists>
@@ -677,6 +714,10 @@ sub call_IdPair {
 
   return {type_id=>$hp->type_id, id=>$hp->id};
 }
+
+=item B<ProfChannel>
+
+=cut
 
 sub call_ProfChannel {
   my ($caller, $approval, $type) = @_;
@@ -1133,36 +1174,6 @@ sub call_FetchAttachmentInfo {
 	);
 
     return $ha->fetch_attachment_info($otype,$oid,$hc);
-}
-
-=item * call_ActionAllowed($ent,$req,$thing)
-
-$req is action request in hash ref form:
-  {
-    svc_id=>$svc_id,
-    op=>$op,
-    ...
-  }
-
-$thing can be:
-
-=over
-
-=item - an hc id
-
-=item - an authz instruction in hash ref form (see
- Machination::HInternalIface->action_allowed)
-
-=item - a ref to an array of authz instructions as above
-
-=back
-
-=cut
-
-sub call_ActionAllowed {
-    my ($ent,$req,$thing) =  @_;
-
-    return ($ha->action_allowed($req,$thing));
 }
 
 =item * call_CreateLibItem($ent,$name,$parent,$svc,$ihc,$xml)

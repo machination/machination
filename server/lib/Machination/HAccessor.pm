@@ -318,6 +318,10 @@ sub entity_id {
   my $self = shift;
   my ($tid, $name, $opts) = @_;
 
+  HierarchyException->throw
+    ("cannot find entity id of non entity type " . $self->type_name($tid))
+      unless $self->type_info($tid)->{is_entity};
+
 	my $info = $self->fetch("objs_$tid",
 													{fields=>["id"],
 													 condition=>"name=?",

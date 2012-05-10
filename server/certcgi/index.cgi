@@ -44,8 +44,15 @@ except IndexError:
     htmlOutput('ERROR: no connection element defined at {}.'.format(dbcon_xpath))
     exit(0)
 cred_elt = etree.parse(dcon_elt['credentials']).getroot()
+dbcon = psycopg2.connect(host=dcon_elt['host'],
+                         port=dcon_elt['port'],
+                         database=dcon_elt['database'],
+                         user=cred_elt.xpath('/cred/username/text()'),
+                         password=cred_elt.xpath('/cred/password/text()'))
 
-dbcon = psycopg2.connect(host=dcon_elt['host'],port=dcon_elt['port'])
+# This script should not live long enough to worry about more than one
+# cursor - just create a global one.
+cur = dbcon.cursor()
 
 
 def fileOutput(name, data):
@@ -60,13 +67,7 @@ def htmlOutput(message):
 <html><body><p>%s</p></body></html>""" % (message)))
 
 
-def sign_csr(csrdata):
-    try:
-        csr = X509.load_request_string(csrdata)
-    except X509.X509Error:
-        htmlOutput("No valid CSR data received.")
-        sys.exit()
-
+def sign_csr(csr, serial):
     # Load the CA cert and key
     try:
         cacert = X509.load_cert(cacertfile)
@@ -98,14 +99,13 @@ def sign_csr(csrdata):
     # Set cert subject and serial number
     subject = csr.get_subject()
     cert.set_subject_name(subject)
-    # FIXME! Use an incrementing unique serial number!
-    cert.set_serial_number(2)
+    cert.set_serial_number(serial)
 
     # Sign the cert
     cert.set_issuer_name(cacert.get_subject())
     cert.sign(capub, md='sha256')
 
-    fileOutput(csr.get_subject().CN, cert.as_pem())
+    return cert
 
 
 def main():
@@ -147,34 +147,38 @@ def main():
         # get object type and name
         subject_name = csr.get_subject_name
         obj_typename, obj_name = subject_name.split(":")
-
-        if not object_exists(obj_typename, obj_name):
-            # should have been created by client script
-            htmlOutput("ERROR: object {}:{} does not exist.".format(obj_typename, obj_name))
+        obj_id = int(wc.call('EntityId', obj_typename, obj_name))
+        if obj_id < 1:
+            # object does not exist - should have been created by
+            # client script
+            htmlOutput("ERROR: object {} does not exist.".
+                       format(subject_name))
             exit(0)
 
         # We'll need settext permission on the object's 'reset_trust' field
         req = {
             'channel_id': wc.call('HierarchyChannel'),
             'op': 'settext'
-            'mpath': '/hc[machination:root]/contents/hc[system]/hc[{}]/contents/obj[{}:{}]/field[reset_trust]'.format(plural_typename, obj_typename, obj_name),
+            'mpath': '/special/objects/{}/{}/field[reset_trust]'.format(obj_typename, obj_id),
             'owner': joiner,
             'approval': []
             }
-        allowed = wc.call('ActionAllowed', req,
-                          '/system/{}/{}:{}'.format(plural_typename,
-                                                    obj_typename,
-                                                    obj_name))
+        allowed = wc.call('ActionAllowed', req, '/system/special_authz')
         if allowed != 1:
             htmlOutput('ERROR: user "{}" is not alowed to reset the trust link for {}:{}'.format(joiner, obj_typename, obj_name))
             exit(0)
 
         # now we've got permission to do something
 
-        if fileitem.file:
-            sign_csr(csrdata)
-        else:
-            sign_csr(csrdata)
+        # TODO(colin): transaction handle via wc?
+        # TODO(colin): create new row and get serial no
+        cert = sign_csr(csr, serial)
+        # TODO(colin): get info from cert to write
+        # TODO(colin): revoke old row/cert
+        # TODO(colin): add new row/cert
+        # TODO(colin): commit transaction handle?
+
+        fileOutput(csr.get_subject().CN, cert.as_pem())
 
 
 if __name__ == "__main__":

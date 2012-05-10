@@ -81,6 +81,7 @@ my %calls =
    # objects
    FetchObject => undef,
    IdPair => undef,
+   EntityId => undef,
 
    # channels
    ProfChannel => undef,
@@ -443,7 +444,7 @@ sub call_GetListContentsIterator {
              owner=>$owner,
              approval=>$approval};
   die "could not get listcontents permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp));
+    unless($ha->action_allowed($req,$hp->id));
 
   my $q = Thread::Queue->new();
   $ha->log->dmsg("WebHierarchy.GetListContentsIterator",
@@ -665,7 +666,7 @@ permissions required:
 =cut
 
 sub call_RegisterIdentity {
-  my ($caller,$approval,$obj_type,$csr,$fields) = @_;
+  my ($owner,$approval,$obj_type,$csr,$fields) = @_;
 
   # get name from csr
   my $obj_name;
@@ -695,7 +696,7 @@ $success = RevokeIdentity($id)
 =cut
 
 sub call_RevokeIdentity {
-  my ($caller,$approval,$id) = @_;
+  my ($owner,$approval,$id) = @_;
 
 }
 
@@ -708,11 +709,40 @@ sub call_RevokeIdentity {
 =cut
 
 sub call_IdPair {
-  my ($caller, $approval, $path) = @_;
+  my ($owner, $approval, $path) = @_;
 
   my $hp = Machination::HPath->new($ha,$path);
 
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"exists",
+             mpath=>$hp->to_mpath,
+             owner=>$owner,
+             approval=>$approval};
+  AuthzDeniedException->
+    throw("could not get exists permission for $path")
+      unless $ha->action_allowed($req, $hp->id);
   return {type_id=>$hp->type_id, id=>$hp->id};
+}
+
+=item B<EntityId>
+
+=cut
+
+sub call_EntityId {
+  my ($owner, $approval, $type_name, $name) = @_;
+
+  my $id = $ha->entity_id($ha->type_id($type_name), $name);
+
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"exists",
+             mpath=>'/special/objects/$type_name/$id',
+             owner=>$owner,
+             approval=>$approval};
+  AuthzDeniedException->
+    throw("could not get exists permission for /special/objects/$type_name")
+      unless $ha->action_allowed($req, $ha->fetch_root_id);
+
+  return $id
 }
 
 =item B<ProfChannel>

@@ -1,0 +1,24 @@
+<status>
+  <worker id='__server__'>
+    <certcgi>
+      <!-- relative to cache_dir -->
+      <ca certfile='secrets/server.crt' keyfile='secrets/server.key'/>
+      <lifetime>157788000</lifetime>
+    </certcgi>
+    <database>
+      <connection host="localhost"
+                  port='5432'
+                  database='machination'
+                  credentials='secrets/dbcred.xml'>
+    </database>
+  </worker>
+  <worker id='__machination__'>
+    <directories
+        cache='{dsdir}'
+        log='{dsdir}'
+        />
+    <logging>
+      <stream id='stdout' loglevel='6'/>
+    </logging>
+  </worker>
+</status>

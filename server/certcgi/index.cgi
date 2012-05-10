@@ -6,6 +6,10 @@ import cgitb
 import time
 import os
 from M2Crypto import m2, RSA, X509, BIO, ASN1
+from machination import context
+from machination.xmltools import WebClient
+import psycopg2
+from lxml import etree
 
 cgitb.enable(display=1)
 
@@ -13,11 +17,35 @@ cgitb.enable(display=1)
 cgi.maxlen = 2 * 1024 * 1024
 
 # FIXME! Should come from machination context
-cacertfile = "/var/sixkts/server.crt"
-cakeyfile = "/var/sixkts/server.key"
+#cacertfile = "/var/sixkts/server.crt"
+#cakeyfile = "/var/sixkts/server.key"
+
+wxpath = '/status/worker[@id="__server__"]'
+config_xpath = '{}/certgi'.format(wxpath)
+try:
+    config_elt = context.desired_status.xpath(config_xpath)[0]
+except IndexError:
+    htmlOutput('ERROR: no config element defined at {}.'.format(config_xpath))
+    exit(0)
+cacertfile = config_elt.xpath('ca')[0]['certfile']
+cakeyfile = config_elt.xpath('ca')[0]['keyfile']
 
 # Cert lifetime in seconds (~5 years)
-lifetime = 157788000
+try:
+    lifetime = config_elt.xpath('lifetime')[0].text
+except IndexError:
+    lifetime = 157788000
+
+# database params
+dbcon_xpath = '{}/database/connection'.format(wxpath)
+try:
+    dcon_elt = context.desired_status.xpath(dbcon_xpath)[0]
+except IndexError:
+    htmlOutput('ERROR: no connection element defined at {}.'.format(dbcon_xpath))
+    exit(0)
+cred_elt = etree.parse(dcon_elt['credentials']).getroot()
+
+dbcon = psycopg2.connect(host=dcon_elt['host'],port=dcon_elt['port'])
 
 
 def fileOutput(name, data):

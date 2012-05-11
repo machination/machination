@@ -4,12 +4,16 @@
       <!-- relative to cache_dir -->
       <ca certfile='secrets/server.crt' keyfile='secrets/server.key'/>
       <lifetime>157788000</lifetime>
+      <db host="localhost"
+          port='5432'
+          database='machination'
+          credentials='secrets/certcgi_cred.xml'/>
     </certcgi>
     <database>
       <connection host="localhost"
                   port='5432'
                   database='machination'
-                  credentials='secrets/dbcred.xml'>
+                  credentials='secrets/dbcred.xml'/>
     </database>
   </worker>
   <worker id='__machination__'>

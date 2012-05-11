@@ -32,6 +32,40 @@ import sys
 from machination import context
 from machination import utils
 
+# see if functools.lru_cache is defined
+try:
+    getattr(functools,'lru_cache')
+except AttributeError:
+    # substitute our own poor implementation
+    # shamelessly cribbed from the python 3.2 lru_cache
+    def lru_replacement(maxsize=100):
+        """replacement lru_cache"""
+        def decorating_function(user_function,
+                                tuple=tuple,
+                                sorted=sorted,
+                                len=len,
+                                KeyError=KeyError):
+            kwd_mark = (object(),)   # separates positional and keyword args
+            cache = dict()
+            @functools.wraps(user_function)
+            def wrapper(*args, **kwds):
+                key = args
+                if kwds:
+                    key += kwd_mark + tuple(sorted(kwds.items()))
+                try:
+                    result = cache[key]
+                    return result
+                except KeyError:
+                    pass
+                result = user_function(*args, **kwds)
+                cache[key] = result
+                return result
+
+            return wrapper
+        return decorating_function
+
+    functools.lru_cache = lru_replacement
+
 def pstring(e, top = True, depth = 0, istring = '  '):
     """pretty string representation of an etree element"""
     rep = []

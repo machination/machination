@@ -37,9 +37,8 @@ except IndexError:
     lifetime = 157788000
 
 # database params
-dbcon_xpath = '{}/database/connection'.format(wxpath)
 try:
-    dcon_elt = context.desired_status.xpath(dbcon_xpath)[0]
+    dcon_elt = config_elt.xpath('db')[0]
 except IndexError:
     htmlOutput('ERROR: no connection element defined at {}.'.format(dbcon_xpath))
     exit(0)

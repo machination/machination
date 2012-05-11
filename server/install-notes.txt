@@ -28,6 +28,14 @@ root# apt-get install postgresql
 
   postgres=# create database machination with owner machination;
 
+- create the cert signing role:
+
+  postgres=# create role machination_certsigner login password
+    'whatever2';
+
+- put the passwords into dbcred.xml (for machination) and
+  certsigner_cred.xml (for certsigner)
+
 1.3) Make sure the machination server can talk to the database server:
 
 - From a shell on the machination server:
@@ -35,6 +43,9 @@ root# apt-get install postgresql
  $ psql -h dbserver -U machination machination
 
 and make sure it connects ok.
+
+  grant select,insert,update on certs to machination_certsigner;
+
 
 2) Make sure DBI and associated modules are installed:
 

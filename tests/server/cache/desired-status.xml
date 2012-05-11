@@ -1,13 +1,28 @@
 <status>
   <worker id='__server__'>
-    <certcgi>
-      <!-- relative to cache_dir -->
-      <ca certfile='secrets/server.crt' keyfile='secrets/server.key'/>
+    <certcgi credentials='secrets/certcgi_cred.xml'>
+      <!-- unrooted paths relative to cache_dir -->
+      <ca certfile='server.crt' keyfile='secrets/server.key' />
       <lifetime>157788000</lifetime>
       <db host="localhost"
           port='5432'
           database='machination'
-          credentials='secrets/certcgi_cred.xml'/>
+          />
+      <clientDNForm>
+        <node id='CN' check='re' value='^\w+:\w+$'/>
+        <node id='Email' check='equal'
+              value='machination@machination.example.com'/>
+        <node id='OU' check='equal'
+              value='Machination OU'/>
+        <node id='O' check='equal'
+              value='Machination Org'/>
+        <node id='L' check='equal'
+              value='Machination City'/>
+        <node id='ST' check='equal'
+              value='Machination State'/>
+        <node id='C' check='equal'
+              value='Machination Country'/>
+      </clientDNForm>
     </certcgi>
     <database>
       <connection host="localhost"

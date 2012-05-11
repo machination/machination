@@ -3,6 +3,7 @@ from collections import namedtuple
 import socket
 import urllib
 import urllib2
+import time
 
 
 def make_key(bits=2048):

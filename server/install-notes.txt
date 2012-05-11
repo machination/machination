@@ -45,6 +45,7 @@ root# apt-get install postgresql
 and make sure it connects ok.
 
   grant select,insert,update on certs to machination_certsigner;
+  grant usage on sequence certs_serial_seq to machination_certsigner;
 
 
 2) Make sure DBI and associated modules are installed:

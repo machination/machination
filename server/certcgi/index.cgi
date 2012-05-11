@@ -42,16 +42,7 @@ try:
 except IndexError:
     htmlOutput('ERROR: no connection element defined at {}.'.format(dbcon_xpath))
     exit(0)
-cred_elt = etree.parse(dcon_elt['credentials']).getroot()
-dbcon = psycopg2.connect(host=dcon_elt['host'],
-                         port=dcon_elt['port'],
-                         database=dcon_elt['database'],
-                         user=cred_elt.xpath('/cred/username/text()'),
-                         password=cred_elt.xpath('/cred/password/text()'))
-
-# This script should not live long enough to worry about more than one
-# cursor - just create a global one.
-cur = dbcon.cursor()
+cred_elt = etree.parse(config_elt['credentials']).getroot()
 
 
 def fileOutput(name, data):
@@ -70,7 +61,7 @@ def sign_csr(csr, serial):
     # Load the CA cert and key
     try:
         cacert = X509.load_cert(cacertfile)
-        cakey = RSA.load_key(cakeyfile, callback=lambda passphrase: '')
+        cakey = RSA.load_key(cakeyfile, callback=lambda passphrase: cred_elt.xpath('/cred/caKey/passphrase/text()'))
     except X509.X509Error:
         htmlOutput("No CA available for signing.")
         sys.exit()
@@ -144,7 +135,7 @@ def main():
             exit(0)
 
         # get object type and name
-        subject_name = csr.get_subject_name
+        subject_name = csr.get_subject()
         obj_typename, obj_name = subject_name.split(":")
         obj_id = int(wc.call('EntityId', obj_typename, obj_name))
         if obj_id < 1:
@@ -167,18 +158,39 @@ def main():
             htmlOutput('ERROR: user "{}" is not alowed to reset the trust link for {}:{}'.format(joiner, obj_typename, obj_name))
             exit(0)
 
+        # check that csr conforms to our certificate policy
+        check_csr(csr)
+
         # now we've got permission to do something
 
-        # TODO(colin): transaction handle via wc?
-        # TODO(colin): create new row and get serial no
+        dbcon = psycopg2.connect(host=dcon_elt['host'],
+                                 port=dcon_elt['port'],
+                                 database=dcon_elt['database'],
+                                 user=cred_elt.xpath('/cred/db/username/text()'),
+                                 password=cred_elt.xpath('/cred/db/password/text()'))
+        # This script should not live long enough to worry about
+        # more than one cursor - just create a global one.
+        cur = dbcon.cursor()
+        cur.execute("select nextval(%s)", ('certs'))
+        serial = cur.fetchone()[0]
+
         cert = sign_csr(csr, serial)
+        # revoke old row/cert
+        cur.execute("update certs set type='R' where name=%s and type='V'",
+                    (subject_name))
         # TODO(colin): get info from cert to write
-        # TODO(colin): revoke old row/cert
-        # TODO(colin): add new row/cert
-        # TODO(colin): commit transaction handle?
+        # add new row/cert
+        cur.execute("insert into certs (serial, name, type, expiry_date) " +
+                    "values (%s,%s,'V',%s)",
+                    (serial, subject_name, cert.get_not_before()))
+        cur.commit()
 
         fileOutput(csr.get_subject().CN, cert.as_pem())
 
+def check_csr(csr):
+    sname = csr.get_subject()
+    for node in config_elt.xpath('clientDNForm/node'):
+        pass
 
 if __name__ == "__main__":
     main()

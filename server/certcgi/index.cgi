@@ -5,6 +5,7 @@ import cgi
 import cgitb
 import time
 import os
+import re
 from M2Crypto import m2, RSA, X509, BIO, ASN1
 from machination import context
 from machination.xmltools import WebClient
@@ -145,6 +146,13 @@ def main():
                        format(subject_name))
             exit(0)
 
+        # Now we need to start looking up things in the hierarchy -
+        # make a Webclient.
+
+        wcurl = context.desired_status.xpath(wxpath + '/webclient/@url')[0]
+        # TODO(colin): change over to cert or user+pass
+        wc = WebClient(wcurl, 'eggy')
+
         # We'll need settext permission on the object's 'reset_trust' field
         req = {
             'channel_id': wc.call('HierarchyChannel'),
@@ -188,9 +196,18 @@ def main():
         fileOutput(csr.get_subject().CN, cert.as_pem())
 
 def check_csr(csr):
-    sname = csr.get_subject()
+    subj = csr.get_subject()
     for node in config_elt.xpath('clientDNForm/node'):
-        pass
+        name = getattr(subj,node.get('id'))
+        if node.get('check') == 'equal':
+            if node.get('value') != name:
+                return False
+        elif node.get('check') == 're':
+            ch = re.compile(node.get('value'))
+            if not ch.search(name):
+                return False
+
+    return True
 
 if __name__ == "__main__":
     main()

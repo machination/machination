@@ -1,5 +1,21 @@
 <status>
   <worker id='__server__'>
+
+    <!-- the main connection to the hierarchy database -->
+    <database>
+      <connection host="localhost"
+                  port='5432'
+                  database='machination'
+                  credentials='secrets/dbcred.xml'/>
+    </database>
+
+    <!-- Some server side tools need to talk through the authenticated
+         and authorised WebClient API -->
+    <webclient url="http://localhost/machination/hierarchy/cert"/>
+
+    <!-- certcgi is used to join entities to the Machination
+         service. It signs certs via Certificate Signing Requests
+         (CSRs) and stores some info in the database. -->
     <certcgi credentials='secrets/certcgi_cred.xml'>
       <!-- unrooted paths relative to cache_dir -->
       <ca certfile='server.crt' keyfile='secrets/server.key' />
@@ -24,12 +40,6 @@
               value='Machination Country'/>
       </clientDNForm>
     </certcgi>
-    <database>
-      <connection host="localhost"
-                  port='5432'
-                  database='machination'
-                  credentials='secrets/dbcred.xml'/>
-    </database>
   </worker>
   <worker id='__machination__'>
     <directories

@@ -403,13 +403,13 @@ sub call_ListContents {
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listcontents",
-             mpath=>$hp->to_mpath,
+             mpath=>"/contents",
              owner=>$owner,
              approval=>$approval};
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listcontents permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp));
+    unless($ha->action_allowed($req,$hp->id));
 
   $ha->log->dmsg("WebHierarchy.ListContents","after action_allowed",9);
 
@@ -442,7 +442,7 @@ sub call_GetListContentsIterator {
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listcontents",
-             mpath=>$hp->to_mpath,
+             mpath=>"/contents",
              owner=>$owner,
              approval=>$approval};
   die "could not get listcontents permission for " . $req->{mpath}
@@ -737,12 +737,14 @@ sub call_EntityId {
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"exists",
-             mpath=>'/special/objects/$type_name/$id',
+             mpath=>"/contents/$type_name\[$id\]",
              owner=>$owner,
              approval=>$approval};
   AuthzDeniedException->
-    throw("could not get exists permission for /special/objects/$type_name")
-      unless $ha->action_allowed($req, $ha->fetch_root_id);
+    throw("could not get exists permission for $type_name:$id in " .
+          "/system/special/authz/objects")
+      unless $ha->action_allowed
+        ($req, Machination::HPath->new("/system/special/authz/objects")->id);
 
   return $id
 }

@@ -1894,13 +1894,13 @@ sub action_allowed {
 
       my $obj_elt;
       if(defined $type_name) {
-        my $obj_mp = $self->{mpath};
+        my $obj_mp = $req->{mpath};
         $obj_mp =~ s/^\/$branch//;
-        my $obj_elt = Machination::MPath->new($obj_mp)->contruct_elt;
+        $obj_elt = Machination::MPath->new($obj_mp)->construct_elt;
         # fill the object's fields if it exists
-        my $obj_hp = Machination::HPath->new("$type_id:$obj_id");
+        my $obj_hp = Machination::HPath->new($self,"$type_name:$obj_id");
         if($obj_hp->id) {
-          my $hobj = Machination::HObject->new($type_id, $obj_id);
+          my $hobj = Machination::HObject->new($self, $type_id, $obj_id);
           my $data = $hobj->fetch_data;
           foreach my $k (keys %$data) {
             my $child = XML::LibXML::Element->new('field');

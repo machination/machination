@@ -1,3 +1,6 @@
+/system/special is_mp=1
+/system/special/authz/objects is_mp=1
+
 /test/by_os is_mp=1
 ./Windows
 ../7

@@ -1851,15 +1851,107 @@ sub action_allowed {
   my $cat = "HAccessor.action_allowed";
   $self->log->dmsg($cat,"\n" . Dumper($req),8);
 
+  if($req->{channel_id} == $self->channel_id('machination:hierarchy')) {
+    # The hierarchy channel must be treated specially for three reasons:
+    #
+    # 1) The mpath is interpreted as relative to the hc to which the
+    #    current $authz is attached. This means the dummy xml for the
+    #    xpath to search has to be generated differently depending on
+    #    current hc.
+    #
+    # 2) Details about the object in question must be fetched from the
+    #    hierarchy (if the object exists) and placed into the xml
+    #    element. This is so that authorisation on fields works.
+    #
+    # 3) If the hc is /system/special/authz/objects then populate the
+    #    object element as long as it exists (even if not in that hc)
+
+    # the mpath must be of the form /contents/type[id]... or
+    # /attachments/type[id]... etc.
+    my ($branch, $type_name, $obj_id) =
+      $req->{mpath} =~ /^\/(\w+)\/(\w+)\[(\d+)\]/;
+    my $type_id = $self->type_id($type_name);
+
+    my @hcs = [$hc_id];
+    # if $hc_id corresponds to /system/special/authz/objects then we really
+    # need to check all parents of the object in question
+    my $special_hp = Machination::HPath->
+      new($self,'/system/special/authz/objects');
+    if($hc_id == $special_hp->id) {
+      push @hcs, $self->fetch_parents($type_id,$obj_id);
+    }
+
+    my $is_allow = undef;
+    foreach my $cur_hc_id (@hcs) {
+      my $sth = $self->
+        get_authz_handle($req->{channel_id},$cur_hc_id,$req->{op},$opts);
+      my $it = $self->att_iterator($sth);
+      my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
+      my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
+      my $obj_mp = $self->{mpath};
+      $obj_mp =~ s/^\/$branch//;
+      my $obj_elt = Machination::MPath->new($obj_mp)->contruct_elt;
+      # fill the object's fields if it exists
+      my $obj_hp = Machination::HPath->new("$type_id:$obj_id");
+      if($obj_hp->id) {
+        my $hobj = Machination::HObject->new($type_id, $obj_id);
+        my $data = $hobj->fetch_data;
+        foreach my $k (keys %$data) {
+          my $child = XML::LibXML::Element->new('field');
+          $child->setAttribute("id", $k);
+          $child->appendText($data->{$k});
+          $obj_elt->appendChild($child);
+        }
+      }
+
+      while(my $authz = $it->()) {
+        $self->log->dmsg($cat,"\n" . Dumper($authz),8);
+        # need to modify the mpath to be relative to the current
+        # $authz->{hc_id}
+#        my $authz_hc_hp = Machination::HPath->new($self,$authz->{hc_id});
+
+        my $cont_mp = "/$branch";
+        unless($self->relevant_xpath($req->{channel_id},
+                                     $mpath,
+                                     $authz->{xpath})) {
+          next;
+        }
+        next unless($self->relevant_entities
+                    ($req->{owner},$req->{approval},$authz->{entities}));
+
+        # if we got here then the current rule must be relevant
+        if(@hcs > 1) {
+          # we must have got here by looking up
+          # /system/special/authz/objects - keep going through parent
+          # hcs until the request is alloed or all prents resulted in
+          # deny
+          return 1 if $authz->{is_allow};
+          # didn't get permission on this hc, remember the deny and
+          # try the next one in the list
+          $is_allow = 0;
+        } else {
+          return $authz->{is_allow};
+        }
+      }
+    }
+
+    return $is_allow if defined $is_allow;
+
+    # If we got here then no authorisation instruction was
+    # relevant. We treat that as an error.
+    AuthzException->
+      throw("No relevant authorisation instruction for request " .
+            Dumper($req));
+  }
+
   my $sth = $self->
     get_authz_handle($req->{channel_id},$hc_id,$req->{op},$opts);
   my $it = $self->att_iterator($sth);
 
   while(my $authz = $it->()) {
     $self->log->dmsg($cat,"\n" . Dumper($authz),8);
-    my $mpath = $req->{mpath};
     unless($self->relevant_xpath($req->{channel_id},
-                                 $mpath,
+                                 $req->{mpath},
                                  $authz->{xpath})) {
       next;
     }
@@ -1869,6 +1961,8 @@ sub action_allowed {
     # if we got here then the current rule must be relevant
     return $authz->{is_allow};
   }
+
+  return $is_allow if defined $is_allow;
 
   # If we got here then no authorisation instruction was relevant. We
   # treat that as an error.
@@ -1901,7 +1995,11 @@ sub att_iterator {
 
 =item B<relevant_xpath>
 
-$relevant = $ha->relevant_xpath($mpath,$xpath)
+$relevant = $ha->relevant_xpath($channel,$mpath,$xpath)
+
+or
+
+$relevant = $ha->relevant_xpath($channel,$element,$xpath)
 
 =cut
 
@@ -1911,21 +2009,17 @@ sub relevant_xpath {
 
   $self->log->dmsg("HAccessor.relevant_xpath",
                    "ch:$channel, mp:$mpath, xp:$xpath",9);
-#  my $root_tag = $self->fetch("valid_channels",
-#                              {fields=>["root_tag"],
-#                               params=>[$channel]})->{root_tag};
-#  my $con = Machination::XMLConstructor->new($root_tag);
-#  $con->create($mpath,auto_viv=>1);
-#  my $node = $con->doc;
-#  print $node . "\n";
-#  my @nodes = $con->doc->documentElement->findnodes($xpath);
 
-#  print $XML::LibXML::VERSION . "\n";
-  my $elt = Machination::MPath->new($mpath)->construct_elt;
+  my $elt;
+  if(UNIVERSAL::isa($mpath, "XML::LibXML::Element") {
+    $elt = $mpath;
+  } else {
+    $elt = Machination::MPath->new($mpath)->construct_elt;
+  }
   my @nodes;
   if($ENV{DODGY_XMLLIBXML}) {
     use XML::XPath;
-    $self->log->dmsg("HAccessor.relevant_xpath", "via XML::LibXPath",9);
+    $self->log->dmsg("HAccessor.relevant_xpath", "via XML::XPath",9);
     @nodes = XML::XPath->new(xml=>$elt->toString)->findnodes($xpath);
   } else {
     $self->log->dmsg("HAccessor.relevant_xpath", "via XML::LibXML",9);

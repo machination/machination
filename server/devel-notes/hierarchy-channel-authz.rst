@@ -17,9 +17,9 @@ Representation
 
 * contents of hc in ``contents``
 * attachments in ``attachments``
-* hc fields: ``fields[fieldname]``
+* hc fields: ``field[fieldname]``
 * objects specified by ``type[id]``
-* object fields specified by ``type[id]/fields[fieldname]``
+* object fields specified by ``type[id]/field[fieldname]``
 
 Authz Xpaths
 ------------
@@ -70,7 +70,7 @@ os_instance objects, this could be specified with either:
 * authz_inst attached to /
 
   * op: settext
-  * xpath: //contents/os_instance/fields[@id="reset_trust"]
+  * xpath: //contents/os_instance/field[@id="reset_trust"]
   * is_allow: true
 
 or:
@@ -78,7 +78,7 @@ or:
 * authz_inst attached to /sytem/special/authz/objects
 
   * op: settext
-  * xpath: /contents/os_instance/fields[@id="reset_trust"]
+  * xpath: /contents/os_instance/field[@id="reset_trust"]
   * is_allow: true
 
 The joining script asks for permission (say for os_instance 12):

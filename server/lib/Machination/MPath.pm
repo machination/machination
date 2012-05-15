@@ -188,7 +188,14 @@ sub construct_elt {
       $e = XML::LibXML::Element->new($node->[0]);
       $e->setAttribute("id",$node->[1]);
     } else {
-      $e = XML::LibXML::Element->new($node);
+      if(my ($name) = $node =~ /^\@(.+)/) {
+        # an attribute
+        $p->setAttribute($name, "");
+        last;
+      } else {
+        # an element
+        $e = XML::LibXML::Element->new($node);
+      }
     }
     $p->appendChild($e);
     $p = $e;

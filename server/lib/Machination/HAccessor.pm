@@ -1908,11 +1908,19 @@ sub action_allowed {
         $self->log->dmsg($cat,"\n" . Dumper($authz),8);
         # need to modify the mpath to be relative to the current
         # $authz->{hc_id}
-#        my $authz_hc_hp = Machination::HPath->new($self,$authz->{hc_id});
-
-        my $cont_mp = "/$branch";
+        my $cont_mp_str = "/$branch";
+        foreach my $hid (@cur_hc_ancestors) {
+          last if($hid == $authz->{hc_id});
+          $cont_mp_str = "/contents/hc[$hid]$cont_mp";
+        }
+        my $cont_mp = Machination::MPath->new($cont_mp_str);
+        $cont_elt = $cont_mp->construct_elt;
+        my $cont_doc = XML::LibXML::Document->new;
+        $cont_doc->setDocumentElement($cont_elt);
+        $cont_inner = ($cont_elt->findnodes($cont_mp->to_xpath))[0];
+        $cont_inner->appendChild($obj_elt);
         unless($self->relevant_xpath($req->{channel_id},
-                                     $mpath,
+                                     $cont_elt,
                                      $authz->{xpath})) {
           next;
         }
@@ -2011,11 +2019,15 @@ sub relevant_xpath {
                    "ch:$channel, mp:$mpath, xp:$xpath",9);
 
   my $elt;
-  if(UNIVERSAL::isa($mpath, "XML::LibXML::Element") {
+  if(UNIVERSAL::isa($mpath, "XML::LibXML::Element")) {
     $elt = $mpath;
   } else {
     $elt = Machination::MPath->new($mpath)->construct_elt;
   }
+  # elt must be part of a document for rooted xpaths to work properly
+  my $doc = XML::LibXML::Document->new;
+  $doc->setDocumentElement($elt);
+
   my @nodes;
   if($ENV{DODGY_XMLLIBXML}) {
     use XML::XPath;

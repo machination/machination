@@ -157,11 +157,11 @@ def main():
         req = {
             'channel_id': wc.call('HierarchyChannel'),
             'op': 'settext'
-            'mpath': '/special/objects/{}/{}/field[reset_trust]'.format(obj_typename, obj_id),
+            'mpath': '/contents/{}[{}]/field[reset_trust]'.format(obj_typename, obj_id),
             'owner': joiner,
             'approval': []
             }
-        allowed = wc.call('ActionAllowed', req, '/system/special_authz')
+        allowed = wc.call('ActionAllowed', req, '/system/special/authz/objects')
         if allowed != 1:
             htmlOutput('ERROR: user "{}" is not alowed to reset the trust link for {}:{}'.format(joiner, obj_typename, obj_name))
             exit(0)
@@ -181,18 +181,17 @@ def main():
         cur = dbcon.cursor()
         cur.execute("select nextval(%s)", ('certs'))
         serial = cur.fetchone()[0]
-
         cert = sign_csr(csr, serial)
         # revoke old row/cert
         cur.execute("update certs set type='R' where name=%s and type='V'",
                     (subject_name))
-        # TODO(colin): get info from cert to write
         # add new row/cert
         cur.execute("insert into certs (serial, name, type, expiry_date) " +
                     "values (%s,%s,'V',%s)",
                     (serial, subject_name, cert.get_not_before()))
         cur.commit()
 
+        # hand the signed certificate back
         fileOutput(csr.get_subject().CN, cert.as_pem())
 
 def check_csr(csr):

@@ -1857,7 +1857,10 @@ sub action_allowed {
 
   while(my $authz = $it->()) {
     $self->log->dmsg($cat,"\n" . Dumper($authz),8);
-    unless($self->relevant_xpath($req->{channel_id},$req->{mpath},$authz->{xpath})) {
+    my $mpath = $req->{mpath};
+    unless($self->relevant_xpath($req->{channel_id},
+                                 $mpath,
+                                 $authz->{xpath})) {
       next;
     }
     next unless($self->relevant_entities

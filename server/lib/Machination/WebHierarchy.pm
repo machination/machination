@@ -346,10 +346,12 @@ sub call_Exists {
 
   my $hp;
   $hp = Machination::HPath->new($ha,$path);
+  my $mpath = "/contents/" . $hp->type;
+  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"exists",
-             mpath=>$hp->to_mpath,
+             mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
   return $hp->id if $ha->action_allowed($req,$hp->parent);

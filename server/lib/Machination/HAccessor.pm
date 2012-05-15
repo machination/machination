@@ -1868,16 +1868,18 @@ sub action_allowed {
 
     # the mpath must be of the form /$branch or /$branch/type[id]
 
-    my ($branch) = $req->{mpath} =~ /^\/(\w+)/;
-    my ($type_name, $obj_id) =
-      $req->{mpath} =~ /^\/$branch\/(\w+)\[(\d+)\]/;
+    my ($branch, $type_name, $obj_id) =
+      $req->{mpath} =~ /^\/(contents|attachments)(?:\/(\w+)(?:\[(\d+)\])?)?/;
+    croak "don't know how to authorise branch " .
+      "in hierarchy channel when processing mpath " . $req->{mpath}
+        unless(defined $branch);
     my $type_id;
     $type_id = $self->type_id($type_name) if(defined $type_name);
 
     my @hcs = ($hc_id);
     # if $hc_id corresponds to /system/special/authz/objects then we really
     # need to check all parents of the object in question
-    if(defined $type_name) {
+    if(defined $obj_id) {
       if($hc_id == Machination::HPath->
          new($self,'/system/special/authz/objects')->id) {
         push @hcs, $self->fetch_parents($type_id,$obj_id);
@@ -1898,15 +1900,17 @@ sub action_allowed {
         $obj_mp =~ s/^\/$branch//;
         $obj_elt = Machination::MPath->new($obj_mp)->construct_elt;
         # fill the object's fields if it exists
-        my $obj_hp = Machination::HPath->new($self,"$type_name:$obj_id");
-        if($obj_hp->id) {
-          my $hobj = Machination::HObject->new($self, $type_id, $obj_id);
-          my $data = $hobj->fetch_data;
-          foreach my $k (keys %$data) {
-            my $child = XML::LibXML::Element->new('field');
-            $child->setAttribute("id", $k);
-            $child->appendText($data->{$k});
-            $obj_elt->appendChild($child);
+        if(defined $obj_id) {
+          my $obj_hp = Machination::HPath->new($self,"$type_name:$obj_id");
+          if($obj_hp->id) {
+            my $hobj = Machination::HObject->new($self, $type_id, $obj_id);
+            my $data = $hobj->fetch_data;
+            foreach my $k (keys %$data) {
+              my $child = XML::LibXML::Element->new('field');
+              $child->setAttribute("id", $k);
+              $child->appendText($data->{$k});
+              $obj_elt->appendChild($child);
+            }
           }
         }
       }

@@ -1866,19 +1866,22 @@ sub action_allowed {
     # 3) If the hc is /system/special/authz/objects then populate the
     #    object element as long as it exists (even if not in that hc)
 
-    # the mpath must be of the form /contents/type[id]... or
-    # /attachments/type[id]... etc.
-    my ($branch, $type_name, $obj_id) =
-      $req->{mpath} =~ /^\/(\w+)\/(\w+)\[(\d+)\]/;
-    my $type_id = $self->type_id($type_name);
+    # the mpath must be of the form /$branch or /$branch/type[id]
 
-    my @hcs = [$hc_id];
+    my ($branch) = $req->{mpath} =~ /^\/(\w+)/;
+    my ($type_name, $obj_id) =
+      $req->{mpath} =~ /^\/$branch\/(\w+)\[(\d+)\]/;
+    my $type_id;
+    $type_id = $self->type_id($type_name) if(defined $type_name);
+
+    my @hcs = ($hc_id);
     # if $hc_id corresponds to /system/special/authz/objects then we really
     # need to check all parents of the object in question
-    my $special_hp = Machination::HPath->
-      new($self,'/system/special/authz/objects');
-    if($hc_id == $special_hp->id) {
-      push @hcs, $self->fetch_parents($type_id,$obj_id);
+    if(defined $type_name) {
+      if($hc_id == Machination::HPath->
+         new($self,'/system/special/authz/objects')->id) {
+        push @hcs, $self->fetch_parents($type_id,$obj_id);
+      }
     }
 
     my $is_allow = undef;
@@ -1888,19 +1891,23 @@ sub action_allowed {
       my $it = $self->att_iterator($sth);
       my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
       my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
-      my $obj_mp = $self->{mpath};
-      $obj_mp =~ s/^\/$branch//;
-      my $obj_elt = Machination::MPath->new($obj_mp)->contruct_elt;
-      # fill the object's fields if it exists
-      my $obj_hp = Machination::HPath->new("$type_id:$obj_id");
-      if($obj_hp->id) {
-        my $hobj = Machination::HObject->new($type_id, $obj_id);
-        my $data = $hobj->fetch_data;
-        foreach my $k (keys %$data) {
-          my $child = XML::LibXML::Element->new('field');
-          $child->setAttribute("id", $k);
-          $child->appendText($data->{$k});
-          $obj_elt->appendChild($child);
+
+      my $obj_elt;
+      if(defined $type_name) {
+        my $obj_mp = $self->{mpath};
+        $obj_mp =~ s/^\/$branch//;
+        my $obj_elt = Machination::MPath->new($obj_mp)->contruct_elt;
+        # fill the object's fields if it exists
+        my $obj_hp = Machination::HPath->new("$type_id:$obj_id");
+        if($obj_hp->id) {
+          my $hobj = Machination::HObject->new($type_id, $obj_id);
+          my $data = $hobj->fetch_data;
+          foreach my $k (keys %$data) {
+            my $child = XML::LibXML::Element->new('field');
+            $child->setAttribute("id", $k);
+            $child->appendText($data->{$k});
+            $obj_elt->appendChild($child);
+          }
         }
       }
 
@@ -1911,14 +1918,14 @@ sub action_allowed {
         my $cont_mp_str = "/$branch";
         foreach my $hid (@cur_hc_ancestors) {
           last if($hid == $authz->{hc_id});
-          $cont_mp_str = "/contents/hc[$hid]$cont_mp";
+          $cont_mp_str = "/contents/hc[$hid]$cont_mp_str";
         }
         my $cont_mp = Machination::MPath->new($cont_mp_str);
-        $cont_elt = $cont_mp->construct_elt;
+        my $cont_elt = $cont_mp->construct_elt;
         my $cont_doc = XML::LibXML::Document->new;
         $cont_doc->setDocumentElement($cont_elt);
-        $cont_inner = ($cont_elt->findnodes($cont_mp->to_xpath))[0];
-        $cont_inner->appendChild($obj_elt);
+        my $cont_inner = ($cont_elt->findnodes($cont_mp->to_xpath))[0];
+        $cont_inner->appendChild($obj_elt) if(defined $type_name);
         unless($self->relevant_xpath($req->{channel_id},
                                      $cont_elt,
                                      $authz->{xpath})) {
@@ -1970,8 +1977,6 @@ sub action_allowed {
     return $authz->{is_allow};
   }
 
-  return $is_allow if defined $is_allow;
-
   # If we got here then no authorisation instruction was relevant. We
   # treat that as an error.
   AuthzException->
@@ -1986,14 +1991,14 @@ sub att_iterator {
   return sub {
     my $ret;
     while(!$ret) {
-      if (my $a = $sth->fetchrow_hashref) {
+      if ($sth->{Active} && (my $a = $sth->fetchrow_hashref)) {
         if($a->{is_mandatory}) {
           $ret = $a;
         } else {
           push @defs, $a;
         }
       } else {
-        $ret = pop @defs;
+        $ret = shift @defs;
         return unless defined $ret;
       }
     }

@@ -18,10 +18,10 @@
 ../imp
 
 /test/by_os/Windows/7/x64/os_instance:win7-1 \
-    os_id=os_id(Windows,7,0,64) pubkey=splat
+    os_id=os_id(Windows,7,0,64)
 setvar(win7-1, last_hpath())
 /test/by_os/Windows/7/x64/os_instance:win7-2 \
-    os_id=os_id(Windows,7,0,64) pubkey=splat
+    os_id=os_id(Windows,7,0,64)
 setvar(win7-2, last_hpath())
 
 inhc(/test/by_teaching/mech,getvar(win7-1))
@@ -49,7 +49,7 @@ E. impuser1 impuser2
     is_allow=1 \
     entities=cat('["nof",1,',obj_id(/test/authz/set:mech-admins),]) \
     op=ALL \
-    xpath=/ \
+    xpath=/* \
     agroup=obj_id(/test/authz/agroup_authz_inst:mech-admin-tree)
 @/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-admin-tree
 
@@ -61,7 +61,7 @@ E. impuser1 impuser2
     is_allow=1 \
     entities=cat('["nof",1,',obj_id(/test/authz/set:mech-admins),]) \
     op=ALL \
-    xpath=/ \
+    xpath=/* \
     agroup=obj_id(/test/authz/agroup_authz_inst:mech-admin-prof)
 @/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-admin-prof
 
@@ -77,7 +77,69 @@ E. impuser1 impuser2
     agroup=obj_id(/test/authz/agroup_authz_inst:mech-pkgadmin)
 @/test/by_teaching/mech /test/authz/agroup_authz_inst:mech-pkgadmin
 
+########################################
+# some authz tests
+########################################
+
+# objects
+/test/tree is_mp=1
+/test/tree/groupa is_mp=1
+/test/tree/groupb is_mp=1
+/test/tree/groupa/os_instance:aonly \
+    os_id=os_id(Windows,7,0,64)
+/test/tree/groupb/os_instance:bonly \
+    os_id=os_id(Windows,7,0,64)
+/test/tree/groupa/os_instance:aandb \
+    os_id=os_id(Windows,7,0,64)
+&/test/tree/groupb /test/tree/groupa/os_instance:aandb
+
+# groups
+/test/tree/set:tree-admins \
+    is_internal=0 member_type=string
+E. tree-admin
+/test/tree/set:tree-os_instance-editors \
+    is_internal=0 member_type=string
+E. tree-os_instance-editors
+/test/tree/set:a-admins \
+    is_internal=0 member_type=string
+E. a-admin
+/test/tree/set:a-contents \
+    is_internal=0 member_type=string
+E. a-contents
+/test/tree/set:a-attachments \
+    is_internal=0 member_type=string
+E. a-attachments
+
+# authz instructions
+
+# allow group tree-admins to manipulate the hierarchy under
+# /test/tree
+/test/tree/agroup_authz_inst:tree-admin \
+    channel_id=channel_id(machination:hierarchy)
+/test/tree/authz_inst:tree-admin \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(/test/tree/set:tree-admins),]) \
+    op=ALL \
+    xpath=/* \
+    agroup=obj_id(/test/tree/agroup_authz_inst:tree-admin)
+@/test/tree /test/tree/agroup_authz_inst:tree-admin
+
+# allow group tree-os_instance-editors to do anything to os_instance objects
+# anywhere under /test/tree
+/test/tree/agroup_authz_inst:tree-os_instance-editors \
+    channel_id=channel_id(machination:hierarchy)
+/test/tree/authz_inst:tree-os_instance-editors \
+    is_allow=1 \
+    entities=cat('["nof",1,',obj_id(/test/tree/set:tree-os_instance-editors),]) \
+    op=ALL \
+    xpath=/contents//os_instance \
+    agroup=obj_id(/test/tree/agroup_authz_inst:tree-os_instance-editors)
+@/test/tree /test/tree/agroup_authz_inst:tree-os_instance-editors
+
+
+########################################
 # some defaults in the __machination__ worker
+########################################
 
 # put this service in
 /system/ag_assertions/agroup_assertion:basicprof \

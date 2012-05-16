@@ -9,6 +9,11 @@ setvar(_USER_,chiggs1@EASE.ED.AC.UK)
 ../ag_assertions
 /system/sets/authz_groups
 
+/system/special is_mp=1
+/system/special/authz/objects is_mp=1
+
+/lib is_mp=1
+
 setvar(everyone,/system/sets/universal/set:external::string)
 /system/ag_authz_insts/agroup_authz_inst:default_deny \
     channel_id=channel_id(machination:hierarchy)
@@ -34,15 +39,61 @@ setvar(global_admins,/system/sets/authz_groups/set:global_admins)
 @/ /system/ag_authz_insts/agroup_authz_inst:admins_allow is_mandatory=1
 
 
+########################################
+# construct a basic profile
+########################################
+
+# an agroup to tie it all together
+/system/ag_assertions/agroup_assertion:basicprof \
+    channel_id=channel_id(machination:osprofile)
+@/ /system/ag_assertions/agroup_assertion:basicprof
+
+# add /lib to the library_path
+/system/assertions/basicprof/assertion:lib \
+    mpath='/status/__scratch__/libPath/item["basicprof:/lib"]' \
+    ass_op=hastext \
+    ass_arg=/lib \
+    action_op=settext \
+    agroup=obj_id(/system/ag_assertions/agroup_assertion:basicprof)
+
+# put this service in
+/system/assertions/basicprof/assertion:svc-1 \
+    mpath=/status/worker[__machination__]/services/service[machination.example.com] \
+    ass_op=exists \
+    action_op=create \
+    agroup=obj_id(/system/ag_assertions/agroup_assertion:basicprof)
+
+########################################
+# os specific stuff
+########################################
+
 /by_os is_mp=1
 ./windows
-./by_version
+./by_version is_mp=1
 ./xp
 ../7
-./os_instance:test-win7-1 os_id=os_id(Windows,7,0,64) pubkey=splat
+./os_instance:test-win7-1 os_id=os_id(Windows,7,0,64)
 setvar(test-win7-1,last_hpath())
 
 /system/sets/set:test_oses is_internal=1\
 			   member_type=type_id(os_instance)\
 			   expression=<undef>
 E. getvar(test-win7-1)
+
+# libraries
+/by_os/windows/by_version/xp/lib
+/by_os/windows/by_version/7/lib
+
+# an agroup to tie it all together
+/by_os/windows/by_version/7/agroup_assertion:win7lib \
+    channel_id=channel_id(machination:osprofile)
+@/by_os/windows/by_version/7 \
+    /by_os/windows/by_version/7/agroup_assertion:win7lib
+
+# add /lib to the library_path
+/by_os/windows/by_version/7/assertion:win7lib \
+    mpath='/status/__scratch__/libPath/item["win7lib"]' \
+    ass_op=hastext \
+    ass_arg= /by_os/windows/by_version/7/lib \
+    action_op=settext \
+    agroup=obj_id(/by_os/windows/by_version/7/agroup_assertion:win7lib)

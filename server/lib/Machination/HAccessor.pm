@@ -807,6 +807,28 @@ sub channel_id {
 	return $self->{channel_id}->{$channel};
 }
 
+=item B<channel_info>
+
+$info = $ha->channel_info($cid,$opts)
+
+return info for channel $cid
+
+=cut
+
+sub channel_info {
+	my ($self,$cid,$opts) = @_;
+
+  # memoise
+	$opts->{cache} = 1 unless(defined $opts->{cache});
+	if (exists $self->{channel_info}->{$cid} && $opts->{cache}) {
+		return $self->{channel_info}->{$cid};
+	}
+
+	return $self->fetch("valid_channels",
+                      {params=>[$cid],revision=>$opts->{revision}});
+}
+
+
 =item B<profchannel>
 
 Find the correct channel for assertions affecting type $type_id

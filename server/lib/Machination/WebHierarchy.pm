@@ -86,6 +86,7 @@ my %calls =
    # channels
    ProfChannel => undef,
    HierarchyChannel => undef,
+   ChannelInfo => undef,
 
    # assertions/instructions/profiles
    GetAssertionList => undef,
@@ -765,6 +766,16 @@ sub call_ProfChannel {
   $type_id = $ha->type_id($type) unless($type =~ /^\d+$/);
 
   return $ha->profchannel($type_id);
+}
+
+=item B<ChannelInfo>
+
+=cut
+
+sub call_ChannelInfo {
+  my ($caller, $approval, $cid) = @_;
+
+  return $ha->channel_info($cid);
 }
 
 

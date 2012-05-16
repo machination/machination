@@ -419,7 +419,7 @@ class MRXpath(object):
             (r"[\[\]]", token_bracket),
             (r"=", token_op),
             (r"@", token_at),
-            (r"[\w\*\.]*", token_name_or_id),
+            (r"[\{\}\w\*\.]*", token_name_or_id),
             ])
 
     def __init__(self, path=None, att=None):
@@ -1415,13 +1415,14 @@ class AssertionCompiler(object):
         Args:
           wc: a machination.webclient.WebClient
         """
-        self.doc = etree.ElementTree();
+        self.doc = etree.ElementTree()
         self.wc = wc
 
     def compile(self, path):
         """Fetch assertions for object at path in the hierarchy and compile
 
         """
+        self.doc = etree.ElementTree()
         idpair = self.wc.call("IdPair", path)
         channel = self.wc.call("ProfChannel", idpair['type_id'])
         data = self.wc.call("GetAssertionList", path, channel)
@@ -1479,6 +1480,13 @@ class AssertionCompiler(object):
                 return True
             else:
                 return False
+        elif op == 'notexists':
+            if self.doc.getroot() is None:
+                return True
+            if self.doc.xpath(mpath.to_xpath()):
+                return False
+            else:
+                return True
         else:
             raise Exception("Assertion op '{}' unknown".format(op))
 
@@ -1623,7 +1631,8 @@ class AssertionCompiler(object):
                         return
 
         # create the element if it doesn't already exist
-        if not nodes:
+        if len(nodes) == 0:
+#            print("\ncalling create {}\n".format(mpath.to_abbrev_xpath()))
             self.action_create(mpath,
                                a,
                                res_idx,
@@ -1642,7 +1651,9 @@ class AssertionCompiler(object):
 
         if mpath.is_element():
             # element: clear and set text
-            nodes[0].clear()
+            nodes[0].tail = None
+            for child in nodes[0].iterchildren():
+                nodes[0].remove(child)
             nodes[0].text = content
         else:
             # attribute: need to set it from the parent
@@ -1650,4 +1661,17 @@ class AssertionCompiler(object):
             pelt.set(mpath.name(), content)
 
         res_idx[mpath.to_xpath()] = a
+
+    def action_delete(self, mpath, a, res_idx, poldir, stack):
+        """Delete an element or attribute"""
+
+        mpath = MRXpath(mpath)
+        if poldir == -1:
+            # never delete an existing node if remote wins
+            return
+
+    def action_addlib(self, mpath, a, res_idx, poldir, stack):
+        """Add a library item"""
+
+        mpath = MRXpath(mpath)
 

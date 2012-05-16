@@ -58,8 +58,8 @@
     <op id="choosetext"
 	complete="0"
 	overlay="0"
-	arg_meaning="restriction"
-	description="allow user to choose at attachment time subject to restriction described in action_arg"/>
+	arg_meaning="default"
+	description="allow user to choose at attachment time subject to restriction described in ass_arg"/>
 
     <!-- complete overlay actions -->
     <op id="overlay:addlib"
@@ -78,7 +78,7 @@
 	complete="0"
 	overlay="0"
 	description="fake op representing all other ops as authz instruction target"/>
-    
+
   </action_ops>
   <assertion_ops>
     <op id="exists"/>

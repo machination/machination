@@ -407,14 +407,19 @@ class MRXpath(object):
     def token_bracket(scanner,token): return "BRACKET", token
     def token_op(scanner, token): return "OP", token
     def token_at(scanner,token): return "AT", token
-    def token_name(scanner,token): return "NAME", token
+    def token_name_or_id(scanner, token):
+        if re.search(token, r'[\.]'):
+            return "ID", token
+        else:
+            return "NAME", token
+
     scanner = re.Scanner([
             ("'(?:\\\\.|[^'])*'|\"(?:\\\\.|[^\"])*\"", token_qstring),
             (r"/", token_sep),
             (r"[\[\]]", token_bracket),
             (r"=", token_op),
             (r"@", token_at),
-            (r"[\w\*]*", token_name),
+            (r"[\w\*\.]*", token_name_or_id),
             ])
 
     def __init__(self, path=None, att=None):
@@ -504,15 +509,17 @@ class MRXpath(object):
                 return [name,idname]
             else:
                 # expecting:
-                #  [NAME,BRACKET,QSTRING|NAME,BRACKET]
+                #  [NAME,BRACKET,QSTRING|NAME|ID,BRACKET]
                 # an element with an id passed as [something]
                 if len(tokens) < 4:
                     raise Exception("expecting a 4 token sequence: " +
-                                    "[NAME,BRACKET,QSTRING|NAME,BRACKET]" +
+                                    "[NAME,BRACKET,QSTRING|NAME|ID,BRACKET]" +
                                     " got " +
                                     repr(tokens))
-                if tokens[2][0] != "NAME" and tokens[2][0] != "QSTRING":
-                    raise Exception("expecting a NAME or QSTRING at " +
+                if (tokens[2][0] != "NAME" and
+                    tokens[2][0] != "QSTRING" and
+                    tokens[2][0] != "ID"):
+                    raise Exception("expecting a QSTRING, NAME or ID at " +
                                     "element 2 of " +
                                     str(tokens) + " got " + str(tokens[2]))
                 idname = tokens[2][1]
@@ -1415,9 +1422,9 @@ class AssertionCompiler(object):
         """Fetch assertions for object at path in the hierarchy and compile
 
         """
-        idpair = wc.call("IdPair", path)
-        channel = wc.call("ProfChannel", idpair['type_id'])
-        data = wc.call("GetAssertionList", path, channel)
+        idpair = self.wc.call("IdPair", path)
+        channel = self.wc.call("ProfChannel", idpair['type_id'])
+        data = self.wc.call("GetAssertionList", path, channel)
         mpolicies = {}
         res_idx = {}
         mp_map = {}
@@ -1442,19 +1449,25 @@ class AssertionCompiler(object):
 
     def try_assert(self, assertion):
         """test an assertion and return True or False"""
-        mpath = MRXPath(assertion['mpath'])
-        op = assertion['op']
-        arg = assertion['arg']
+        mpath = MRXpath(assertion['mpath'])
+        op = assertion['ass_op']
+        arg = assertion['ass_arg']
 
         # tests
         if op == 'exists':
+            if self.doc.getroot() is None:
+                return False
+
             if self.doc.xpath(mpath.to_xpath()):
                 return True
             else:
                 return False
         elif op == 'hastext':
+            if self.doc.getroot() is None:
+                return False
+
             nodes = self.doc.xpath(mpath.to_xpath())
-            if nodes is None:
+            if len(nodes) == 0:
                 return False
             if isinstance(nodes[0], etree._Element):
                 # element
@@ -1520,28 +1533,36 @@ class AssertionCompiler(object):
 
         # test to see if a notexists takes precedence
         for p in lineage:
-            if p.to_string in res_idx:
+            if p.to_xpath() in res_idx:
                 if poldir == -1:
                     # see if the node doesn't exist because of a
                     # previous "notexists" on mpath or parents
-                    if res_idx[p.to_string()]['ass_op'] == 'notexists':
+                    if res_idx[p.to_xpath()]['ass_op'] == 'notexists':
                         return
                 elif poldir == 0:
                     # check there is no mandatory notextists for mpath
                     # or parents
-                    if(res_idx[p.to_string()]['ass_op'] == 'notexists' and
-                       res_idx[p.to_string()]['is_mandatory']):
+                    if(res_idx[p.to_xpath()]['ass_op'] == 'notexists' and
+                       res_idx[p.to_xpath()]['is_mandatory'] == "1"):
                         return
 
         # now we should go ahead and create the node
         for p in lineage:
+            # deal with the root node first if it doesn't exist
+            if pelt is self.doc and self.doc.getroot() is None:
+                new = etree.Element(p.name())
+                self.doc._setroot(new)
+                pelt = new
+                continue
+
             children = pelt.xpath(p.to_xpath())
             if children:
                 # node p already exists
                 pelt = children[0]
                 continue
 
-            context.logger.dmsg('creating element {}'.format(p.to_xpath()))
+            context.logger.dmsg('creating element {}'.format(
+                    p.to_abbrev_xpath()))
             if p.is_attribute():
                 pelt.set(p.name(), "")
                 # can't continue after an attribute
@@ -1550,17 +1571,83 @@ class AssertionCompiler(object):
                 new = etree.Element(p.name())
                 if p.id():
                     new.set('id', p.id())
-                if pelt is self.doc:
-                    # no root node yet - make one
-                    self.doc._setroot(new)
-                else:
-                    pelt.append(new)
-            pelt = new
+                pelt.append(new)
+                pelt = new
 
         if record_index:
-            res_idx[mpath.to_string] = a
+            res_idx[mpath.to_xpath()] = a
 
     def action_settext(self, mpath, a, res_idx, poldir, stack):
         """Set the text of an element or attribute"""
-        context.logger.dmsg('empty method')
-        pass
+
+        mpath = MRXpath(mpath)
+        lineage = [mpath]
+        lineage.extend(mpath.ancestors())
+        lineage.reverse()
+
+        # find the node to be set
+        if self.doc.getroot() is None:
+            nodes = []
+        else:
+            nodes = self.doc.xpath(mpath.to_xpath())
+
+        # test to see if a notexists takes precedence
+        for p in lineage:
+            if p.to_xpath() in res_idx:
+                if poldir == -1:
+                    # see if the node doesn't exist because of a
+                    # previous "notexists" on mpath or parents
+                    if res_idx[p.to_xpath()]['ass_op'] == 'notexists':
+                        return
+                    # Check if the node has some text already - abort
+                    # if it does.
+                    if nodes:
+                        if (mpath.is_element() and
+                            nodes[0].text is not None and
+                            nodes[0].text != ''):
+                            return
+                        elif (mpath.is_attribute() and
+                              nodes[0] != ''):
+                            return
+                elif poldir == 0:
+                    # check there is no mandatory notextists for mpath
+                    # or parents
+                    if(res_idx[p.to_xpath()]['ass_op'] == 'notexists' and
+                       res_idx[p.to_xpath()]['is_mandatory'] == "1"):
+                        return
+                    # check if the node has some mandatory text
+                    # already, abort if it does
+                    if(nodes and
+                       res_idx[p.to_xpath()]['is_mandatory'] == "1" and
+                       res_idx[p.to_xpath()]['ass_op'].startswith('hastext')):
+                        return
+
+        # create the element if it doesn't already exist
+        if not nodes:
+            self.action_create(mpath,
+                               a,
+                               res_idx,
+                               poldir,
+                               stack,
+                               record_index = False)
+            nodes = self.doc.xpath(mpath.to_xpath())
+
+        # default to the assertion argument if the action argument is
+        # missing
+        content = a.get('action_arg')
+        if content is None:
+            content = a.get('ass_arg')
+        context.logger.dmsg('setting text of {} to {}'.format(
+                mpath.to_abbrev_xpath(), content))
+
+        if mpath.is_element():
+            # element: clear and set text
+            nodes[0].clear()
+            nodes[0].text = content
+        else:
+            # attribute: need to set it from the parent
+            pelt = self.doc.xpath(mpath.parent().to_xpath())[0]
+            pelt.set(mpath.name(), content)
+
+        res_idx[mpath.to_xpath()] = a
+

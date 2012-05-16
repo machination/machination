@@ -668,7 +668,7 @@ permissions required:
 =cut
 
 sub call_RegisterIdentity {
-  my ($owner,$approval,$obj_type,$csr,$fields) = @_;
+  my ($caller,$approval,$obj_type,$csr,$fields) = @_;
 
   # get name from csr
   my $obj_name;
@@ -714,16 +714,21 @@ sub call_IdPair {
   my ($owner, $approval, $path) = @_;
 
   my $hp = Machination::HPath->new($ha,$path);
+  my $mpath = "/contents/" . $hp->type;
+  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
+  my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"exists",
-             mpath=>$hp->to_mpath,
+             mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
+  if(($own_type_id == $hp->type_id and $own_id == $hp->id) or
+     $ha->action_allowed($req, $hp->id)) {
+    return {type_id=>$hp->type_id, id=>$hp->id};
+  }
   AuthzDeniedException->
-    throw("could not get exists permission for $path")
-      unless $ha->action_allowed($req, $hp->id);
-  return {type_id=>$hp->type_id, id=>$hp->id};
+    throw("could not get exists permission for $path");
 }
 
 =item B<EntityId>

@@ -1,0 +1,7 @@
+<status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
+  <worker id="pkgman">
+    <pkg id="example">
+
+    </pkg>
+  </worker>
+</status>

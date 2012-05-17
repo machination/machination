@@ -2541,17 +2541,16 @@ sub get_library_item {
 
   # TODO(colin): investigate a more databasey way of doing this -
   # probably more efficient
-  $ass_mp = Machination::MPath->new($ass->{mpath})
+  my $ass_mp = Machination::MPath->new($ass->{mpath});
   my $sth = $self->get_contents_handle
     ($hid, $self->type_id("agroup_assertion"));
-#  my $libitem;
   while(my $item = $sth->fetchrow_hashref) {
     # look for the first item which contains an assertion that will
     # satisfy our condition
     my $ag_sth = $self->get_ag_member_handle
       ($item->{type_id}, $item->{id});
     while(my $item_ass = $ag_sth->fetchrow_hashref) {
-      $item_ass_mp = Machination::MPath($item_ass->{mpath});
+      my $item_ass_mp = Machination::MPath($item_ass->{mpath});
       if($ass->{ass_op} eq "exists") {
         # will be satisfied where item action_op is create, settext or
         # choosetext and item mpath is ass mpath or a descendant
@@ -2611,8 +2610,8 @@ sub get_library_item {
   foreach my $hc (@$cont) {
     my $libitem = $self->get_library_item($ass, $hc->{id});
     return $libitem if defined $libitem;
-    }
   }
+
   # didn't find anything
   return;
 }

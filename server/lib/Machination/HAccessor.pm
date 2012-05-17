@@ -2562,10 +2562,8 @@ sub get_library_item {
             $item_ass->{action_op} eq 'choosetext'
            )
            and
-           (
-            $ass_mp->could_be_parent_of($item_ass_mp);
-           )
-           ) {
+           $ass_mp->could_be_parent_of($item_ass_mp)
+          ) {
           $ag_sth->finish;
           $sth->finish;
           return $item->{id};
@@ -2574,9 +2572,31 @@ sub get_library_item {
         # satisfied when item action_op is settext or choosetext and
         # action_arg satisifes the condition in ass->{ass_arg} and
         # item is ass mpath or a descendant of it
+        if(
+           (
+            $item_ass->{action_op} eq 'settext' or
+            $item_ass->{action_op} eq 'choosetext'
+           )
+           and
+           $ass_mp->could_be_parent_of($item_ass_mp)
+           and
+           $self->meets_condition($item_ass->{action_arg},
+                                  $ass->{ass_op},
+                                  $ass->{ass_arg})
+          ) {
+          $ag_sth->finish;
+          $sth->finish;
+          return $item->{id};
+        }
       } elsif($ass->{ass_op} eq "notexists") {
         # satisfied when item action_op is delete and ass mpath is item
         # mpath or a descendent of it
+        if($item_ass->{action_op} eq 'delete' and
+           $item_ass_mp->could_be_parent_of($ass_mp)) {
+          $ag_sth->finish;
+          $sth->finish;
+          return $item->{id};
+        }
       } else {
         MachinationException->throw
           ("Don't know how to find library item for assertion op " .

@@ -644,16 +644,20 @@ sub lineage_sort {
   }
 }
 
-=item B<FetchFromLibrary>
+=item B<GetLibraryItem>
 
-$list = FetchFromLibrary($mpath,$lib_path)
+$list = GetLibraryItem($assertion,$lib_path)
 
 =cut
 
-sub call_FetchFromLibrary {
-  my ($owner,$approval,$mpath,$lpath) = @_;
+sub call_GetLibraryItem {
+  my ($owner,$approval,$ass,$lpath) = @_;
   my @list;
-  push @list, {mpath=>$mpath,ass_op=>"hastext",ass_arg=>join(",",@$lpath)};
+  push @list, {mpath=>$ass->{mpath},
+               ass_op=>"hastext",
+               ass_arg=>join(",",@$lpath),
+               action_op=>'settext',
+              };
   return @list;
 }
 

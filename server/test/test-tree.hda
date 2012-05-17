@@ -1,8 +1,4 @@
 /test/by_os is_mp=1
-./Windows
-../7
-./x64
-../x86
 
 /test/by_teaching is_mp=1
 ./chem
@@ -143,3 +139,24 @@ E. a-attachments
     ass_arg=someid \
     action_op=settext \
     agroup=obj_id(/system/ag_assertions/agroup_assertion:basicprof)
+
+########################################
+# library tests
+########################################
+
+/test/lib is_mp=1
+
+# add an assertion which wants a library item
+/test/agroup_assertion:wants-lib \
+    channel_id=channel_id(machination:osprofile)
+@/test /test/agroup_assertion:wants-lib
+/test/assertion:wants-lib \
+    mpath=/status/worker[pkgman]/pkg[example]
+    ass_op=exists \
+    action_op=addlib \
+    agroup=obj_id(/test/agroup_assertion:wants-lib)
+
+
+/test/lib/agroup_assertion:example-pkg \
+    channel_id=channel_id(machination:osprofile)
+

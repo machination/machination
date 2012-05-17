@@ -86,10 +86,14 @@
     <op id="hastext"/>
     <op id="hastextfromlist"/>
     <op id="hastextmatching"/>
+    <!-- /path/a requires /path/b is shorthand for
+         $id = /path/a<requires>/path/b
+         /s/w[m]/deps/dep[$id]/@src hastext /path/a
+         /s/w[m]/deps/dep[$id]/@op hastext requires
+         /s/w[m]/deps/dep[$id]/@tgt hastext /path/b
+    -->
     <op id="requires"/>
-    <op id="requiresordered"/>
     <op id="excludes"/>
-    <op id="excludesordered"/>
     <op id="first"/>
     <op id="last"/>
     <op id="before"/>

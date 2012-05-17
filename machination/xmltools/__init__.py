@@ -1442,10 +1442,13 @@ class AssertionCompiler(object):
         mpolicies['mp_map'] = mp_map
         mpolicies['data'] = data
         stack = data['attachments']
+        stack.reverse()
         while stack:
-            a = stack.pop(0)
+            a = stack.pop()
             if not self.try_assert(a):
-                self.act(a, res_idx, self.get_poldir(a,mpolicies),stack)
+                fname = "action_{}".format(a['action_op'])
+                poldir = self.get_poldir(a,mpolicies)
+                getattr(self, fname)(a, res_idx, poldir, stack)
         return self.doc, res_idx
 
     def try_assert(self, assertion):
@@ -1515,25 +1518,20 @@ class AssertionCompiler(object):
                 pols.extend(data['mpolicy_attachments'][mp])
         return pols
 
-    def act(self, assertion, res_idx, poldir, stack):
-        """Act to fix a failed assertion
+    def policy_check(self, mpath, a, res_idx, poldir):
+        """Check to see if action should be done according to policy
+
+        NOT IN USE YET
         """
-        mpath = MRXpath(assertion['mpath'])
-        op = assertion['action_op']
-        arg = assertion['action_arg']
 
-        # call the specific action
-        getattr(self, "action_{}".format(op))(mpath,
-                                              assertion,
-                                              res_idx,
-                                              poldir,
-                                              stack)
+        mpath = MRXpath(mpath)
 
-    def action_create(self, mpath, a, res_idx, poldir, stack,
+
+    def action_create(self, a, res_idx, poldir, stack,
                       record_index = True):
         """Create an element or attribute"""
 
-        mpath = MRXpath(mpath)
+        mpath = MRXpath(a['mpath'])
         lineage = [mpath]
         lineage.extend(mpath.ancestors())
         lineage.reverse()
@@ -1585,10 +1583,10 @@ class AssertionCompiler(object):
         if record_index:
             res_idx[mpath.to_xpath()] = a
 
-    def action_settext(self, mpath, a, res_idx, poldir, stack):
+    def action_settext(self, a, res_idx, poldir, stack):
         """Set the text of an element or attribute"""
 
-        mpath = MRXpath(mpath)
+        mpath = MRXpath(a['mpath'])
         lineage = [mpath]
         lineage.extend(mpath.ancestors())
         lineage.reverse()
@@ -1633,8 +1631,7 @@ class AssertionCompiler(object):
         # create the element if it doesn't already exist
         if len(nodes) == 0:
 #            print("\ncalling create {}\n".format(mpath.to_abbrev_xpath()))
-            self.action_create(mpath,
-                               a,
+            self.action_create(a,
                                res_idx,
                                poldir,
                                stack,
@@ -1662,16 +1659,51 @@ class AssertionCompiler(object):
 
         res_idx[mpath.to_xpath()] = a
 
-    def action_delete(self, mpath, a, res_idx, poldir, stack):
+    def action_delete(self, a, res_idx, poldir, stack):
         """Delete an element or attribute"""
 
-        mpath = MRXpath(mpath)
+        mpath = MRXpath(a['mpath'])
         if poldir == -1:
             # never delete an existing node if remote wins
             return
 
-    def action_addlib(self, mpath, a, res_idx, poldir, stack):
+    def action_addlib(self, a, res_idx, poldir, stack):
         """Add a library item"""
 
-        mpath = MRXpath(mpath)
+        # don't try to add a library item we've added before
+        itemidtext = '{} {} {}'.format(a['mpath'],a['ass_op'],a['ass_arg'])
+        itemid = hashlib.sha256(itemid.encode('utf8')).hexdigest()
+        itemxp = '/status/__scratch__/libAdded/item[@id="{}"]'.format(itemid)
+        if len(self.doc.xpath(itemxp)) != 0:
+            context.logger.dmsg("seen {} before".format(itemidtext))
+            return
+
+        libs = self.doc.xpath('/status/__scratch__/libPath/item')
+        libpath = [x.text for x in libs]
+
+        # look up the library item and get an assertion list
+        alist = self.wc.call('GetLibraryItem', a, libpath)
+        if len(alist) == 0:
+            # couldn't find the library item
+            context.logger.wmsg("failed to find library item for" +
+                                "{}".format(itemidtext) +
+                                "\nlibrary path:\n" +
+                                "{}".format(pprint.pformat(libpath)))
+            return
+
+        # add the assertions to the stack
+        alist.reverse()
+        stack.extend(alist)
+
+        # remember that we added this library item
+        self.action_create({'mpath': itemxp,
+                            'ass_op': 'exists',
+                            'action_op': 'create',
+                            'is_mandatory': '1',
+                            },
+                           res_idx,
+                           poldir,
+                           stack,
+                           record_index = False)
+
 

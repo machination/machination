@@ -14,6 +14,7 @@ os.environ['MACHINATION_BOOTSTRAP_DIR'] = os.path.join(mydir, 'cache')
 from machination.update import Update
 from machination.workers import dummyordered as do
 from machination import xmltools
+from machination.webclient import WebClient
 
 class UpdateTestCase(unittest.TestCase):
 
@@ -32,7 +33,14 @@ class UpdateTestCase(unittest.TestCase):
         self.w = do.Worker()
         self.w.set_status(st)
 
-    def test_desired_status(self):
+    def test_compile(self):
+        wc = WebClient('http://localhost/machination/hierarchy/cert',
+                       'os_instance:win7-1')
+        ac = xmltools.AssertionCompiler(wc)
+        st, res = ac.compile('/test/by_os/Windows/7/x64/os_instance:win7-1')
+        print(xmltools.pstring(st.getroot()))
+
+    def est_desired_status(self):
         st = self.u.desired_status()
         self.assertEqual(st.tag, 'status')
 

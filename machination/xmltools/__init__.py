@@ -31,6 +31,7 @@ import pprint
 import sys
 from machination import context
 from machination import utils
+import hashlib
 
 # see if functools.lru_cache is defined
 try:
@@ -1672,7 +1673,7 @@ class AssertionCompiler(object):
 
         # don't try to add a library item we've added before
         itemidtext = '{} {} {}'.format(a['mpath'],a['ass_op'],a['ass_arg'])
-        itemid = hashlib.sha256(itemid.encode('utf8')).hexdigest()
+        itemid = hashlib.sha256(itemidtext.encode('utf8')).hexdigest()
         itemxp = '/status/__scratch__/libAdded/item[@id="{}"]'.format(itemid)
         if len(self.doc.xpath(itemxp)) != 0:
             context.logger.dmsg("seen {} before".format(itemidtext))
@@ -1682,13 +1683,14 @@ class AssertionCompiler(object):
         libpath = [x.text for x in libs]
 
         # look up the library item and get an assertion list
-        alist = self.wc.call('GetLibraryItem', a, libpath)
-        if len(alist) == 0:
+        ainfo = self.wc.call('GetLibraryItem', a, libpath)
+        alist = ainfo['assertions']
+        if ainfo['found'] is None:
             # couldn't find the library item
             context.logger.wmsg("failed to find library item for" +
-                                "{}".format(itemidtext) +
+                                itemidtext +
                                 "\nlibrary path:\n" +
-                                "{}".format(pprint.pformat(libpath)))
+                                pprint.pformat(libpath))
             return
 
         # add the assertions to the stack
@@ -1696,14 +1698,14 @@ class AssertionCompiler(object):
         stack.extend(alist)
 
         # remember that we added this library item
-        self.action_create({'mpath': itemxp,
-                            'ass_op': 'exists',
-                            'action_op': 'create',
-                            'is_mandatory': '1',
+        self.action_settext({'mpath': itemxp,
+                             'ass_op': 'hastext',
+                             'ass_arg': ainfo['found'],
+                             'action_op': 'settext',
+                             'is_mandatory': '1',
                             },
                            res_idx,
                            poldir,
-                           stack,
-                           record_index = False)
+                           stack)
 
 

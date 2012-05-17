@@ -1626,9 +1626,9 @@ sub get_attached_handle {
   return $sth;
 }
 
-=item B<get_att_members_handle>
+=item B<get_ag_member_handle>
 
-$sth = $ha->get_att_members_handle($atype_id, $a_id)
+$sth = $ha->get_ag_member_handle($ag_type_id, $ag_id)
 
 =cut
 
@@ -1639,7 +1639,7 @@ sub get_ag_member_handle {
   my $tid = $self->read_dbh->selectall_arrayref
     ("select id from object_types where agroup=?",{},$agtid)->[0]->[0];
   my $sth = $self->read_dbh->prepare_cached
-    ("select * from objs_$tid where agroup=?",
+    ("select * from objs_$tid where agroup=? order by ag_ordinal",
      {dbi_dummy=>"get_ag_member_handle"});
   $sth->execute($agid);
   return $sth;
@@ -2529,24 +2529,73 @@ sub osid {
   }
 }
 
-#=item * $self->lib_path($channel,$hc_id,$opts)
-#
-#return list of library path items as:
-#
-#([$hc_id,$recursive],[$hc_id,$recursive],...)
-#
-#=cut
-#
-#sub lib_path {
-#  my ($self,$channel,$hc,$opts) = @_;
-#
-#  # $lib_path = {path=>}
-#  my $lib_path;
-#  my $hcpath = Machination::HPath->new($self,$hc);
-#  foreach my $hid (@{$hcpath->parent_path}, $hc) {
-#
-#  }
-#}
+=item B<get_library_item>
+
+$hpath_obj = $ha->get_library_item($assertion, $hc_id)
+
+=cut
+
+sub get_library_item {
+  my $self = shift;
+  my ($ass, $hid) = @_;
+
+  # TODO(colin): investigate a more databasey way of doing this -
+  # probably more efficient
+  $ass_mp = Machination::MPath->new($ass->{mpath})
+  my $sth = $self->get_contents_handle
+    ($hid, $self->type_id("agroup_assertion"));
+#  my $libitem;
+  while(my $item = $sth->fetchrow_hashref) {
+    # look for the first item which contains an assertion that will
+    # satisfy our condition
+    my $ag_sth = $self->get_ag_member_handle
+      ($item->{type_id}, $item->{id});
+    while(my $item_ass = $ag_sth->fetchrow_hashref) {
+      $item_ass_mp = Machination::MPath($item_ass->{mpath});
+      if($ass->{ass_op} eq "exists") {
+        # will be satisfied where item action_op is create, settext or
+        # choosetext and item mpath is ass mpath or a descendant
+        if(
+           (
+            $item_ass->{action_op} eq 'create' or
+            $item_ass->{action_op} eq 'settext' or
+            $item_ass->{action_op} eq 'choosetext'
+           )
+           and
+           (
+            $ass_mp->could_be_parent_of($item_ass_mp);
+           )
+           ) {
+          $ag_sth->finish;
+          $sth->finish;
+          return $item->{id};
+        }
+      } elsif($ass->{ass_op} =~ /^hastext/) {
+        # satisfied when item action_op is settext or choosetext and
+        # action_arg satisifes the condition in ass->{ass_arg} and
+        # item is ass mpath or a descendant of it
+      } elsif($ass->{ass_op} eq "notexists") {
+        # satisfied when item action_op is delete and ass mpath is item
+        # mpath or a descendent of it
+      } else {
+        MachinationException->throw
+          ("Don't know how to find library item for assertion op " .
+           $ass->{ass_op});
+      }
+    }
+  }
+  # We haven't found something yet. We'd better recurse down into any
+  # hc children
+  my $cont = $self->get_contents_handle($hid, ['machination:hc'])->
+    fetchall_arrayref({});
+  foreach my $hc (@$cont) {
+    my $libitem = $self->get_library_item($ass, $hc->{id});
+    return $libitem if defined $libitem;
+    }
+  }
+  # didn't find anything
+  return;
+}
 
 
 ######################################################################

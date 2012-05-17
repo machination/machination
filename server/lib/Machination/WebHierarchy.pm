@@ -90,7 +90,7 @@ my %calls =
 
    # assertions/instructions/profiles
    GetAssertionList => undef,
-   FetchFromLibrary => undef,
+   GetLibraryItem => undef,
 
 
    ########################################
@@ -652,13 +652,20 @@ $list = GetLibraryItem($assertion,$lib_path)
 
 sub call_GetLibraryItem {
   my ($owner,$approval,$ass,$lpath) = @_;
-  my @list;
-  push @list, {mpath=>$ass->{mpath},
-               ass_op=>"hastext",
-               ass_arg=>join(",",@$lpath),
-               action_op=>'settext',
-              };
-  return @list;
+  my $hp;
+  foreach my $l (@$lpath) {
+    my $lhp = Machination::HPath($ha, $l);
+    # recursively search for a libitem providing $mpath $op $arg
+    $hp = $ha->get_library_item($ass, $lhp->id);
+    if(defined $hp) {
+      last;
+    }
+  }
+  return {found=>undef, assertions=>[]} unless defined $hp;
+
+  # now fetch the assertions from the item
+  @ass = $ha->fetch_from_agroup($hp->type_id, $hp->id);
+  return {found=>$hp->to_string(), assertions=>\@ass};
 }
 
 =item B<RegisterIdentity>

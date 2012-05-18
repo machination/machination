@@ -1,7 +1,40 @@
+<!-- XML descibing library item for pkg[example]-->
 <status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
-  <worker id="pkgman">
-    <pkg id="example">
+  <worker id="__machination__">
+    <deps>
+      <dep src="/status/worker[packageman]/pkg[example]"
+           op="requires"
+           tgt="/status/worker[packageman]/pkg[dep1]"/>
+      <!-- Another dep will be written here implicitly by the requires
+           assertion in packageman below -->
+    </deps>
+  </worker>
+  <worker id="environment">
+    <!-- hastextfromlist choice1|choice2|choice3 or choosetext default -->
+    <var id="EXAMPLE_LIC"
+         x2a:assert="hastextfromlist choosetext default"
+         >choice1|choice2|choice3</var>
+    <!-- hastextmatching regex or choosetext default-->
+    <var id="OTHER_LIC" x2a:assert="hastextmatching choosetext default"
+         >^mince</var>
+    <!-- same as above for content of id attribute -->
+    <var x2a:assertAtt="id hastextfromlist choosetext default"
+         id="choice1|choice2|choice3"
+         >some other random text</var>
+  </worker>
+  <worker id="packageman">
+    <!-- This library item depends on another providing pkg[dep1].
 
+         The dep is ordered because there is an entry in the deps
+         section of the __machination__ worker -->
+    <pkg id="dep1" x2a:assert="exists addlib"/>
+
+    <!-- Also depends on another providing pkg[dep2], but this time
+         use a shorthand op to write the ordered dep for us-->
+    <pkg id="dep2" x2a:assert="requires addlib"/>
+
+    <!-- the package XML itself -->
+    <pkg id="example">
     </pkg>
   </worker>
 </status>

@@ -88,7 +88,6 @@ sub set_path {
   if(eval {$mpath->isa("Machination::MPath")}) {
     $self->{rep} = $mpath->clone_rep;
   } elsif(eval {$mpath->isa("XML::LibXML::Node")}) {
-    print "setting mpath from xml node\n";
     my $node = $mpath;
     my @rep;
     while($node->nodeType != XML_DOCUMENT_NODE &&

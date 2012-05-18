@@ -18,8 +18,11 @@
     <var id="OTHER_LIC" x2a:assert="hastextmatching choosetext default"
          >^mince</var>
     <!-- same as above for content of id attribute -->
-    <var x2a:assertAtt="id hastextfromlist choosetext default"
-         id="choice1|choice2|choice3"
+    <var id="choices"
+         x2a:assertAttatt1="hastextfromlist choosetext default"
+         x2a:assertAttatt2="hastextmatching choosetext default"
+         att1="choice1|choice2|choice3"
+         att2="regex"
          >some other random text</var>
   </worker>
   <worker id="packageman">
@@ -31,7 +34,7 @@
 
     <!-- Also depends on another providing pkg[dep2], but this time
          use a shorthand op to write the ordered dep for us-->
-    <pkg id="dep2" x2a:assert="requires addlib"/>
+    <pkg id="dep2" x2a:assert="required addlib"/>
 
     <!-- the package XML itself -->
     <pkg id="example">

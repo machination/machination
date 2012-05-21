@@ -8,6 +8,7 @@ from lxml import etree
 import machination
 from machination import context
 import os
+from subprocess import call
 
 
 class worker(object):
@@ -25,6 +26,7 @@ class worker(object):
         if a == "":
             w_elt = etree.Element("worker", id=self.name)
             f.write(etree.tostring(w_elt, pretty_print=True)
+
         f.close()
 
     def do_work(self, work_list):
@@ -64,21 +66,65 @@ class worker(object):
             #func = "__install_msi" + inter
             #back = getattr(self, func)(bundle, startpoint, param, upgrade)
 
-        res.attrib["status"] = "success"
+        if back:
+            context.emsg(back)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = back
+        else:
+            res.attrib["status"] = "success"
         return res
 
-    def __install_std(self, bundle, pkginfo)
-        if pkginfo.attrib["type"] == "msi"
+    def __install_std(self, bundle, pkginfo):
+        if pkginfo.attrib["type"] == "msi":
             paramlist = {"REBOOT": "ReallySuppress",
                          "ALLUSERS": "1",
                          "ROOTDRIVE": "C:"}
             for arg in pkginfo.finditer("param"):
+                # Check transform file exists
+                if arg.attrib["name"] == "TRANSFORM":
+                    tr_path = os.path.join(bundle, arg.text)
+                    if not os.path.exists(tr_path):
+                        return "Transform file not found."
+                #Create list of msi options
                 paramlist[arg.attrib["name"]] = arg.text
 
-            #TODO: Transform file checking.
+            msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+            log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
+            opts = ["%s=%s" % (k, v) for k, v in paramlist]
+            cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
+                                                                    log,
+                                                                    opts)
+
+            return_code = call(cmd)
+
+        elif pkginfo.attrib["type"] == "simple":
+            cmd = "python" + os.path.join(bundle, "install.py")
+            return_code = call(cmd)
+
+    def __install_inter(self, bundle, pkginfo):
+        if pkginfo.attrib["type"] == "msi":
+            paramlist = {"REBOOT": "ReallySuppress",
+                         "ALLUSERS": "1",
+                         "ROOTDRIVE": "C:"}
+            for arg in pkginfo.finditer("param"):
+                # Check transform file exists
+                if arg.attrib["name"] == "TRANSFORM":
+                    tr_path = os.path.join(bundle, arg.text)
+                    if not os.path.exists(tr_path):
+                        return "Transform file not found."
+                #Create list of msi options
+                paramlist[arg.attrib["name"]] = arg.text
 
             msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
-            cmd = 'msiexec /i {} /qn /lvoicewarmup "..\\$pid.log"'.format
+            log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
+            opts = ["%s=%s" % (k, v) for k, v in paramlist]
+            cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
+                                                                    log,
+                                                                    opts)
+
+        elif pkginfo.attrib["type"] == "simple":
+            cmd = "python" + os.path.join(bundle, "install.py")
+
 
 
     def __remove(self, work):

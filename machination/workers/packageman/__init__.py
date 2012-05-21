@@ -8,6 +8,7 @@ from lxml import etree
 import machination
 from machination import context
 import os
+import sys
 from subprocess import call
 
 
@@ -55,16 +56,9 @@ class worker(object):
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
-        if work.attrib["interactive"] == 1:
-            back = self.__install_inter(bundle_path, work.find("pkginfo")
-        else:
-            back = self.__install_std(bundle_path, work.find("pkginfo")
-
-            #startpoint =
-            #param dict
-            #upgrade
-            #func = "__install_msi" + inter
-            #back = getattr(self, func)(bundle, startpoint, param, upgrade)
+        back = self.__install(bundle_path,
+                              work.find("pkginfo"),
+                              work.attrib["interactive"])
 
         if back:
             context.emsg(back)
@@ -74,7 +68,10 @@ class worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __install_std(self, bundle, pkginfo):
+    def __install(self, bundle, pkginfo, interactive):
+
+        #Build command line
+
         if pkginfo.attrib["type"] == "msi":
             paramlist = {"REBOOT": "ReallySuppress",
                          "ALLUSERS": "1",
@@ -90,42 +87,22 @@ class worker(object):
 
             msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
             log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-            opts = ["%s=%s" % (k, v) for k, v in paramlist]
-            cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
-                                                                    log,
-                                                                    opts)
-
-            return_code = call(cmd)
-
-        elif pkginfo.attrib["type"] == "simple":
-            cmd = "python" + os.path.join(bundle, "install.py")
-            return_code = call(cmd)
-
-    def __install_inter(self, bundle, pkginfo):
-        if pkginfo.attrib["type"] == "msi":
-            paramlist = {"REBOOT": "ReallySuppress",
-                         "ALLUSERS": "1",
-                         "ROOTDRIVE": "C:"}
-            for arg in pkginfo.finditer("param"):
-                # Check transform file exists
-                if arg.attrib["name"] == "TRANSFORM":
-                    tr_path = os.path.join(bundle, arg.text)
-                    if not os.path.exists(tr_path):
-                        return "Transform file not found."
-                #Create list of msi options
-                paramlist[arg.attrib["name"]] = arg.text
-
-            msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
-            log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-            opts = ["%s=%s" % (k, v) for k, v in paramlist]
+            opts = " ".join(["%s=%s" % (k, v) for k, v in paramlist])
             cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
                                                                     log,
                                                                     opts)
 
         elif pkginfo.attrib["type"] == "simple":
-            cmd = "python" + os.path.join(bundle, "install.py")
+            cmd = " ".join([sys.executable, os.path.join(bundle, "install.py")])
 
+        # Execute command
+        if not interactive:
+            output = call(cmd)
+        else
+            # Do stuff to make interactive/elevated installer work here
+            pass
 
+        return output
 
     def __remove(self, work):
         res = etree.element("wu",
@@ -143,10 +120,6 @@ class worker(object):
 
     def __order(self, work):
         pass
-
-    def __install_simple(self, bundle, inter):
-        if inter
-
 
     def generate_status(self):
         # Package status is stored in an external file

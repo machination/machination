@@ -26,7 +26,7 @@ class worker(object):
         a = f.read()
         if a == "":
             w_elt = etree.Element("worker", id=self.name)
-            f.write(etree.tostring(w_elt, pretty_print=True)
+            f.write(etree.tostring(w_elt, pretty_print=True))
 
         f.close()
 
@@ -98,7 +98,7 @@ class worker(object):
         # Execute command
         if not interactive:
             output = call(cmd)
-        else
+        else:
             # Do stuff to make interactive/elevated installer work here
             pass
 

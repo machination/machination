@@ -11,7 +11,7 @@ import os
 
 
 class worker(object):
-    
+
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
@@ -30,18 +30,17 @@ class worker(object):
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
-        
+
         s_elt = etree.parse(self.status_file).getroot()
-        
+
         for wu in work_list:
             operator = "__{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
+            #TODO: Implement MSI product code trapping
             if res.attrib["status"] == "success":
-                # Doing this with the hopes of trapping extra status data,
-                # like MSI product codes.
                 s_elt.append(wu[0])
-        
+
         with open(self.status_file, "w") as f:
             f.write(etree.tostring(s_elt, pretty_print=True))
 
@@ -50,9 +49,37 @@ class worker(object):
     def __add(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
+        bundle = work.find("bundle").attrib["id"]
+        bundle_path = os.path.join(context.cache_dir(),
+                                   "files",
+                                   bundle)
+        if work.attrib["interactive"] == 1:
+            back = self.__install_inter(bundle_path, work.find("pkginfo")
+        else:
+            back = self.__install_std(bundle_path, work.find("pkginfo")
+
+            #startpoint =
+            #param dict
+            #upgrade
+            #func = "__install_msi" + inter
+            #back = getattr(self, func)(bundle, startpoint, param, upgrade)
 
         res.attrib["status"] = "success"
         return res
+
+    def __install_std(self, bundle, pkginfo)
+        if pkginfo.attrib["type"] == "msi"
+            paramlist = {"REBOOT": "ReallySuppress",
+                         "ALLUSERS": "1",
+                         "ROOTDRIVE": "C:"}
+            for arg in pkginfo.finditer("param"):
+                paramlist[arg.attrib["name"]] = arg.text
+
+            #TODO: Transform file checking.
+
+            msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+            cmd = 'msiexec /i {} /qn /lvoicewarmup "..\\$pid.log"'.format
+
 
     def __remove(self, work):
         res = etree.element("wu",
@@ -71,8 +98,11 @@ class worker(object):
     def __order(self, work):
         pass
 
+    def __install_simple(self, bundle, inter):
+        if inter
+
+
     def generate_status(self):
         # Package status is stored in an external file
         w_elt = etree.parse(self.status_file)
         return w_elt
-        

@@ -100,9 +100,12 @@ class worker(object):
             output = call(cmd)
         else:
             # Do stuff to make interactive/elevated installer work here
-            pass
+            output = self.run_as_current_user(cmd)
 
         return output
+
+    def run_as_current_user(self, command):
+        return 0
 
     def __remove(self, work):
         res = etree.element("wu",

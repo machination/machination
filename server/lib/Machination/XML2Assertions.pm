@@ -48,6 +48,8 @@ sub to_assertions {
   my $self = shift;
   my $node = shift;
 
+  $node = $self->doc->documentElement unless defined $node;
+
 #  my $mp = Machination::MPath->new($node);
 #  print $mp->to_string() . "\n";
 

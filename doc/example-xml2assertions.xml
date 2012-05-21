@@ -1,4 +1,4 @@
-<!-- XML descibing library item for pkg[example]-->
+<!-- XML descibing library item for package[example]-->
 <status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
   <worker id="__machination__">
     <deps>
@@ -25,19 +25,24 @@
          att2="regex"
          >some other random text</var>
   </worker>
+  <worker id="fetcher">
+    <bundle id="example-1-hexdigest"/>
+  </worker>
   <worker id="packageman">
     <!-- This library item depends on another providing pkg[dep1].
 
          The dep is ordered because there is an entry in the deps
          section of the __machination__ worker -->
-    <pkg id="dep1" x2a:assert="exists addlib"/>
+    <package id="dep1" x2a:assert="exists addlib"/>
 
     <!-- Also depends on another providing pkg[dep2], but this time
          use a shorthand op to write the ordered dep for us-->
-    <pkg id="dep2" x2a:assert="required addlib"/>
+    <package id="dep2" x2a:assert="required addlib"/>
 
     <!-- the package XML itself -->
-    <pkg id="example">
-    </pkg>
+    <package id="example">
+      <bundle id="example-1-hexdigest"/>
+      <pkginfo type="simple"/>
+    </package>
   </worker>
 </status>

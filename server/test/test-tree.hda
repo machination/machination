@@ -156,7 +156,4 @@ E. a-attachments
     action_op=addlib \
     agroup=obj_id(/test/agroup_assertion:wants-lib)
 
-
-/test/lib/agroup_assertion:example-pkg \
-    channel_id=channel_id(machination:osprofile)
-
+# agroup_from_xml(/test/)

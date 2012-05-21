@@ -1585,7 +1585,7 @@ sub fetch_from_agroup {
 
 Get a handle to the direct attachments of an hc
 
-$sth = $ha->get_agroup_handle($hc, \@channel_ids, \@type_ids)
+$sth = $ha->get_attached_handle($hc, \@channel_ids, \@type_ids)
 
 =cut
 
@@ -2614,6 +2614,31 @@ sub get_library_item {
 
   # didn't find anything
   return;
+}
+
+=item B<xml_to_assertion_group>
+
+=cut
+
+sub xml_to_assertion_group {
+  my $self = shift;
+  my ($hcid, $name, $xml, $opts) = @_;
+
+  $opts->{'x2a:replace'} = 0 unless exists $opts->{'x2a:replace'};
+
+  my $ag_tid = $self->type_id("agroup_assertion");
+  if ($self->fetch_id($ag_tid,$name,$hcid)) {
+    if($opts->{'x2a:replace'}) {
+      HierarchyNameExistsException->
+        throw("Not replacing agroup_assertion:$name in " .
+              Machination::HPath->new($self, $hcid)->to_string);
+    }
+    # need to delete the agroup and the member assertions
+
+  }
+
+  my $a2s = Machination::XML2Assertion->new(doc=>$xml);
+  my $alist = $a2s->to_assertions;
 }
 
 
@@ -4230,7 +4255,7 @@ sub op_delete_obj {
                 "it contains children and recursive is not set");
       }
       do {
-        print "deleting child " . $row->{type} . ":" . $row->{id} . "\n";
+#        print "deleting child " . $row->{type} . ":" . $row->{id} . "\n";
         if($row->{type} eq "machination:hc") {
           # a child hc, delete it
           $self->do_op("delete_obj",{actor=>$actor,parent=>$rev,},
@@ -4292,11 +4317,14 @@ sub op_delete_obj {
 			# Some attachable types are attachment groups. Attachment
 			# groups will have instructions that should be deleted so they
 			# are not orphaned.
-      if($self->type_info($type_id)->{agroup}) {
+      if($self->type_name($type_id) =~ /^agroup/) {
         my $orig_tid = $self->type_from_agroup_type($type_id);
-        foreach my $subid ($self->fetch_from_agroup($orig_tid,$obj_id)) {
+        foreach my $mem
+          (@{$self->get_ag_member_handle($type_id, $obj_id)->
+           fetchall_arrayref({})}) {
           $self->do_op
-            ("delete_obj", {actor=>$actor,parent=>$rev}, $orig_tid,$subid);
+            ("delete_obj", {actor=>$actor,parent=>$rev},
+             $orig_tid, $mem->{id});
         }
       }
       # now detach the object

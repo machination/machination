@@ -10,6 +10,11 @@ from machination import context
 import os
 import sys
 from subprocess import call
+import win32security
+import win32ts
+import win32process
+import win32profile
+import win32con
 
 
 class worker(object):
@@ -88,24 +93,64 @@ class worker(object):
             msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
             log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
             opts = " ".join(["%s=%s" % (k, v) for k, v in paramlist])
-            cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
-                                                                    log,
-                                                                    opts)
+            app = "msiexec"
+            cmd = '/i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
+                                                              log,
+                                                              opts)
 
         elif pkginfo.attrib["type"] == "simple":
-            cmd = " ".join([sys.executable, os.path.join(bundle, "install.py")])
+            app = sys.executable
+            cmd = os.path.join(bundle, "install.py")
 
         # Execute command
         if not interactive:
-            output = call(cmd)
+            output = call([app, cmd])
         else:
             # Do stuff to make interactive/elevated installer work here
-            output = self.run_as_current_user(cmd)
+            output = self.__run_as_current_user(app, cmd)
 
         return output
 
-    def run_as_current_user(self, command):
-        return 0
+    def __run_as_current_user(self, app, cmd):
+        # Need to work out where elevate actually is.
+        application = None
+        elevate_path = "c:\\workspace\\elevate.py"
+        commandline = " ".join([sys.executable,
+                                elevate_path,
+                                app,
+                                "'"+cmd+"'"])
+        workingDir = None
+
+        # Find the active session
+        sessionid = win32ts.WTSGetActiveConsoleSessionId()
+
+        # Get the user token from that session
+        token = win32ts.WTSQueryUserToken(sessionid)
+
+        # We might want to load user's environment here?
+        # (win32profile.CreateEnvironmentBlock etc)
+
+
+        win32security.ImpersonateLoggedOnUser(token)
+
+        # Setup appropriate desktop and window stuff
+        si = win32process.STARTUPINFO()
+        si.lpDesktop = u'Winsta0\\default'
+
+        #Launch the user script
+        win32process.CreateProcessAsUser(
+            token,
+            application,
+            commandline,
+            None,
+            None,
+            False,
+            win32con.NORMAL_PRIORITY_CLASS | win32con.CREATE_NEW_CONSOLE,
+            env,
+            workingDir,
+            si
+            )
+
 
     def __remove(self, work):
         res = etree.element("wu",

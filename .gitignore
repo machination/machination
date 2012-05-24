@@ -2,3 +2,5 @@
 .*.sw[po]
 *~
 RELEASE-VERSION
+
+.DS_Store

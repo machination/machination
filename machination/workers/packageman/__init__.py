@@ -15,6 +15,7 @@ import win32ts
 import win32process
 import win32profile
 import win32con
+import msilib
 
 
 class worker(object):
@@ -27,13 +28,11 @@ class worker(object):
                                         "packageman",
                                         status.xml)
         # Create status file if it doesn't exist
-        f = open(self.status_file, "r+")
-        a = f.read()
-        if a == "":
+        if not os.path.exists(self.status_file):
+            f = open(self.status_file, "w")
             w_elt = etree.Element("worker", id=self.name)
             f.write(etree.tostring(w_elt, pretty_print=True))
-
-        f.close()
+            f.close()
 
     def do_work(self, work_list):
         "Process the work units and return their status."
@@ -45,13 +44,6 @@ class worker(object):
             operator = "__{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
-            #TODO: Implement MSI product code trapping
-            if res.attrib["status"] == "success":
-                s_elt.append(wu[0])
-
-        with open(self.status_file, "w") as f:
-            f.write(etree.tostring(s_elt, pretty_print=True))
-
         return result
 
     def __add(self, work):
@@ -71,9 +63,28 @@ class worker(object):
             res.attrib["message"] = back
         else:
             res.attrib["status"] = "success"
+            pkginfo = work.find("pkginfo")
+            if pkginfo.attrib["type"] == "msi":
+                msi_path = os.path.join(bundle_path,
+                           pkginfo.find('startpoint').text)
+                msi_guid = self.__get_installed_guid(msi_path)
+                s_elt = etree.Parse(self.status_file).getroot
+                pkg_elt = etree.Element(bundle,
+                                        guid=msi_guid)
+                s_elt.append(pkg_elt)
+                with open(self.status_file, "w") as f:
+                    f.write(etree.tostring(s_elt, pretty_print=True))
         return res
 
-    def __process(self, bundle, pkginfo, interactive, uninstall=False):
+    def __get_installed_guid(self, msi):
+        # Open msi database read only
+        db = msilib.OpenDatabase(msi, 0)
+        view = db.OpenView("SELECT Value FROM Property WHERE Property='ProductCode'")
+        view.Execute(None)
+        result - view.Fetch()
+        return result.GetString(1)
+
+    def __process(self, bundle, pkginfo, interactive, uninstall=False, guid=None):
 
         #Build command line
         if uninstall:
@@ -96,18 +107,23 @@ class worker(object):
                 #Create list of msi options
                 paramlist[arg.attrib["name"]] = arg.text
 
-            msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+            if guid:
+                msipath = guid
+            else:
+                msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+
             log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
             opts = " ".join(["%s=%s" % (k, v) for k, v in paramlist])
             app = "msiexec"
-            cmd = '/i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
+            cmd = '/{0} {1} /qn /lvoicewarmup "{1}" {2}'.format(op[0],
+                                                              msipath,
                                                               log,
                                                               opts)
 
         elif pkginfo.attrib["type"] == "simple":
             file = op + ".py"
             app = sys.executable
-            cmd = os.path.join(bundle, op)
+            cmd = os.path.join(bundle, file)
 
         # Execute command
         if not interactive:
@@ -122,7 +138,7 @@ class worker(object):
         # Need to work out where elevate actually is. Assume for now
         # that it's in bin_dir
         application = None
-        elevate_path = os.path.join([context.bin_dir(), "elevate.py"])
+        elevate_path = os.path.join(context.bin_dir(), "elevate.py")
         commandline = " ".join([sys.executable,
                                 elevate_path,
                                 app,
@@ -172,10 +188,17 @@ class worker(object):
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
+        s_elt = etree.Parse(self.status_file).getroot
+        if work.find("pkginfo").attrib["type"] == "msi":
+            guid = s_elt.find(bundle).attrib["guid"]
+        else:
+            guid = None
+
         back = self.__process(bundle_path,
                               work.find("pkginfo"),
                               work.attrib["interactive"],
-                              True)
+                              True,
+                              guid)
 
         if back:
             context.emsg(back)
@@ -186,16 +209,14 @@ class worker(object):
         return res
 
     def __modify(self, work):
-        res = etree.element("wu",
-                            id=work.attrib["id"])
-
-        res.attrib["status"] = "success"
-        return res
+        return self.__add(work)
 
     def __order(self, work):
         pass
 
     def generate_status(self):
-        # Package status is stored in an external file
-        w_elt = etree.parse(self.status_file)
+        # Update can keep track of packages.
+        w_elt = etree.Element("Return")
+        w_elt.attrib["method"] = "generate_status"
+        w_elt.attrib["implemented"] = 0
         return w_elt

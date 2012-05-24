@@ -53,6 +53,13 @@ gui:doc="documentation.html"
                         <attribute name="name">
                             <text/>
                         </attribute>
+                        <attribute name="type">
+                            <choice>
+                                <value>install</value>
+                                <value>uninstall</value>
+                                <value>both</value>
+                            </choice>
+                        </attribute>
                         <text/>
                     </element>
                 </zeroOrMore>

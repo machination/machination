@@ -61,7 +61,7 @@ class worker(object):
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
-        back = self.__install(bundle_path,
+        back = self.__process(bundle_path,
                               work.find("pkginfo"),
                               work.attrib["interactive"])
 
@@ -73,15 +73,21 @@ class worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __install(self, bundle, pkginfo, interactive):
+    def __process(self, bundle, pkginfo, interactive, uninstall=False):
 
         #Build command line
+        if uninstall:
+            op = "uninstall"
+        else:
+            op = "install"
 
         if pkginfo.attrib["type"] == "msi":
             paramlist = {"REBOOT": "ReallySuppress",
                          "ALLUSERS": "1",
                          "ROOTDRIVE": "C:"}
             for arg in pkginfo.finditer("param"):
+                if arg.attrib["type"] not in (op, "both"):
+                    continue
                 # Check transform file exists
                 if arg.attrib["name"] == "TRANSFORM":
                     tr_path = os.path.join(bundle, arg.text)
@@ -99,8 +105,9 @@ class worker(object):
                                                               opts)
 
         elif pkginfo.attrib["type"] == "simple":
+            file = op + ".py"
             app = sys.executable
-            cmd = os.path.join(bundle, "install.py")
+            cmd = os.path.join(bundle, op)
 
         # Execute command
         if not interactive:
@@ -112,9 +119,10 @@ class worker(object):
         return output
 
     def __run_as_current_user(self, app, cmd):
-        # Need to work out where elevate actually is.
+        # Need to work out where elevate actually is. Assume for now
+        # that it's in bin_dir
         application = None
-        elevate_path = "c:\\workspace\\elevate.py"
+        elevate_path = os.path.join([context.bin_dir(), "elevate.py"])
         commandline = " ".join([sys.executable,
                                 elevate_path,
                                 app,
@@ -138,6 +146,10 @@ class worker(object):
         si.lpDesktop = u'Winsta0\\default'
 
         #Launch the user script
+
+        # This doesn't give us any means of trapping output yet
+        # CreateProcessAsUser returns the results of *creating* the process
+        # rather than the results of the created process.
         win32process.CreateProcessAsUser(
             token,
             application,
@@ -151,12 +163,26 @@ class worker(object):
             si
             )
 
+        return None
 
     def __remove(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
+        bundle = work.find("bundle").attrib["id"]
+        bundle_path = os.path.join(context.cache_dir(),
+                                   "files",
+                                   bundle)
+        back = self.__process(bundle_path,
+                              work.find("pkginfo"),
+                              work.attrib["interactive"],
+                              True)
 
-        res.attrib["status"] = "success"
+        if back:
+            context.emsg(back)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = back
+        else:
+            res.attrib["status"] = "success"
         return res
 
     def __modify(self, work):

@@ -55,7 +55,8 @@ class worker(object):
                                    "files",
                                    bundle)
         if work.find("check"):
-            u_check = work.find("check").attrib["id"]
+            u_check = (work.find("check").attrib["type"],
+                       work.find("check").attrib["id"])
         else:
             u_check = None
 
@@ -145,8 +146,6 @@ class worker(object):
 
         # Execute command
         if not interactive:
-            # Output is not necessarily useful so discard and check in another
-            # way
             output = call(app + " " + cmd, stdout=subprocess.PIPE)
         else:
             # Do stuff to make interactive/elevated installer work here
@@ -154,32 +153,50 @@ class worker(object):
 
             # See if the installation worked.
             if pkginfo.attrib["type"] == "msi":
-                output = self.__check_reg(msipath)
+                msi_guid = self.__get_installed_guid(msipath)
+                back = self.__check_reg(msi_guid, uninstall)
             else:
                 # Hell if I know.
-                pass
+                if not check:
+                    output = "Interactive package without install check."
+                else:
+                    operator = "__check_{0}".format(check[0])
+                    back = getattr(self, operator)(check[1], uninstall)
 
         return output
 
-    def __check_reg(self, msi)
-        guid = self.__get_installed_guid(msi)
+    def __check_file(self, filename, invert):
+        back = os.path.exists(filename)
+        if invert:
+            back = not back
+        return back
+
+    def __check_reg(self, key, invert):
         r = wmi.Registry()
         __HLKM = 2147483650
-        un_loc = "software\microsoft\windows\currentversion\uninstall"
-        un_loc2 = "software\wow6432node\microsoft"
-        un_loc2 += "\windows\currentversion\uninstall"
+        uloc = "software\microsoft\windows\currentversion\uninstall"
 
-        result, names = r.EnumKey(HKLM, un_loc)
+        result, names = r.EnumKey(HKLM, uloc)
 
-        if guid in names:
-            return True
+        if key in names:
+            back = True
+        else:
+            uloc = "software\wow6432node\microsoft\windows\currentversion\uninstall"
+            result, names = r.EnumKey(HKLM, uloc2)
 
-        result, names = r.EnumKey(HKLM, un_loc2)
+            if result:
+                # Reg key not found--running on 32bit system
+                back = False
 
-        if guid in names:
-            return True
+            if key in names:
+                back = True
+            else
+                back = False
 
-        return "Software not installed."
+        if invert:
+            return not back
+        else
+            return back
 
     def __run_as_current_user(self, app, cmd):
         # Need to work out where elevate actually is. Assume for now

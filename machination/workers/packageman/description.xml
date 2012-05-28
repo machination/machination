@@ -31,6 +31,19 @@ gui:doc="documentation.html"
                     <text/>
                 </attribute>
             </element>
+            <zeroOrOne>
+                <element name="check">
+                    <attribute name="type">
+                        <choice>
+                            <value>reg</value>
+                            <value>file</value>
+                        </choice>
+                    </attribute>
+                    <attribute name="id">
+                        <text/>
+                    </attribute>
+                </element>
+            </zeroOrOne>
             <element name="pkginfo">
                 <attribute name="type">
                     <choice>

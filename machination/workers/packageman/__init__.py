@@ -16,6 +16,7 @@ import win32process
 import win32profile
 import win32con
 import msilib
+import wmi
 
 
 class worker(object):
@@ -53,9 +54,15 @@ class worker(object):
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
-        back = self.__process(bundle_path,
-                              work.find("pkginfo"),
-                              work.attrib["interactive"])
+        if work.find("check"):
+            u_check = work.find("check").attrib["id"]
+        else:
+            u_check = None
+
+        back = self.__process(bundle=bundle_path,
+                              pkginfo=work.find("pkginfo"),
+                              interactive=work.attrib["interactive"],
+                              check=u_check)
 
         if back:
             context.emsg(back)
@@ -84,13 +91,24 @@ class worker(object):
         result - view.Fetch()
         return result.GetString(1)
 
-    def __process(self, bundle, pkginfo, interactive, uninstall=False, guid=None):
+    def __process(self,
+                  bundle,
+                  pkginfo,
+                  interactive,
+                  uninstall=False,
+                  guid=None,
+                  check=None):
 
         #Build command line
         if uninstall:
             op = "uninstall"
         else:
             op = "install"
+
+        if
+
+        msiopts = {"install": "i",
+                   "uninstall": "x"}
 
         if pkginfo.attrib["type"] == "msi":
             paramlist = {"REBOOT": "ReallySuppress",
@@ -113,9 +131,9 @@ class worker(object):
                 msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
 
             log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-            opts = " ".join(["%s=%s" % (k, v) for k, v in paramlist])
+            opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
             app = "msiexec"
-            cmd = '/{0} {1} /qn /lvoicewarmup "{1}" {2}'.format(op[0],
+            cmd = '/{0} {1} /qn /lvoicewarmup "{1}" {2}'.format(msiopts[op],
                                                               msipath,
                                                               log,
                                                               opts)
@@ -127,12 +145,41 @@ class worker(object):
 
         # Execute command
         if not interactive:
-            output = call([app, cmd])
+            # Output is not necessarily useful so discard and check in another
+            # way
+            output = call(app + " " + cmd, stdout=subprocess.PIPE)
         else:
             # Do stuff to make interactive/elevated installer work here
-            output = self.__run_as_current_user(app, cmd)
+            self.__run_as_current_user(app, cmd)
+
+            # See if the installation worked.
+            if pkginfo.attrib["type"] == "msi":
+                output = self.__check_reg(msipath)
+            else:
+                # Hell if I know.
+                pass
 
         return output
+
+    def __check_reg(self, msi)
+        guid = self.__get_installed_guid(msi)
+        r = wmi.Registry()
+        __HLKM = 2147483650
+        un_loc = "software\microsoft\windows\currentversion\uninstall"
+        un_loc2 = "software\wow6432node\microsoft"
+        un_loc2 += "\windows\currentversion\uninstall"
+
+        result, names = r.EnumKey(HKLM, un_loc)
+
+        if guid in names:
+            return True
+
+        result, names = r.EnumKey(HKLM, un_loc2)
+
+        if guid in names:
+            return True
+
+        return "Software not installed."
 
     def __run_as_current_user(self, app, cmd):
         # Need to work out where elevate actually is. Assume for now
@@ -163,7 +210,7 @@ class worker(object):
 
         #Launch the user script
 
-        # This doesn't give us any means of trapping output yet
+        # This doesn't give us any means of trapping output
         # CreateProcessAsUser returns the results of *creating* the process
         # rather than the results of the created process.
         win32process.CreateProcessAsUser(
@@ -178,8 +225,6 @@ class worker(object):
             workingDir,
             si
             )
-
-        return None
 
     def __remove(self, work):
         res = etree.element("wu",

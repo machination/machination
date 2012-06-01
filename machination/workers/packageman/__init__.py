@@ -9,7 +9,7 @@ import machination
 from machination import context
 import os
 import sys
-from subprocess import call
+import subprocess
 import win32security
 import win32ts
 import win32process
@@ -43,43 +43,66 @@ class worker(object):
 
         for wu in work_list:
             operator = "__{}".format(wu.attrib["op"])
-            res = getattr(self, operator)(wu)
+            res = getattr(self, operator)(wu, s_elt)
             result.append(res)
         return result
 
-    def __add(self, work):
+    def __add(self, work, status_elt):
         res = etree.element("wu",
                             id=work.attrib["id"])
+
+        # Prep necessary variables
+        type = work.find("pkginfo").attrib["type"]
         bundle = work.find("bundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
-        if work.find("check"):
-            u_check = (work.find("check").attrib["type"],
-                       work.find("check").attrib["id"])
-        else:
-            u_check = None
+        i_name = ""
+        if "interactive" in work.keys:
+            if work.attrib["interactive"]:
+                i_name = "_inter"
 
-        back = self.__process(bundle=bundle_path,
-                              pkginfo=work.find("pkginfo"),
-                              interactive=work.attrib["interactive"],
-                              check=u_check)
+        # If it's interactive and not MSI, we need an uninstall check
+        if inter and (type not "msi"):
+            if not work.find("check"):
+                err = "Interactive package without installation check: "
+                err += bundle
+                context.emsg(err)
+                res.attrib["status"] = "error"
+                res.attrib["message"] = err
+                return res
+            ins_check = (work.find("check").attrib["type"],
+                         work.find("check").attrib["id"])
+        else:
+            ins_check = None
+
+        # MSIs have additional options in pkginfo
+        if type = "msi":
+            pkginfo = work.find("pkginfo")
+        else:
+            pkginfo = None
+
+        op = "__install_{0}{1}".format(type, i_name)
+
+        back = getattr(self, op)(bundle_path, pkginfo, check)
+
+ #       back = self.__install(bundle=bundle_path,
+ #                             pkginfo=work.find("pkginfo"),
+ #                             interactive=work.attrib["interactive"],
+ #                             check=u_check)
 
         if back:
             context.emsg(back)
             res.attrib["status"] = "error"
-            res.attrib["message"] = back
+            res.attrib["message"] = "Installation failed: " + back
         else:
             res.attrib["status"] = "success"
-            pkginfo = work.find("pkginfo")
-            if pkginfo.attrib["type"] == "msi":
-                msi_path = os.path.join(bundle_path,
-                           pkginfo.find('startpoint').text)
-                msi_guid = self.__get_installed_guid(msi_path)
-                s_elt = etree.Parse(self.status_file).getroot
+            if type == "msi":
+                msi_guid = self.__get_installed_guid(os.path.join(bundle_path,
+                                              pkginfo.find('startpoint').text))
                 pkg_elt = etree.Element(bundle,
                                         guid=msi_guid)
-                s_elt.append(pkg_elt)
+                status_elt.append(pkg_elt)
                 with open(self.status_file, "w") as f:
                     f.write(etree.tostring(s_elt, pretty_print=True))
         return res
@@ -89,8 +112,63 @@ class worker(object):
         db = msilib.OpenDatabase(msi, 0)
         view = db.OpenView("SELECT Value FROM Property WHERE Property='ProductCode'")
         view.Execute(None)
-        result - view.Fetch()
+        result = view.Fetch()
         return result.GetString(1)
+
+    def __install_msi(self, bundle, pkginfo, check):
+        paramlist = {"REBOOT": "ReallySuppress",
+                     "ALLUSERS": "1",
+                     "ROOTDRIVE": "C:"}
+
+        # Build additional parameters
+        for arg in pkginfo.finditer("param"):
+            if arg.attrib["type"] == "uninstall":
+                continue
+            # If it's a transform, check that the file exists
+            name = arg.attrib["name"].upper()
+            val = arg.text
+            if name == "TRANSFORM"
+                tr_file = os.path.join(bundle, val)
+                if not os.path.exists(tr_path):
+                    return "Transform file not found: " + tr_path
+            paramlist[name] = val
+
+        msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+
+        log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
+        opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
+        cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
+                                                          log,
+                                                          opts)
+        out = subprocess.call(cmd, stdout=subprocess.PIPE)
+
+        return out
+
+    def __install_simple(self, bundle, pkginfo, check):
+        # Simple apps are handled by calling install.py from the bundle
+        # directory
+        install_file = os.path.join(bundle, "install.py")
+
+        if not os.path.exists(install_file):
+            return "Install.py not found: " + install_file
+
+        cmd = " ".join([sys.executable, install_file])
+
+        out = subprocess.call(cmd)
+
+        return out
+
+    def __install_simple_inter(self, bundle, pkginfo, check):
+                install_file = os.path.join(bundle, "install.py")
+
+        if not os.path.exists(install_file):
+            return "Install.py not found: " + install_file
+
+        cmd = " ".join([sys.executable, install_file])
+
+        out = subprocess.call(cmd)
+
+        return out
 
     def __process(self,
                   bundle,

@@ -1419,14 +1419,13 @@ class AssertionCompiler(object):
         self.doc = etree.ElementTree()
         self.wc = wc
 
-    def compile(self, path):
-        """Fetch assertions for object at path in the hierarchy and compile
+    def compile(self, data):
+        """Compile encapsulated in data
 
+        Args:
+          data: as returned by wc.call("GetAssertionList")
         """
         self.doc = etree.ElementTree()
-        idpair = self.wc.call("IdPair", path)
-        channel = self.wc.call("ProfChannel", idpair['type_id'])
-        data = self.wc.call("GetAssertionList", path, channel)
         mpolicies = {}
         res_idx = {}
         mp_map = {}

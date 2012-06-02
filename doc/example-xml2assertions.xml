@@ -10,10 +10,10 @@
     </deps>
   </worker>
   <worker id="environment">
-    <!-- hastextfromlist choice1|choice2|choice3 or choosetext default -->
+    <!-- hastextfromlist choice1 choice\ 2 choice3 or choosetext default -->
     <var id="EXAMPLE_LIC"
          x2a:assert="hastextfromlist choosetext default"
-         >choice1|choice2|choice3</var>
+         >choice1 choice\ 2 choice3</var>
     <!-- hastextmatching regex or choosetext default-->
     <var id="OTHER_LIC" x2a:assert="hastextmatching choosetext default"
          >^mince</var>
@@ -21,7 +21,7 @@
     <var id="choices"
          x2a:assertAttatt1="hastextfromlist choosetext default"
          x2a:assertAttatt2="hastextmatching choosetext default"
-         att1="choice1|choice2|choice3"
+         att1="choice1 choice\ 2 choice3"
          att2="regex"
          >some other random text</var>
   </worker>

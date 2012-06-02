@@ -29,6 +29,7 @@ import re
 import functools
 import pprint
 import sys
+import shlex
 from machination import context
 from machination import utils
 import hashlib
@@ -1466,7 +1467,14 @@ class AssertionCompiler(object):
                 return True
             else:
                 return False
-        elif op == 'hastext':
+        elif op == 'notexists':
+            if self.doc.getroot() is None:
+                return True
+            if self.doc.xpath(mpath.to_xpath()):
+                return False
+            else:
+                return True
+        elif op.startswith('hastext'):
             if self.doc.getroot() is None:
                 return False
 
@@ -1479,17 +1487,18 @@ class AssertionCompiler(object):
             else:
                 # attribute
                 content = nodes[0]
-            if content == arg:
-                return True
-            else:
-                return False
-        elif op == 'notexists':
-            if self.doc.getroot() is None:
-                return True
-            if self.doc.xpath(mpath.to_xpath()):
-                return False
-            else:
-                return True
+            if op == 'hastext':
+                if content == arg:
+                    return True
+                else:
+                    return False
+            elif op == 'hastextfromlist':
+                words = set(shlex.split(arg))
+                if content in words:
+                    return True
+                else:
+                    return False
+
         else:
             raise Exception("Assertion op '{}' unknown".format(op))
 

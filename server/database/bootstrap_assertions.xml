@@ -88,6 +88,8 @@
     <op id="hastextmatching"/>
     <!-- /path/a requires /path/b is shorthand for
          $id = /path/a<requires>/path/b
+         /path/a exists
+         /path/b exists
          /s/w[m]/deps/dep[$id]/@src hastext /path/a
          /s/w[m]/deps/dep[$id]/@op hastext requires
          /s/w[m]/deps/dep[$id]/@tgt hastext /path/b

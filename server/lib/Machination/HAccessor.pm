@@ -47,6 +47,7 @@ my $defops =
    modify_obj => "modify_obj (\$type_id,\$obj_id,{\$field=>\$value,...}): change object data",
 	 delete_obj => "delete_obj (\$type_id,\$obj_id)",
    create_path => "create_path(\$path,\$fields): recursively create path",
+   assertion_group_from_xml => "create an assertion group populated with assertions derived from XML"
 
    add_valid_os => "",
    delete_valid_os => "",
@@ -2616,31 +2617,6 @@ sub get_library_item {
   return;
 }
 
-=item B<xml_to_assertion_group>
-
-=cut
-
-sub xml_to_assertion_group {
-  my $self = shift;
-  my ($hcid, $name, $xml, $opts) = @_;
-
-  $opts->{'x2a:replace'} = 0 unless exists $opts->{'x2a:replace'};
-
-  my $ag_tid = $self->type_id("agroup_assertion");
-  if ($self->fetch_id($ag_tid,$name,$hcid)) {
-    if($opts->{'x2a:replace'}) {
-      HierarchyNameExistsException->
-        throw("Not replacing agroup_assertion:$name in " .
-              Machination::HPath->new($self, $hcid)->to_string);
-    }
-    # need to delete the agroup and the member assertions
-
-  }
-
-  my $a2s = Machination::XML2Assertion->new(doc=>$xml);
-  my $alist = $a2s->to_assertions;
-}
-
 
 ######################################################################
 # bootstrapping
@@ -5048,7 +5024,7 @@ sub op_tag_action {
 
 sub create_assertion {
   my $self = shift;
-  $self->do_op("create_aassertion",@_);
+  $self->do_op("create_assertion",@_);
 }
 sub op_create_assertion {
   my ($self,$actor,$rev,$op,$mpath,$arg,$action_id) = @_;
@@ -5072,6 +5048,59 @@ sub op_create_assertion {
 #  $self->write_dbh->do
 #    ("delete from lib_assertion_ops where op=?",{},$op);
 #}
+
+
+=item B<op_assertion_group_from_xml>
+
+=item B<assertion_group_from_xml>
+
+$ha->assertion_group_from_xml($op_opts, $hcid, $name, $channel_id,
+                              $xml, $opts)
+$ha->op_assertion_group_from_xml($actor,$rev, $hcid, $name, $channel_id,
+                                 $xml, $opts)
+
+=cut
+sub assertion_group_from_xml {
+  my $self = shift;
+  $self->do_op('assertion_group_from_xml', @_);
+}
+sub op_assertion_group_from_xml {
+  my $self = shift;
+  my ($actor, $rev, $hcid, $name, $channel_id, $xml, $opts) = @_;
+
+  $opts->{'x2a:replace'} = 0 unless exists $opts->{'x2a:replace'};
+
+  # Convert XML to a list of assertions before we start mucking with
+  # the hierarchy.
+  my $a2s = Machination::XML2Assertion->new(doc=>$xml);
+  my $alist = $a2s->to_assertions;
+
+  # Check for the an existing agroup
+  my $ag_tid = $self->type_id("agroup_assertion");
+  my $ag_id = $self->fetch_id($ag_tid,$name,$hcid);
+  if ($ag_id) {
+    unless($opts->{'x2a:replace'}) {
+      HierarchyNameExistsException->
+        throw("Not replacing agroup_assertion:$name in " .
+              Machination::HPath->new($self, $hcid)->to_string);
+    }
+    # need to delete the agroup and the member assertions
+    $self->do_op('delete_obj', {actor=>$actor, parent=>$rev},
+                 $ag_tid, $ag_id);
+  }
+
+  # now create an agroup and the associated assertions
+  $ag_id = $self->do_op('create_obj', {actor=>$actor, parent=>$rev},
+                        $ag_tid, $name, $hcid, {channel_id=>$channel_id});
+  my $i = 0;
+  for my $a (@$alist) {
+    $self->do_op('create_obj', {actor=>$actor, parent=>$rev},
+                $self->type_id('assertion'), "${name}__{$i}__", $hcid, $a);
+    $i++;
+  }
+}
+
+
 
 =back
 

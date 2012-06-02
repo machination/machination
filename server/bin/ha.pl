@@ -5,7 +5,7 @@ use Text::ParseWords;
 
 Exception::Class::Base->Trace(1);
 
-my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
+my $config = "/home/eggy/git/machination/server/test/machination/config.xml";
 GetOptions(
     "config=s" => \$config,
     );

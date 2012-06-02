@@ -94,8 +94,8 @@
          /s/w[m]/deps/dep[$id]/@op hastext requires
          /s/w[m]/deps/dep[$id]/@tgt hastext /path/b
     -->
-    <op id="requires"/>
-    <op id="excludes"/>
+    <op id="required"/>
+    <op id="excluded"/>
     <op id="first"/>
     <op id="last"/>
     <op id="before"/>

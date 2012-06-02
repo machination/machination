@@ -31,6 +31,7 @@ use XML::LibXML;
 use Machination::XML::Element;
 use Machination::XMLConstructor;
 use Machination::Log;
+use Machination::XML2Assertions;
 
 use Data::Dumper;
 
@@ -47,7 +48,7 @@ my $defops =
    modify_obj => "modify_obj (\$type_id,\$obj_id,{\$field=>\$value,...}): change object data",
 	 delete_obj => "delete_obj (\$type_id,\$obj_id)",
    create_path => "create_path(\$path,\$fields): recursively create path",
-   assertion_group_from_xml => "create an assertion group populated with assertions derived from XML"
+   assertion_group_from_xml => "create an assertion group populated with assertions derived from XML",
 
    add_valid_os => "",
    delete_valid_os => "",
@@ -5072,7 +5073,7 @@ sub op_assertion_group_from_xml {
 
   # Convert XML to a list of assertions before we start mucking with
   # the hierarchy.
-  my $a2s = Machination::XML2Assertion->new(doc=>$xml);
+  my $a2s = Machination::XML2Assertions->new(doc=>$xml);
   my $alist = $a2s->to_assertions;
 
   # Check for the an existing agroup
@@ -5094,8 +5095,9 @@ sub op_assertion_group_from_xml {
                         $ag_tid, $name, $hcid, {channel_id=>$channel_id});
   my $i = 0;
   for my $a (@$alist) {
+    $a->{agroup} = $ag_id;
     $self->do_op('create_obj', {actor=>$actor, parent=>$rev},
-                $self->type_id('assertion'), "${name}__{$i}__", $hcid, $a);
+                $self->type_id('assertion'), "${name}__${i}__", $hcid, $a);
     $i++;
   }
 }

@@ -5,7 +5,6 @@
 
 
 from lxml import etree
-import machination
 from machination import context
 import os
 import sys
@@ -25,15 +24,6 @@ class worker(object):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix = '/status')
-        self.status_file = os.path.join(context.status_dir(),
-                                        "packageman",
-                                        status.xml)
-        # Create status file if it doesn't exist
-        if not os.path.exists(self.status_file):
-            f = open(self.status_file, "w")
-            w_elt = etree.Element("worker", id=self.name)
-            f.write(etree.tostring(w_elt, pretty_print=True))
-            f.close()
 
     def do_work(self, work_list):
         "Process the work units and return their status."
@@ -47,20 +37,59 @@ class worker(object):
             result.append(res)
         return result
 
-    def __add(self, work, status_elt):
-        res = etree.element("wu",
-                            id=work.attrib["id"])
+    def __add(self, work):
+        res = etree.element("wu", id=work.attrib["id"])
 
+        back = self.__install(work)
+
+        if back:
+            context.emsg(back)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = "Installation failed: " + back
+        else:
+            res.attrib["status"] = "success"
+        return res
+
+    def __remove(self, work):
+        res = etree.element("wu", id=work.attrib["id"])
+
+        back = self.__uninstall(work)
+
+        if back:
+            context.emsg(back)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = back
+        else:
+            res.attrib["status"] = "success"
+        return res
+
+    def __modify(self, work):
+        return self.__add(work)
+
+    def __order(self, work):
+        pass
+
+    def __install(self, work):
+        return self.__process(work, "install")
+
+    def __uninstall(self, work):
+        return self.__process(work, "uninstall")
+
+    def __process(self, work, operation):
         # Prep necessary variables
         type = work.find("pkginfo").attrib["type"]
+        if (type == "msi") and (operation == "uninstall"):
+            # Get the guid from the installation file
+
+
         bundle = work.find("bundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
                                    bundle)
-        i_name = ""
         if "interactive" in work.keys:
-            if work.attrib["interactive"]:
-                i_name = "_inter"
+            inter = work.attrib["interactive"]
+        else:
+            inter = False
 
         # If it's interactive and not MSI, we need an uninstall check
         if inter and (type not "msi"):
@@ -82,40 +111,11 @@ class worker(object):
         else:
             pkginfo = None
 
-        op = "__install_{0}{1}".format(type, i_name)
+        op = "__{0}_{1}".format(operation, type)
 
-        back = getattr(self, op)(bundle_path, pkginfo, check)
+        back = getattr(self, op)(bundle_path, pkginfo, check, inter)
 
- #       back = self.__install(bundle=bundle_path,
- #                             pkginfo=work.find("pkginfo"),
- #                             interactive=work.attrib["interactive"],
- #                             check=u_check)
-
-        if back:
-            context.emsg(back)
-            res.attrib["status"] = "error"
-            res.attrib["message"] = "Installation failed: " + back
-        else:
-            res.attrib["status"] = "success"
-            if type == "msi":
-                msi_guid = self.__get_installed_guid(os.path.join(bundle_path,
-                                              pkginfo.find('startpoint').text))
-                pkg_elt = etree.Element(bundle,
-                                        guid=msi_guid)
-                status_elt.append(pkg_elt)
-                with open(self.status_file, "w") as f:
-                    f.write(etree.tostring(s_elt, pretty_print=True))
-        return res
-
-    def __get_installed_guid(self, msi):
-        # Open msi database read only
-        db = msilib.OpenDatabase(msi, 0)
-        view = db.OpenView("SELECT Value FROM Property WHERE Property='ProductCode'")
-        view.Execute(None)
-        result = view.Fetch()
-        return result.GetString(1)
-
-    def __install_msi(self, bundle, pkginfo, check):
+    def __install_msi(self, bundle, pkginfo, check, inter=False):
         paramlist = {"REBOOT": "ReallySuppress",
                      "ALLUSERS": "1",
                      "ROOTDRIVE": "C:"}
@@ -140,11 +140,19 @@ class worker(object):
         cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
                                                           log,
                                                           opts)
-        out = subprocess.call(cmd, stdout=subprocess.PIPE)
+
+        if inter:
+            self.__run_as_current_user(cmd)
+            guid = self.__get_installed_guid(msipath)
+            out = self.__check_reg(msi_guid, True)
+            if out:
+                out = "Installation failed."
+        else:
+            out = subprocess.call(cmd, stdout=subprocess.PIPE)
 
         return out
 
-    def __install_simple(self, bundle, pkginfo, check):
+    def __install_simple(self, bundle, pkginfo, check, inter=False):
         # Simple apps are handled by calling install.py from the bundle
         # directory
         install_file = os.path.join(bundle, "install.py")
@@ -154,102 +162,91 @@ class worker(object):
 
         cmd = " ".join([sys.executable, install_file])
 
-        out = subprocess.call(cmd)
+        if inter:
+            self.__run_as_current_user(cmd)
+            operator = "__check_{0}".format(check[0])
+            out = getattr(self, operator)(check[1], True)
+            if out:
+                out = "Installation failed."
+        else:
+            out = subprocess.call(cmd)
 
         return out
 
-    def __install_simple_inter(self, bundle, pkginfo, check):
-                install_file = os.path.join(bundle, "install.py")
+    def __uninstall_simple(self, bundle, pkginfo, check, inter=False):
+        # Simple apps are handled by calling install.py from the bundle
+        # directory
+        install_file = os.path.join(bundle, "uninstall.py")
 
         if not os.path.exists(install_file):
-            return "Install.py not found: " + install_file
+            return "Uninstall.py not found: " + install_file
 
         cmd = " ".join([sys.executable, install_file])
 
-        out = subprocess.call(cmd)
+        if inter:
+            self.__run_as_current_user(cmd)
+            operator = "__check_{0}".format(check[0])
+            out = getattr(self, operator)(check[1])
+            if out:
+                out = "Uninstallation failed."
+        else:
+            out = subprocess.call(cmd)
 
         return out
 
-    def __process(self,
-                  bundle,
-                  pkginfo,
-                  interactive,
-                  uninstall=False,
-                  guid=None,
-                  check=None):
+    def __uninstall_msi(self, bundle, pkginfo, check, inter=False):
+        paramlist = {"REBOOT": "ReallySuppress",
+                     "ALLUSERS": "1",
+                     "ROOTDRIVE": "C:"}
 
-        #Build command line
-        if uninstall:
-            op = "uninstall"
+        # Build additional parameters
+        for arg in pkginfo.finditer("param"):
+            if arg.attrib["type"] == "install":
+                continue
+            # If it's a transform, check that the file exists
+            name = arg.attrib["name"].upper()
+            val = arg.text
+            if name == "TRANSFORM"
+                tr_file = os.path.join(bundle, val)
+                if not os.path.exists(tr_path):
+                    return "Transform file not found: " + tr_path
+            paramlist[name] = val
+
+        msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+        guid = self.__get_installed_guid(msipath)
+
+        log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
+        opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
+        cmd = 'msiexec /x {0} /qn /lvoicewarmup "{1}" {2}'.format(guid,
+                                                          log,
+                                                          opts)
+
+        if inter:
+            self.__run_as_current_user(cmd)
+            out = self.__check_reg(guid)
+            if out:
+                out = "Uninstallation failed."
         else:
-            op = "install"
+            out = subprocess.call(cmd, stdout=subprocess.PIPE)
 
-        if
+        return out
 
-        msiopts = {"install": "i",
-                   "uninstall": "x"}
+    def __get_installed_guid(self, msi):
+        # Open msi database read only
+        db = msilib.OpenDatabase(msi, 0)
+        v = "SELECT Value FROM Property WHERE Property='ProductCode'"
+        view = db.OpenView(v)
+        view.Execute(None)
+        result = view.Fetch()
+        return result.GetString(1)
 
-        if pkginfo.attrib["type"] == "msi":
-            paramlist = {"REBOOT": "ReallySuppress",
-                         "ALLUSERS": "1",
-                         "ROOTDRIVE": "C:"}
-            for arg in pkginfo.finditer("param"):
-                if arg.attrib["type"] not in (op, "both"):
-                    continue
-                # Check transform file exists
-                if arg.attrib["name"] == "TRANSFORM":
-                    tr_path = os.path.join(bundle, arg.text)
-                    if not os.path.exists(tr_path):
-                        return "Transform file not found."
-                #Create list of msi options
-                paramlist[arg.attrib["name"]] = arg.text
-
-            if guid:
-                msipath = guid
-            else:
-                msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
-
-            log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-            opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
-            app = "msiexec"
-            cmd = '/{0} {1} /qn /lvoicewarmup "{1}" {2}'.format(msiopts[op],
-                                                              msipath,
-                                                              log,
-                                                              opts)
-
-        elif pkginfo.attrib["type"] == "simple":
-            file = op + ".py"
-            app = sys.executable
-            cmd = os.path.join(bundle, file)
-
-        # Execute command
-        if not interactive:
-            output = call(app + " " + cmd, stdout=subprocess.PIPE)
-        else:
-            # Do stuff to make interactive/elevated installer work here
-            self.__run_as_current_user(app, cmd)
-
-            # See if the installation worked.
-            if pkginfo.attrib["type"] == "msi":
-                msi_guid = self.__get_installed_guid(msipath)
-                back = self.__check_reg(msi_guid, uninstall)
-            else:
-                # Hell if I know.
-                if not check:
-                    output = "Interactive package without install check."
-                else:
-                    operator = "__check_{0}".format(check[0])
-                    back = getattr(self, operator)(check[1], uninstall)
-
-        return output
-
-    def __check_file(self, filename, invert):
+    def __check_file(self, filename, invert=False):
         back = os.path.exists(filename)
         if invert:
             back = not back
         return back
 
-    def __check_reg(self, key, invert):
+    def __check_reg(self, key, invert=False):
         r = wmi.Registry()
         __HLKM = 2147483650
         uloc = "software\microsoft\windows\currentversion\uninstall"
@@ -276,14 +273,13 @@ class worker(object):
         else
             return back
 
-    def __run_as_current_user(self, app, cmd):
+    def __run_as_current_user(self, cmd):
         # Need to work out where elevate actually is. Assume for now
         # that it's in bin_dir
         application = None
         elevate_path = os.path.join(context.bin_dir(), "elevate.py")
         commandline = " ".join([sys.executable,
                                 elevate_path,
-                                app,
                                 "'"+cmd+"'"])
         workingDir = None
 
@@ -320,39 +316,6 @@ class worker(object):
             workingDir,
             si
             )
-
-    def __remove(self, work):
-        res = etree.element("wu",
-                            id=work.attrib["id"])
-        bundle = work.find("bundle").attrib["id"]
-        bundle_path = os.path.join(context.cache_dir(),
-                                   "files",
-                                   bundle)
-        s_elt = etree.Parse(self.status_file).getroot
-        if work.find("pkginfo").attrib["type"] == "msi":
-            guid = s_elt.find(bundle).attrib["guid"]
-        else:
-            guid = None
-
-        back = self.__process(bundle_path,
-                              work.find("pkginfo"),
-                              work.attrib["interactive"],
-                              True,
-                              guid)
-
-        if back:
-            context.emsg(back)
-            res.attrib["status"] = "error"
-            res.attrib["message"] = back
-        else:
-            res.attrib["status"] = "success"
-        return res
-
-    def __modify(self, work):
-        return self.__add(work)
-
-    def __order(self, work):
-        pass
 
     def generate_status(self):
         # Update can keep track of packages.

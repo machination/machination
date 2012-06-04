@@ -91,6 +91,7 @@ sub to_assertions {
 #    $ass_arg = $node->textContent;
 #    ($ass_op, $ass_arg, $action_op, $action_arg) = (undef);
 #    ($ass_op, $action_op, $action_arg) = parse_line
+    my @words;
     ($ass_op, @words) = parse_line
       ('\s+', 0, $node->getAttributeNS($self->ns, "assert"));
     if($ass_op =~ /^hastext/) {
@@ -100,7 +101,7 @@ sub to_assertions {
       $ass_op eq 'before' || $ass_op eq 'after') {
       $ass_arg = shift @words;
     }
-    $action_op shift @words;
+    $action_op = shift @words;
     $action_arg = shift @words;
     push @a, {mpath=>$mp->to_string(),
               ass_op=>$ass_op,

@@ -88,10 +88,20 @@ sub to_assertions {
 
   my $mp = Machination::MPath->new($node);
   if ($node->hasAttributeNS($self->ns, "assert")) {
-    $ass_arg = $node->textContent;
-    ($ass_op, $action_op, $action_arg) = (undef);
-    ($ass_op, $action_op, $action_arg) = parse_line
+#    $ass_arg = $node->textContent;
+#    ($ass_op, $ass_arg, $action_op, $action_arg) = (undef);
+#    ($ass_op, $action_op, $action_arg) = parse_line
+    ($ass_op, @words) = parse_line
       ('\s+', 0, $node->getAttributeNS($self->ns, "assert"));
+    if($ass_op =~ /^hastext/) {
+      $ass_arg = $node->textContent;
+    }
+    if($ass_op eq 'requires' || $ass_op eq 'excludes' ||
+      $ass_op eq 'before' || $ass_op eq 'after') {
+      $ass_arg = shift @words;
+    }
+    $action_op shift @words;
+    $action_arg = shift @words;
     push @a, {mpath=>$mp->to_string(),
               ass_op=>$ass_op,
               ass_arg=>$ass_arg,

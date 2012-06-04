@@ -1487,6 +1487,8 @@ class AssertionCompiler(object):
             else:
                 # attribute
                 content = nodes[0]
+
+            # now look at which of the hastext assertions this is
             if op == 'hastext':
                 if content == arg:
                     return True
@@ -1495,6 +1497,11 @@ class AssertionCompiler(object):
             elif op == 'hastextfromlist':
                 words = set(shlex.split(arg))
                 if content in words:
+                    return True
+                else:
+                    return False
+            elif op == 'hastextmatching':
+                if re.search(arg, content):
                     return True
                 else:
                     return False

@@ -35,12 +35,13 @@
          section of the __machination__ worker -->
     <package id="dep1" x2a:assert="exists addlib"/>
 
-    <!-- Also depends on another providing pkg[dep2], but this time
-         use a shorthand op to write the ordered dep for us-->
-    <package id="dep2" x2a:assert="required addlib"/>
+ <!--   <package id="dep2" x2a:assert="required addlib"/> -->
 
     <!-- the package XML itself -->
-    <package id="example">
+    <!-- Also depends on another providing pkg[dep2], but this time
+         use a shorthand op to write the ordered dep for us-->
+    <package id="example"
+             x2a:assert="requires /status/worker[packageman]/package[dep2] addlib">
       <bundle id="example-1-hexdigest"/>
       <pkginfo type="simple"/>
     </package>

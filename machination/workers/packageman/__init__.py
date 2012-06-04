@@ -6,14 +6,11 @@
 
 from lxml import etree
 from machination import context
+from machination import xmltools
+from machination import platutils
 import os
 import sys
 import subprocess
-import win32security
-import win32ts
-import win32process
-import win32profile
-import win32con
 import msilib
 import wmi
 
@@ -138,8 +135,8 @@ class worker(object):
                                                           opts)
 
         if inter:
-            self.__run_as_current_user(cmd)
-            guid = self.__get_installed_guid(msipath)
+            platutils.win.run_as_current_user(cmd)
+            guid = platutils.win.get_installed_guid(msipath)
             out = self.__check_reg(msi_guid, True)
             if out:
                 out = "Installation failed."
@@ -159,7 +156,7 @@ class worker(object):
         cmd = " ".join([sys.executable, install_file])
 
         if inter:
-            self.__run_as_current_user(cmd)
+            platutils.win.run_as_current_user(cmd)
             operator = "__check_{0}".format(check[0])
             out = getattr(self, operator)(check[1], True)
             if out:
@@ -180,7 +177,7 @@ class worker(object):
         cmd = " ".join([sys.executable, install_file])
 
         if inter:
-            self.__run_as_current_user(cmd)
+            platutils.win.run_as_current_user(cmd)
             operator = "__check_{0}".format(check[0])
             out = getattr(self, operator)(check[1])
             if out:
@@ -209,7 +206,7 @@ class worker(object):
             paramlist[name] = val
 
         msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
-        guid = self.__get_installed_guid(msipath)
+        guid = platutils.win.get_installed_guid(msipath)
 
         log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
         opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
@@ -218,7 +215,7 @@ class worker(object):
                                                           opts)
 
         if inter:
-            self.__run_as_current_user(cmd)
+            platutils.win.run_as_current_user(cmd)
             out = self.__check_reg(guid)
             if out:
                 out = "Uninstallation failed."
@@ -226,15 +223,6 @@ class worker(object):
             out = subprocess.call(cmd, stdout=subprocess.PIPE)
 
         return out
-
-    def __get_installed_guid(self, msi):
-        # Open msi database read only
-        db = msilib.OpenDatabase(msi, 0)
-        v = "SELECT Value FROM Property WHERE Property='ProductCode'"
-        view = db.OpenView(v)
-        view.Execute(None)
-        result = view.Fetch()
-        return result.GetString(1)
 
     def __check_file(self, filename, invert=False):
         back = os.path.exists(filename)
@@ -268,50 +256,6 @@ class worker(object):
             return not back
         else:
             return back
-
-    def __run_as_current_user(self, cmd):
-        # Need to work out where elevate actually is. Assume for now
-        # that it's in bin_dir
-        application = None
-        elevate_path = os.path.join(context.bin_dir(), "elevate.py")
-        commandline = " ".join([sys.executable,
-                                elevate_path,
-                                "'"+cmd+"'"])
-        workingDir = None
-
-        # Find the active session
-        sessionid = win32ts.WTSGetActiveConsoleSessionId()
-
-        # Get the user token from that session
-        token = win32ts.WTSQueryUserToken(sessionid)
-
-        # We might want to load user's environment here?
-        # (win32profile.CreateEnvironmentBlock etc)
-
-
-        win32security.ImpersonateLoggedOnUser(token)
-
-        # Setup appropriate desktop and window stuff
-        si = win32process.STARTUPINFO()
-        si.lpDesktop = u'Winsta0\\default'
-
-        #Launch the user script
-
-        # This doesn't give us any means of trapping output
-        # CreateProcessAsUser returns the results of *creating* the process
-        # rather than the results of the created process.
-        win32process.CreateProcessAsUser(
-            token,
-            application,
-            commandline,
-            None,
-            None,
-            False,
-            win32con.NORMAL_PRIORITY_CLASS | win32con.CREATE_NEW_CONSOLE,
-            env,
-            workingDir,
-            si
-            )
 
     def generate_status(self):
         # Update can keep track of packages.

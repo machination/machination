@@ -19,6 +19,12 @@ __status__ = "Development"
 import sys
 import os
 import wmi
+import win32security
+import win32ts
+import win32process
+import win32profile
+import win32con
+import msilib
 
 
 def get_interactive_users():
@@ -78,3 +84,56 @@ def diskfree(disk="C"):
             return drive.freespace
     else:
         raise IndexError("Drive not found: {}".format(disk))
+
+def run_as_current_user(cmd):
+    # Need to work out where elevate actually is. Assume for now
+    # that it's in bin_dir
+    application = None
+    elevate_path = os.path.join(context.bin_dir(), "elevate.py")
+    commandline = " ".join([sys.executable,
+                            elevate_path,
+                            "'"+cmd+"'"])
+    workingDir = None
+
+    # Find the active session
+    sessionid = win32ts.WTSGetActiveConsoleSessionId()
+
+    # Get the user token from that session
+    token = win32ts.WTSQueryUserToken(sessionid)
+
+    # We might want to load user's environment here?
+    # (win32profile.CreateEnvironmentBlock etc)
+
+
+    win32security.ImpersonateLoggedOnUser(token)
+
+    # Setup appropriate desktop and window stuff
+    si = win32process.STARTUPINFO()
+    si.lpDesktop = u'Winsta0\\default'
+
+    #Launch the user script
+
+    # This doesn't give us any means of trapping output
+    # CreateProcessAsUser returns the results of *creating* the process
+    # rather than the results of the created process.
+    win32process.CreateProcessAsUser(
+        token,
+        application,
+        commandline,
+        None,
+        None,
+        False,
+        win32con.NORMAL_PRIORITY_CLASS | win32con.CREATE_NEW_CONSOLE,
+        env,
+        workingDir,
+        si
+        )
+
+def get_installed_guid(msi):
+    # Open msi database read only
+    db = msilib.OpenDatabase(msi, 0)
+    v = "SELECT Value FROM Property WHERE Property='ProductCode'"
+    view = db.OpenView(v)
+    view.Execute(None)
+    result = view.Fetch()
+    return result.GetString(1)

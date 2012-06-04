@@ -78,10 +78,6 @@ class worker(object):
     def __process(self, work, operation):
         # Prep necessary variables
         type = work.find("pkginfo").attrib["type"]
-        if (type == "msi") and (operation == "uninstall"):
-            # Get the guid from the installation file
-
-
         bundle = work.find("bundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
                                    "files",
@@ -92,7 +88,7 @@ class worker(object):
             inter = False
 
         # If it's interactive and not MSI, we need an uninstall check
-        if inter and (type not "msi"):
+        if inter and (type != "msi"):
             if not work.find("check"):
                 err = "Interactive package without installation check: "
                 err += bundle
@@ -106,7 +102,7 @@ class worker(object):
             ins_check = None
 
         # MSIs have additional options in pkginfo
-        if type = "msi":
+        if type == "msi":
             pkginfo = work.find("pkginfo")
         else:
             pkginfo = None
@@ -127,7 +123,7 @@ class worker(object):
             # If it's a transform, check that the file exists
             name = arg.attrib["name"].upper()
             val = arg.text
-            if name == "TRANSFORM"
+            if name == "TRANSFORM":
                 tr_file = os.path.join(bundle, val)
                 if not os.path.exists(tr_path):
                     return "Transform file not found: " + tr_path
@@ -206,7 +202,7 @@ class worker(object):
             # If it's a transform, check that the file exists
             name = arg.attrib["name"].upper()
             val = arg.text
-            if name == "TRANSFORM"
+            if name == "TRANSFORM":
                 tr_file = os.path.join(bundle, val)
                 if not os.path.exists(tr_path):
                     return "Transform file not found: " + tr_path
@@ -265,12 +261,12 @@ class worker(object):
 
             if key in names:
                 back = True
-            else
+            else:
                 back = False
 
         if invert:
             return not back
-        else
+        else:
             return back
 
     def __run_as_current_user(self, cmd):

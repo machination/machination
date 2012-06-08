@@ -5,7 +5,7 @@
 
 from lxml import etree
 import wmi
-import machination
+from machination import context
 import os
 
 
@@ -13,7 +13,7 @@ class worker(object):
     "Manipulates environment variables in Windows."
 
     r = None
-    
+
     #Define a shorthand constant for HKLM.
     __HLKM = 2147483650
     envloc = "system\currentcontrolset\control\session manager\environment"
@@ -69,21 +69,27 @@ class worker(object):
         if result:
             msg = "Could not set {0} to {1}".format(varname, val)
             ext_msg = msg + "Error code: {}".format(result)
-            wmsg(message)
-            dmsg(ext_msg)
+            context.emsg(message)
+            context.dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:
             res.attrib["status"] = "success"
         return res
 
-    def __modify(self, work):
+    def __datamod(self, work):
         "Change existing environment variables"
         # Given that modifications to multi-vars are done in statuscompare
         # as <var> is the wu-tag, for registry entries, modify == add.
         return self.__add(work)
 
-    def __order(self, work):
+    def __deepmod(self, work):
+        "Change existing environment variables"
+        # Given that modifications to multi-vars are done in statuscompare
+        # as <var> is the wu-tag, for registry entries, modify == add.
+        return self.__add(work)
+
+    def __move(self, work):
         pass
 
     def __remove(self, work):
@@ -91,7 +97,7 @@ class worker(object):
         # If we don't have notpres=1, it's an environment var that Machination
         # doesn't care about, so we just report a success
         if not work[1].attrib["notpres"]:
-            res = etree.element("wu", id=work.attrib["id"], status="success")
+            res = etree.Element("wu", id=work.attrib["id"], status="success")
             return res
 
         # Since we actually care about it, get the variable name from the
@@ -106,8 +112,8 @@ class worker(object):
         if result:
             msg = "Could not remove environment variable {}".format(varname)
             ext_msg = msg + "Error code: {}".format(result)
-            wmsg(message)
-            dmsg(ext_msg)
+            context.emsg(message)
+            context.dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:
@@ -138,7 +144,7 @@ class worker(object):
         [result, names, types] = r.EnumValues(hDefKey=__HKLM,
                                               sSubKeyName=envloc)
         if result:
-            emsg("Could not parse environment vars: {0}".format(result))
+            context.emsg("Could not parse environment vars: {0}".format(result))
 
         for key, type in zip(names, types):
             method = "Get{0}Value".format(methods(type))
@@ -146,7 +152,7 @@ class worker(object):
                                                sSubKeyName=envloc,
                                                sValueName=key)
             if result:
-                emsg("Could not get {0} value: {1}".format(key, result))
+                context.emsg("Could not get {0} value: {1}".format(key, result))
             else:
                 env[key] = [methods(type), value]
         return env

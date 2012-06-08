@@ -35,7 +35,7 @@ class worker(object):
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
+                                             prefix='/status')
         self.r = wmi.Registry()
 
     def do_work(self, work_list):

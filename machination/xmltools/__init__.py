@@ -36,12 +36,13 @@ import hashlib
 
 # see if functools.lru_cache is defined
 try:
-    getattr(functools,'lru_cache')
+    getattr(functools, 'lru_cache')
 except AttributeError:
     from machination import threebits
     functools.lru_cache = threebits.lru_cache
 
-def pstring(e, top = True, depth = 0, istring = '  '):
+
+def pstring(e, top=True, depth=0, istring='  '):
     """pretty string representation of an etree element"""
     rep = []
     rep.append('{}<{}'.format(istring * depth, e.tag))
@@ -60,6 +61,7 @@ def pstring(e, top = True, depth = 0, istring = '  '):
     if not top:
         rep.append("\n")
     return ''.join(rep)
+
 
 def generate_wus(todo, comp, orderstyle="move"):
     """Return a list of workunits from todo list guided by template.
@@ -177,7 +179,7 @@ def generate_wus(todo, comp, orderstyle="move"):
             raise Exception("could not find %s in working or template " %
                             mx.to_abbrev_xpath())
 
-        for se in e.iter(tag = etree.Element):
+        for se in e.iter(tag=etree.Element):
             se_mrx = MRXpath(se)
             if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
                 # se must have a more specific workunit than mx,
@@ -220,7 +222,7 @@ def generate_wus(todo, comp, orderstyle="move"):
                 parent.insert(parent.index(prevwe) + 1, se)
 
         # check for elements in template but not working
-        for ste in te.iter(tag = etree.Element):
+        for ste in te.iter(tag=etree.Element):
             try:
                 se = working.xpath(MRXpath(ste).to_xpath())[0]
             except IndexError:
@@ -258,7 +260,7 @@ def generate_wus(todo, comp, orderstyle="move"):
     # add and reorder
     # iterate over elements in template and see if working needs them
     # added or moved.
-    for te in template.iter(tag = etree.Element):
+    for te in template.iter(tag=etree.Element):
         tmrx = MRXpath(te)
         if tmrx.to_xpath() not in todo:
             continue
@@ -370,6 +372,7 @@ def generate_wus(todo, comp, orderstyle="move"):
     # these are the droids you are looking for...
     return wus, working
 
+
 def closest_shared_previous(working, template, xp):
     """find the closest sibling in working that is prior to xpath xp in template"""
     xp = MRXpath(xp)
@@ -404,11 +407,11 @@ class MRXpath(object):
     # A quick lexer, trick found at
     # http://www.evanfosmark.com/2009/02/sexy-lexing-with-python/
     # Thanks for your article Evan
-    def token_qstring(scanner,token): return "QSTRING", token[1:-1]
-    def token_sep(scanner,token): return "SEP", token
-    def token_bracket(scanner,token): return "BRACKET", token
+    def token_qstring(scanner, token): return "QSTRING", token[1:-1]
+    def token_sep(scanner, token): return "SEP", token
+    def token_bracket(scanner, token): return "BRACKET", token
     def token_op(scanner, token): return "OP", token
-    def token_at(scanner,token): return "AT", token
+    def token_at(scanner, token): return "AT", token
     def token_name_or_id(scanner, token):
         if re.search(token, r'[\.]'):
             return "ID", token
@@ -427,7 +430,7 @@ class MRXpath(object):
     def __init__(self, path=None, att=None):
         self.set_path(path, att)
 
-    def set_path(self, path, att = None):
+    def set_path(self, path, att=None):
         """Set representation based on ``path``
 
         calling options, elements::
@@ -456,7 +459,7 @@ class MRXpath(object):
             tokens, remainder = MRXpath.scanner.scan(path)
             if tokens[0][0] == "SEP":
                 # rooted xpath, need an empty name to start
-                working = [('NAME','')]
+                working = [('NAME', '')]
             else:
                 working = []
             for token in tokens:
@@ -508,7 +511,7 @@ class MRXpath(object):
                     raise Exception("expecting a QSTRING at element 5 of " +
                                     str(tokens) + " got " + str(tokens[5]))
                 idname = tokens[5][1]
-                return [name,idname]
+                return [name, idname]
             else:
                 # expecting:
                 #  [NAME,BRACKET,QSTRING|NAME|ID,BRACKET]
@@ -525,7 +528,7 @@ class MRXpath(object):
                                     "element 2 of " +
                                     str(tokens) + " got " + str(tokens[2]))
                 idname = tokens[2][1]
-                return [name,idname]
+                return [name, idname]
         elif tokens[0][0] == "AT":
             # an attribute, the next token should be the name
             return ["@" + tokens[1][1]]
@@ -549,6 +552,7 @@ class MRXpath(object):
 
     def __eq__(self, other):
         return self.to_xpath() == other.to_xpath()
+
     def __ne__(self, other):
         return self.to_xpath() != other.to_xpath()
 
@@ -629,7 +633,7 @@ class MRXpath(object):
         self._clear_cache()
         if len(self.rep) > 0:
             if self.rep[0][0] != '':
-                self.rep.insert(0,[''])
+                self.rep.insert(0, [''])
         else:
             self.rep = [['']]
         return self
@@ -637,7 +641,7 @@ class MRXpath(object):
     def parent(self):
         """return MRXpath of parent element of rep or None"""
         if len(self.rep) == 2: return None
-        return self[:len(self)-1]
+        return self[:len(self) - 1]
 
     def ancestors(self):
         """return a list of ancestors as MRXpath objects (parent first)"""
@@ -659,9 +663,9 @@ class MRXpath(object):
         """return MRXpath object representing the last item in this rep"""
         return MRXpath(self.rep[-1])
 
-    def item(self,n):
+    def item(self, n):
         """return MRXpath object representing item n in the rep"""
-        return MRXpath(self.rep[0:n+1])
+        return MRXpath(self.rep[0:n + 1])
 
     def name(self):
         """return the name of the object"""
@@ -685,29 +689,29 @@ class MRXpath(object):
     def to_xpath(self):
         """return xpath string"""
         if self.xp_cache is None:
-            self.xp_cache = "/".join([ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
+            self.xp_cache = "/".join(["%s[@id='%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep])
         return self.xp_cache
 
-    @functools.lru_cache(maxsize = None)
+    @functools.lru_cache(maxsize=None)
     def to_abbrev_xpath(self):
         """return Machination abbreviated xpath string"""
-        return "/".join([ "%s['%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep])
+        return "/".join(["%s['%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep])
 
-    @functools.lru_cache(maxsize = None)
+    @functools.lru_cache(maxsize=None)
     def to_noid_path(self):
         """return xpath with no ids"""
         return "/".join([e[0] for e in self.rep])
 
-    @functools.lru_cache(maxsize = None)
+    @functools.lru_cache(maxsize=None)
     def to_xpath_list(self):
         """return list of xpath path elements"""
-        return [ "%s[@id='%s']" % (e[0],e[1]) if len(e)==2 else e[0] for e in self.rep]
+        return ["%s[@id='%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep]
 
     def strip_prefix(self, prefix):
         prefix = MRXpath(prefix)
         return self[len(prefix):].reroot()
 
-    def workername(self, prefix = None):
+    def workername(self, prefix=None):
         """return worker name for an xpath with prefix before worker element"""
         xpath = self
         if prefix is not None:
@@ -745,7 +749,7 @@ class MRXpath(object):
 class Status(object):
     """Encapsulate a status XML element and functionality to manipulate it"""
 
-    def __init__(self, statin, worker_prefix = None):
+    def __init__(self, statin, worker_prefix=None):
         if isinstance(statin, str):
             self.status = etree.fromstring(statin)
         elif isinstance(statin, etree._Element):
@@ -779,7 +783,6 @@ class Status(object):
                 raise Exception("The MRXpath 'mrx' must reference only one element")
             elt = elts[0]
 
-
     def find_temp_desired(self, wus, template):
         working = Status(self)
         working.apply_wus(wus)
@@ -790,12 +793,12 @@ class Status(object):
         """Apply a work unit to self.status"""
         pass
 
-    def apply_wus(self,wus):
+    def apply_wus(self, wus):
         """Iterate over wus, applying them to self.status"""
         for wu in wus:
             self.apply_wu(wu)
 
-    def add(self, elt, mrx, position = "<last>"):
+    def add(self, elt, mrx, position="<last>"):
         """Add an element to parent specified by mrx
 
         position should normally be a single element MRXpath like:
@@ -816,7 +819,7 @@ class Status(object):
         """
         pass
 
-    def order_after(self, mrx , afterid = ["LAST"]):
+    def order_after(self, mrx, afterid=["LAST"]):
         """place element specified by mrx after sibling with id"""
         pass
 
@@ -923,7 +926,7 @@ class WorkerDescription:
         'wu': 'https://github.com/machination/ns/workunit',
         'info': 'https://github.com/machination/ns/info'}
 
-    def __init__(self, workername, prefix = None):
+    def __init__(self, workername, prefix=None):
         """WorkerDescription init
 
         Args:
@@ -942,7 +945,7 @@ class WorkerDescription:
 
         self.__clear()
 
-        if isinstance(workername,str):
+        if isinstance(workername, str):
             self.workername = workername
             # try to find the description file
             descfile = os.path.join(utils.worker_dir(workername),
@@ -1158,7 +1161,7 @@ class XMLCompare(object):
         self.compare()
         context.logger.dmsg('XMLCompare object created')
 
-    @functools.lru_cache(maxsize = None)
+    @functools.lru_cache(maxsize=None)
     def actions(self):
         """return dictionary of sets as {action: {xpaths}}"""
         actions = {self.diff_to_action[s]: self.find_work() & self.bystate[s] for s in ['left', 'right', 'datadiff', 'childdiff', 'orderdiff']}
@@ -1168,18 +1171,18 @@ class XMLCompare(object):
     def compare(self):
         """Compare the xpath sets and generate a diff dict"""
 
-        for elt in self.leftxml.iter(tag = etree.Element):
+        for elt in self.leftxml.iter(tag=etree.Element):
             self.leftset.add(MRXpath(elt).to_xpath())
             for att in elt.keys():
                 if att == "id":
                     continue
-                self.leftset.add(MRXpath(elt,att=att).to_xpath())
-        for elt in self.rightxml.iter(tag = etree.Element):
+                self.leftset.add(MRXpath(elt, att=att).to_xpath())
+        for elt in self.rightxml.iter(tag=etree.Element):
             self.rightset.add(MRXpath(elt).to_xpath())
             for att in elt.keys():
                 if att == "id":
                     continue
-                self.rightset.add(MRXpath(elt,att=att).to_xpath())
+                self.rightset.add(MRXpath(elt, att=att).to_xpath())
 
         self.universalset = self.leftset | self.rightset
 
@@ -1272,7 +1275,7 @@ class XMLCompare(object):
             self._set_childdiff(p)
 
     @functools.lru_cache(maxsize=100)
-    def find_work(self, prefix = "/status"):
+    def find_work(self, prefix="/status"):
         """return a set of all wus for all diff xpaths in all workers
 
         Args:
@@ -1285,7 +1288,7 @@ class XMLCompare(object):
 
         return {self.wds(prefix)[MRXpath(x)[wi].id()].find_workunit(x) for x in diffs if x.startswith(prefix + "/worker")}
 
-    def wds(self, prefix = "/status"):
+    def wds(self, prefix="/status"):
         """create a dictionary of WorkerDescriptions"""
 
         # find all the workers that are mentioned
@@ -1409,6 +1412,7 @@ class XMLCompare(object):
 
         return topdeps
 
+
 class AssertionCompiler(object):
     """Compile XML assertions into a document"""
 
@@ -1493,7 +1497,7 @@ class AssertionCompiler(object):
                 continue
             if not self.try_assert(a):
                 fname = "action_{}".format(a['action_op'])
-                poldir = self.get_poldir(a,mpolicies)
+                poldir = self.get_poldir(a, mpolicies)
                 getattr(self, fname)(a, res_idx, poldir, stack)
         return self.doc, res_idx
 
@@ -1622,9 +1626,8 @@ class AssertionCompiler(object):
 
         mpath = MRXpath(mpath)
 
-
     def action_create(self, a, res_idx, poldir, stack,
-                      record_index = True):
+                      record_index=True):
         """Create an element or attribute"""
 
         mpath = MRXpath(a['mpath'])
@@ -1731,7 +1734,7 @@ class AssertionCompiler(object):
                                res_idx,
                                poldir,
                                stack,
-                               record_index = False)
+                               record_index=False)
             nodes = self.doc.xpath(mpath.to_xpath())
 
         # default to the assertion argument if the action argument is
@@ -1799,7 +1802,7 @@ class AssertionCompiler(object):
         """Add a library item"""
 
         # don't try to add a library item we've added before
-        itemidtext = '{} {} {}'.format(a['mpath'],a['ass_op'],a['ass_arg'])
+        itemidtext = '{} {} {}'.format(a['mpath'], a['ass_op'], a['ass_arg'])
         itemid = hashlib.sha256(itemidtext.encode('utf8')).hexdigest()
         itemxp = '/status/__scratch__/libAdded/item[@id="{}"]'.format(itemid)
         if len(self.doc.xpath(itemxp)) != 0:
@@ -1834,5 +1837,3 @@ class AssertionCompiler(object):
                            res_idx,
                            poldir,
                            stack)
-
-

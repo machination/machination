@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import unittest
-import inspect, os, shutil, pprint, copy
+import inspect
+import os
 from lxml import etree
 from lxml.builder import E
 
@@ -9,6 +10,7 @@ myfile = inspect.getfile(inspect.currentframe())
 mydir = os.path.dirname(inspect.getfile(inspect.currentframe()))
 os.environ['MACHINATION_BOOTSTRAP_DIR'] = mydir
 from machination import context
+
 
 class LoggerTestCase(unittest.TestCase):
 

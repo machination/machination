@@ -29,6 +29,7 @@ from machination import context
 
 __all__ = ['machination_id', 'machination_path']
 
+
 def _get_exports_list(module):
     try:
         return list(module.__all__)
@@ -48,6 +49,7 @@ elif 'nt' in sys.builtin_module_names:
 
 # Now for platform-independent stuff...
 
+
 def machination_id(self, serviceid):
     """Returns the machination id for the specified serviceid."""
 
@@ -58,7 +60,8 @@ def machination_id(self, serviceid):
         # Xpath didn't return anything
         raise IndexError("XPath error: Could not trace machination id: {}".format(serviceid))
 
-def worker_dir(name = None):
+
+def worker_dir(name=None):
     if name is None:
         return workers_dir
     return os.path.join(workers_dir, name)

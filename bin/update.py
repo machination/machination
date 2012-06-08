@@ -12,9 +12,10 @@ from lxml import etree
 
 workers = {}
 
+
 class OLWorker:
 
-    def __init__(self,wid):
+    def __init__(self, wid):
         self.wid = wid
         self.progdir = context.config.xpath("/config/workers")[0].get("progdir")
         for f in os.listdir(self.progdir):
@@ -24,12 +25,13 @@ class OLWorker:
                 break
         if self.progfile == None:
             raise Exception("No worker named " + wid)
-        
+
     def generate_status(self):
         pass
 
-    def do_work(self,wus):
+    def do_work(self, wus):
         pass
+
 
 def main(args):
     # initialise from config
@@ -52,14 +54,13 @@ def main(args):
         # stitch them together into a big status document for later
         # comparison
         cst_elt.append(wcst_elt)
-    
 
     # find work
-    xmlcmp = xmltools.XMLCompare(dst_elt,cst_elt,workerdesc)
+    xmlcmp = xmltools.XMLCompare(dst_elt, cst_elt, workerdesc)
     xmlcmp.compare()
     xmlcmp.find_work()
     stdeps = dst_elt.xpath("/status/deps/dep")
-    wudeps = xmlcmp.dependencies_state_to_wu(stdeps,xmlcmp.worklist,xmlcmp.byxpath)
+    wudeps = xmlcmp.dependencies_state_to_wu(stdeps, xmlcmp.worklist, xmlcmp.byxpath)
     first = True
     previous_failures = set()
     for i_workset in iter(topsort.topsort_levels(wudeps)):
@@ -67,7 +68,7 @@ def main(args):
 
         # wuwus that aren't mentioned in wudeps should be in the
         # first i_workset
-        if(first):
+        if first:
             first = False
             i_workset = i_workset.union(find_nodeps(xmlcmp.worklist, wudeps))
 
@@ -79,6 +80,7 @@ def main(args):
         previous_failures = previous_failures.union(results.failures())
 
     # gather resultant_status
+
 
 def spawn_work(parcels):
     """Take a work parcels dictionary and do the work"""
@@ -97,11 +99,12 @@ def spawn_work(parcels):
           # if sibling in both but wrong position:
             # find correct move/reorder instruction
 
+
 def get_worker(welt):
     wid = welt.get("id")
     if wid in workers:
         return workers[wid]
-    
+
     try:
         w = __import__("workers." + wid)
     except ImportError as e:
@@ -114,10 +117,11 @@ def get_worker(welt):
                 logger.emsg("No worker %s, giving up!" % wid)
                 raise
 
+
 def generate_base_status():
     elt = etree.Element("status")
     return elt
-    
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

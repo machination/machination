@@ -26,15 +26,18 @@ def get_interactive_users():
 
     pass
 
+
 def is_interactive():
     """Simple truthiness boolean for when returning the full set of
     get_interactive_users() would be overkill"""
     return bool(get_interactive_users())
 
+
 def runner(cmd, **kwargs):
     """Runs an arbitrary external command"""
 
     return subprocess.check_output(cmd)
+
 
 def diskfree(disk="/"):
     """Checks free space on the specified disk"""

@@ -3,9 +3,10 @@
 from lxml import etree
 from machination import context
 from machination import xmltools
-import os, shutil
+import os
+import shutil
 import errno
-import sys
+
 
 class Worker(object):
     """Test of order preservation
@@ -85,7 +86,7 @@ class Worker(object):
 
     """
 
-    def __init__(self, datadir = None):
+    def __init__(self, datadir=None):
         if datadir:
             self.datadir = datadir
         else:
@@ -93,9 +94,9 @@ class Worker(object):
                                         'workers',
                                         'dummyordered')
         self.wd = xmltools.WorkerDescription("dummyordered",
-                                             prefix = '/status')
+                                             prefix='/status')
         self.pdb = pretend_db(os.path.join(self.datadir, "pdb"))
-        self.pc = pretend_config(os.path.join(self.datadir,"conf.txt"))
+        self.pc = pretend_config(os.path.join(self.datadir, "conf.txt"))
 
         self.dispatch = {
             '/status/worker/sysitem': self.handle_ordered,
@@ -105,7 +106,7 @@ class Worker(object):
 
     def generate_status(self):
         w_elt = etree.Element("worker")
-        w_elt.set("id","dummyordered")
+        w_elt.set("id", "dummyordered")
 
         # <sysitem> elements first from pretend_db
         cur_id = self.pdb.get_next(None)
@@ -125,7 +126,7 @@ class Worker(object):
         dic = {}
         try:
             for f in os.listdir(fpath):
-                with open(os.path.join(fpath,f)) as fd:
+                with open(os.path.join(fpath, f)) as fd:
                     dic[f] = fd.readline().rstrip("\r\n")
         except OSError as e:
             pass
@@ -134,7 +135,6 @@ class Worker(object):
             no_elt = etree.SubElement(w_elt, "notordered")
             no_elt.set("id", key)
             no_elt.text = dic[key]
-
 
         return w_elt
 
@@ -180,7 +180,7 @@ class Worker(object):
         op = wu.get('op')
         fname = xmltools.MRXpath(wu.get('id')).id()
         if op == 'add' or op == 'datamod':
-            with open(os.path.join(self.datadir,"files", fname), "w") as f:
+            with open(os.path.join(self.datadir, "files", fname), "w") as f:
                 f.write(wu[0].text + "\n")
         elif op == 'remove':
             os.unlink(os.path.join(self.datadir, 'files', fname))
@@ -197,7 +197,7 @@ class Worker(object):
             if e.errno != errno.ENOENT:
                 raise
 
-    def set_status(self,status):
+    def set_status(self, status):
         # make sure we start from scratch
         self.clear_data()
 
@@ -221,10 +221,11 @@ class Worker(object):
             self.pc.from_xml(status.xpath("tofile")[0])
 
         # create the unordered files
-        os.makedirs(os.path.join(self.datadir,"files"))
+        os.makedirs(os.path.join(self.datadir, "files"))
         for elt in status.xpath("notordered"):
-            with open(os.path.join(self.datadir,"files",elt.get("id")), "w") as f:
+            with open(os.path.join(self.datadir, "files", elt.get("id")), "w") as f:
                 f.write(elt.text + "\n")
+
 
 class pretend_config(object):
     """adaptor to a pretend config file format::
@@ -236,7 +237,7 @@ class pretend_config(object):
       ...
     """
 
-    def __init__(self, path = None):
+    def __init__(self, path=None):
         if path is None:
             self.path = "/tmp/machination/dummyordered/conf.txt"
         else:
@@ -250,12 +251,12 @@ class pretend_config(object):
                 delt = etree.Element("directive")
                 elt.append(delt)
                 delt.text = directive
-                f.readline() # [items]
+                f.readline()  # [items]
                 line = f.readline()
                 while line != '':
                     itid, text = line.rstrip("\r\n").split(":")
                     item_elt = etree.SubElement(elt, "item")
-                    item_elt.set("id",itid)
+                    item_elt.set("id", itid)
                     item_elt.text = text
                     line = f.readline()
         except IOError as e:
@@ -271,12 +272,13 @@ class pretend_config(object):
                 f.write("directive:" + delt[0].text + "\n")
             f.write("[items]\n")
             for item in items:
-                f.write("{}:{}\n".format(item.get("id"),item.text))
+                f.write("{}:{}\n".format(item.get("id"), item.text))
+
 
 class pretend_db(object):
     "a pretend database where the the items 'sysitem' elements represent go"
 
-    def __init__(self, directory = None):
+    def __init__(self, directory=None):
         if directory is None:
             self.dir = "/tmp/machination/dummyordered/pdb"
         else:
@@ -296,7 +298,7 @@ class pretend_db(object):
 
     def clear(self):
         for f in os.listdir(self.datadir):
-            os.unlink(os.path.join(self.datadir,f))
+            os.unlink(os.path.join(self.datadir, f))
         try:
             os.remove(self.start)
         except OSError as e:
@@ -311,7 +313,7 @@ class pretend_db(object):
             cid = int(c.readline())
             c.seek(0)
             c.truncate()
-            c.write(str(cid+1)+"\n")
+            c.write(str(cid + 1) + "\n")
         return str(cid)
 
     def get_start(self):
@@ -324,7 +326,7 @@ class pretend_db(object):
                 return self.endstr
 
     def get_contents(self, anid):
-        with open(os.path.join(self.datadir,str(anid))) as f:
+        with open(os.path.join(self.datadir, str(anid))) as f:
             text = f.readline().rstrip("\r\n")
             next = f.readline().rstrip("\r\n")
         return text, next
@@ -358,10 +360,10 @@ class pretend_db(object):
                 last_id = cur_id
         return last_id
 
-    def change_tail(self,eid,newnext):
+    def change_tail(self, eid, newnext):
         if eid is None:
             # change the start file
-            with open(self.start,"w") as s:
+            with open(self.start, "w") as s:
                 s.write(newnext + "\n")
         else:
             text, next = self.get_contents(eid)
@@ -369,13 +371,13 @@ class pretend_db(object):
                 p.write(text + "\n")
                 p.write(newnext + "\n")
 
-    def create_elt(self,text,next):
+    def create_elt(self, text, next):
         newid = self.get_id()
         self.write_elt(newid, text, next)
         return newid
 
-    def write_elt(self,eid,text,next):
-        with open(os.path.join(self.datadir,eid),"w") as f:
+    def write_elt(self, eid, text, next):
+        with open(os.path.join(self.datadir, eid), "w") as f:
             f.write(text + "\n")
             f.write(next + "\n")
 
@@ -409,7 +411,7 @@ class pretend_db(object):
             cur_id = self.get_next(cur_id)
             if cur_id == self.endstr:
                 # uh oh - run out of list
-                raise Exception("ran off end of list at index %d looking for %s" % (index,eid))
+                raise Exception("ran off end of list at index %d looking for %s" % (index, eid))
             index = index + 1
         return index
 

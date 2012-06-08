@@ -28,6 +28,7 @@ class fetcher(object):
         with open(self.config.xpath('cache/location')[0].text, 'wb') as o:
             o.write(f.read())
 
+
 def main(args):
     pass
 

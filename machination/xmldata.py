@@ -26,29 +26,31 @@ Dictionary (hash in perl):
 """
 from lxml import etree
 
+
 def to_xml(thing):
     """Return etree element representing thing."""
     elt = etree.Element("tmp")
 
     if thing is None:
-        elt.tag='u'
-    elif isinstance(thing,str) or isinstance(thing, int):
-        elt.tag="s"
-        elt.text=str(thing)
-    elif isinstance(thing,list):
-        elt.tag="a"
+        elt.tag = 'u'
+    elif isinstance(thing, str) or isinstance(thing, int):
+        elt.tag = "s"
+        elt.text = str(thing)
+    elif isinstance(thing, list):
+        elt.tag = "a"
         for item in thing:
             elt.append(to_xml(item))
-    elif isinstance(thing,dict):
-        elt.tag="h"
-        for k,v in thing.items():
-            etree.SubElement(elt,"k",id=k).append(to_xml(v))
+    elif isinstance(thing, dict):
+        elt.tag = "h"
+        for k, v in thing.iteritems():
+            etree.SubElement(elt, "k", id=k).append(to_xml(v))
     else:
         raise Exception(
             "don't know how to turn a {} into XML".format(type(thing))
             )
 
     return elt
+
 
 def from_xml(elt):
     """Return python data represented by elt."""

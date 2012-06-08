@@ -14,11 +14,11 @@ from platform import uname
 
 
 class worker(object):
-    
+
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
+                                             prefix='/status')
         u = {}
 
         sp_users = ("Administrator",
@@ -37,7 +37,6 @@ class worker(object):
                      "Users",
                      "HelpServicesGroup")
 
-        
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
@@ -67,12 +66,12 @@ class worker(object):
 
     def __mod_user(self, user, expire, description):
         info = win32net.NetUserGetInfo(None, user, 3)
-        
+
         if expire is not None:
             info["flags"] |= win32netcon.UF_DONT_EXPIRE_PASSWD
         if description is not None:
             info["description"] = description
-            
+
         try:
             win32net.NetUserSetInfo(None, user, 3, info)
             return None
@@ -139,7 +138,7 @@ class worker(object):
         ug_info = {"domainandname": userstring}
 
         try:
-            win32net.NetLocalGroupAddMembers(None, group, 3,[ug_info])
+            win32net.NetLocalGroupAddMembers(None, group, 3, [ug_info])
             return None
         except win32net.error as error:
             errno, errctx, errmsg = error.args
@@ -153,12 +152,12 @@ class worker(object):
 
         ug_info = {"domainandname": userstring}
         try:
-            win32net.NetLocalGroupDelMembers(None, group, 3,[ug_info])
+            win32net.NetLocalGroupDelMembers(None, group, 3, [ug_info])
             return None
         except win32net.error as error:
             errno, errctx, errmsg = error.args
             return errmsg
-    
+
     def __get_group_name(self, xpath):
         mrx = machination.xmltools.MRXpath(xpath)
         mrx = mrx.parent()
@@ -179,7 +178,7 @@ class worker(object):
         elif work[0].tag == "member":
             group = self.__get_group_name(work.attrib["id"])
             test = self.__check_group(group)
-            
+
             if not test:
                 m_name = work[0].attrib["id"]
                 if "domain" in work[0].attrib:
@@ -193,7 +192,7 @@ class worker(object):
             emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
-            
+
         return res
 
     def __remove(self, work):
@@ -229,7 +228,7 @@ class worker(object):
 
         # As far as I can work out, we can only modify users, not groups
         if work[0].tag == "member":
-            test = "Can't modify group, only add or remove members" 
+            test = "Can't modify group, only add or remove members"
         else:
             c = wmi.WMI()
             [user] = c.Win32_UserAccount(LocalAccount=True,
@@ -260,7 +259,7 @@ class worker(object):
         c = wmi.WMI()
         w_elt = etree.Element("usergroup")
         sysname = uname()[1]
-        
+
         # Build a list of local group elements
         for group in c.Win32_Group(LocalAccount=True):
             g_elt = etree.Element("group")
@@ -277,10 +276,11 @@ class worker(object):
                     m_elt.attrib["domain"] = domname[0]
                 m_elt.attrib["id"] = domname[1]
                 g_elt.append(m_elt)
-                
+
             # We're only interested in groups with members
-            if len(g_elt) > 0: w_elt.append(g_elt)
-        
+            if len(g_elt) > 0:
+                w_elt.append(g_elt)
+
         # Iterate over local user elements only
         for user in c.Win32_UserAccount(LocalAccount=True):
             u_elt = etree.Element("user")
@@ -292,4 +292,3 @@ class worker(object):
             w_elt.append(u_elt)
 
         return w_elt
-        

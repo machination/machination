@@ -20,9 +20,10 @@ import pprint
 
 l = context.logger
 
+
 class Update(object):
 
-    def __init__(self, initial_status = None, desired_status = None):
+    def __init__(self, initial_status=None, desired_status=None):
         self.workers = {}
         self._initial_status = initial_status
         self._desired_status = desired_status
@@ -31,12 +32,12 @@ class Update(object):
     def do_update(self):
         """Perform an update cycle"""
         self.results = None
-        l.dmsg('desired:\n%s' % pstring(self.desired_status()),10)
-        l.dmsg('initial:\n%s' % pstring(self.initial_status()),10)
+        l.dmsg('desired:\n%s' % pstring(self.desired_status()), 10)
+        l.dmsg('initial:\n%s' % pstring(self.initial_status()), 10)
 
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate),6)
+        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate), 6)
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
         except IndexError:
@@ -153,6 +154,7 @@ class Update(object):
     def process_results(self, res, workelt):
         pass
 
+
 class WorkerError(Exception):
     def __init__(self, wname, epy, eol):
         Exception.__init__(self, wname, epy, eol)
@@ -162,6 +164,7 @@ class WorkerError(Exception):
 
     def __str__(self):
         return 'Could not load worker "{}" as python module or OL worker:\n\nPython import error:\n{}\n\nOL worker error:\n{}'.format(self.wname, self.epy, self.eol)
+
 
 class OLWorker(object):
     """Other Language Worker: wrapper for workers not in python."""

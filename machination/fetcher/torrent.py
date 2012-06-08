@@ -24,6 +24,7 @@ class fetcher(object):
     def fetch(self, bundle):
         pass
 
+
 def main(args):
     pass
 

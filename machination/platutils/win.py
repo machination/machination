@@ -54,10 +54,12 @@ def get_interactive_users():
 
     return logged_on
 
+
 def is_interactive():
     """Simple truthiness boolean for when returning the full set of
     get_interactive_users() would be overkill"""
     return bool(get_interactive_users())
+
 
 def runner(cmd, **kwargs):
     "Runs an arbitrary external command in Windows via runner.exe"
@@ -74,6 +76,7 @@ def runner(cmd, **kwargs):
 
     return os.popen(command).readlines()
 
+
 def diskfree(disk="C"):
     "Checks free space on the specified disk in Windows"
 
@@ -85,6 +88,7 @@ def diskfree(disk="C"):
     else:
         raise IndexError("Drive not found: {}".format(disk))
 
+
 def run_as_current_user(cmd):
     # Need to work out where elevate actually is. Assume for now
     # that it's in bin_dir
@@ -92,7 +96,7 @@ def run_as_current_user(cmd):
     elevate_path = os.path.join(context.bin_dir(), "elevate.py")
     commandline = " ".join([sys.executable,
                             elevate_path,
-                            "'"+cmd+"'"])
+                            "'" + cmd + "'"])
     workingDir = None
 
     # Find the active session
@@ -103,7 +107,6 @@ def run_as_current_user(cmd):
 
     # We might want to load user's environment here?
     # (win32profile.CreateEnvironmentBlock etc)
-
 
     win32security.ImpersonateLoggedOnUser(token)
 
@@ -128,6 +131,7 @@ def run_as_current_user(cmd):
         workingDir,
         si
         )
+
 
 def get_installed_guid(msi):
     # Open msi database read only

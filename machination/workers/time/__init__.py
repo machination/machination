@@ -10,6 +10,7 @@ from lxml import etree
 from os import popen
 import machination
 
+
 class worker(object):
     #Define a shorthand constant for HKLM.
     sync_map = {"NTP": "MANUAL",
@@ -17,12 +18,12 @@ class worker(object):
                 "AllSync": "ALL",
                 "NoSync": "NO"}
     cmd = "w32tm"
-    
+
     def __init__(self, logger):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
-                                              
+                                             prefix='/status')
+
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
@@ -33,7 +34,7 @@ class worker(object):
         command = "net stop w32time && net start w32time"
         stream = popen(command)
         return result
-    
+
     def __add(self, work):
         # Add can only be called on ManualPeerList
         res = etree.element("wu", id=work.attrib["id"])

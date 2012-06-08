@@ -4,6 +4,7 @@ from collections import OrderedDict, namedtuple
 
 _CacheInfo = namedtuple("CacheInfo", "hits misses maxsize currsize")
 
+
 def lru_cache(maxsize=100):
     """replacement lru_cache
 
@@ -12,6 +13,7 @@ def lru_cache(maxsize=100):
     # we don't actuall honour maxsize - it's only there to keep the API
     # compatible
     maxsize = None
+
     def decorating_function(user_function,
                             tuple=tuple,
                             sorted=sorted,
@@ -19,9 +21,8 @@ def lru_cache(maxsize=100):
                             KeyError=KeyError):
         info = {'hits': 0, 'misses': 0}
         kwd_mark = (object(),)   # separates positional and keyword args
-
-
         cache = dict()
+
         @functools.wraps(user_function)
         def wrapper(*args, **kwds):
             key = args

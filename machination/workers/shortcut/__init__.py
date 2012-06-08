@@ -34,7 +34,7 @@ class worker(object):
     def __init__(self, logger):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
+                                             prefix='/status')
         shell = win32com.client.Dispatch("WScript.Shell")
 
     def do_work(self, work_list):

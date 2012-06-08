@@ -1,7 +1,10 @@
 #!/usr/bin/python
 
 import unittest
-import inspect, os, shutil, pprint, copy
+import inspect
+import os
+import pprint
+import copy
 from lxml import etree
 from lxml.builder import E
 
@@ -14,6 +17,7 @@ from machination.xmltools import WorkerDescription
 from machination.xmltools import Status
 from machination.xmltools import XMLCompare
 from machination.xmltools import generate_wus
+
 
 class MRXpathTestCase(unittest.TestCase):
 
@@ -36,8 +40,8 @@ class MRXpathTestCase(unittest.TestCase):
 
     def test_sequence_getone(self):
         mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
-        self.assertEqual(str(mrx[0]),"a")
-        self.assertEqual(str(mrx[2]),'c[@id=\'/d/e[@id="1"]\']')
+        self.assertEqual(str(mrx[0]), "a")
+        self.assertEqual(str(mrx[2]), 'c[@id=\'/d/e[@id="1"]\']')
 
     def test_sequence_getslice(self):
         mrx = MRXpath('/a/b/c[\'/d/e[@id="1"]\']')
@@ -88,11 +92,12 @@ class WDTestCase(unittest.TestCase):
 
     def test_worker_desired_status(self):
         self.assertEqual(self.wdesired.tag, "worker")
-        self.assertEqual(self.wdesired.get("id"),"test")
+        self.assertEqual(self.wdesired.get("id"), "test")
+
 
 class XMLCompareTestCase(unittest.TestCase):
     def setUp(self):
-        self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
+        self.tinfo = etree.parse(os.path.join(mydir, "worker-testinfo1.xml")).getroot()
         self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
         del self.start.attrib['id']
         self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
@@ -108,7 +113,7 @@ class XMLCompareTestCase(unittest.TestCase):
         work = self.xmlc.find_work()
         print()
         pprint.pprint(self.xmlc.actions())
-        self.assertIn('/status/worker[@id=\'test\']/iniFile' , work)
+        self.assertIn('/status/worker[@id=\'test\']/iniFile', work)
         self.assertNotIn("/status/worker[@id='test']/orderedItems", work)
 
         # quick memoization test
@@ -119,10 +124,11 @@ class XMLCompareTestCase(unittest.TestCase):
         print()
         pprint.pprint(self.xmlc.actions())
 
+
 class StatusTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
+        self.tinfo = etree.parse(os.path.join(mydir, "worker-testinfo1.xml")).getroot()
         self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
         del self.start.attrib['id']
         self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
@@ -150,11 +156,10 @@ class StatusTestCase(unittest.TestCase):
 
         print()
         print(etree.tostring(w))
-        res = self.start_st.prev_in_both(w,t,"e2")
+        res = self.start_st.prev_in_both(w, t, "e2")
         print()
         print(etree.tostring(res))
         print(w.index(res))
-
 
 
 class Testinfo1Case(unittest.TestCase):
@@ -162,14 +167,13 @@ class Testinfo1Case(unittest.TestCase):
     def setUp(self):
         self.wdesc = WorkerDescription('test')
         self.rng = etree.RelaxNG(self.wdesc.desc)
-        self.tinfo = etree.parse(os.path.join(mydir,"worker-testinfo1.xml")).getroot()
+        self.tinfo = etree.parse(os.path.join(mydir, "worker-testinfo1.xml")).getroot()
 #        self.actions = {'add': set(), 'remove': set(), 'modify': set()}
         self.start = copy.deepcopy(self.tinfo.xpath("status[@id='start']")[0])
         del self.start.attrib['id']
         self.desired = copy.deepcopy(self.tinfo.xpath("status[@id='desired']")[0])
         del self.desired.attrib['id']
         self.comp = XMLCompare(self.start, self.desired)
-
 
     def populate_todo(self, setid):
         self.todo = set()
@@ -224,7 +228,6 @@ class Testinfo1Case(unittest.TestCase):
             print("*********************************")
             for wu in wus:
                 print(etree.tostring(wu))
-
 
 
 if __name__ == '__main__':

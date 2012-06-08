@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import unittest
-import inspect, os, shutil, pprint, copy
+import inspect
+import os
 from lxml import etree
 from lxml.builder import E
 import pkgutil
@@ -15,6 +16,7 @@ from machination.update import Update
 from machination.workers import dummyordered as do
 from machination import xmltools
 from machination.webclient import WebClient
+
 
 class UpdateTestCase(unittest.TestCase):
 
@@ -51,7 +53,7 @@ class UpdateTestCase(unittest.TestCase):
     def est_gather_status(self):
         st = self.u.gather_status()
         # make sure the dummyordered worker element is in status
-        self.assertNotEqual(len(st.xpath('/status/worker[@id="dummyordered"]')),0)
+        self.assertNotEqual(len(st.xpath('/status/worker[@id="dummyordered"]')), 0)
 
     def est_do_update(self):
         self.u.do_update()

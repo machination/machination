@@ -3,9 +3,10 @@
 from lxml import etree
 from machination import context
 from machination import xmltools
-import os, shutil
+import os
 import errno
 import sys
+
 
 class Worker(object):
     """Operate on Machination configuration
@@ -15,7 +16,7 @@ class Worker(object):
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
+                                             prefix='/status')
 
     def generate_status(self):
         w_elt = etree.Element("worker")

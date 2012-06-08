@@ -12,13 +12,14 @@ protocols = {1: "ICMP4", 6: "TCP", 17: "UDP", 58: "ICMP6"}
 direction = {1: "In", 2: "Out"}
 type = {0: "Block", 1: "Allow"}
 
+
 class worker(object):
-    
+
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
-                                             prefix = '/status')
-        self.fwstat = win32com.client.gencache.EnsureDispatch("HNetCfg.FwPolicy2",0)
+                                             prefix='/status')
+        self.fwstat = win32com.client.gencache.EnsureDispatch("HNetCfg.FwPolicy2", 0)
 
     def do_work(self, work_list):
         "Process the work units and return their status."
@@ -53,7 +54,7 @@ class worker(object):
                 rule["Protocol"] = val
 
         #Create a rule object
-        ruleobj = win32com.client.gencache.EnsureDispatch("HNetCfg.FWRule",0)
+        ruleobj = win32com.client.gencache.EnsureDispatch("HNetCfg.FWRule", 0)
 
         ruleobj.Name = rule["Name"]
         ruleobj.Description = rule["Description"]
@@ -74,7 +75,7 @@ class worker(object):
         try:
             rules.Add(ruleobj)
         except com_error as error:
-            hr,msg,exc,arg = error.args
+            hr, msg, exc, arg = error.args
             message = "Error adding rule: "
             message += win32api.FormatMessage(exc[5])
             emsg(message)
@@ -108,15 +109,15 @@ class worker(object):
                             id=work.attrib["id"])
 
         rulename = work[0].attrib["id"]
-        
+
         # Get a rules collection object
         rules = self.fwstat.Rules
-        
+
         for rule in rules:
             if rule.Name == rulename:
                 if rule.Description[:9] == "mach_rule":
                     control = True
-        
+
         # We don't get any feedback ever so this will have to do.
 
         if control:
@@ -143,7 +144,7 @@ class worker(object):
         for rule in rules:
             if not rule.Profiles & 1:
                 continue
-            
+
             if not (rule.Description[:9] == "mach_rule"):
                 continue
 

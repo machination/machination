@@ -32,10 +32,11 @@ import inspect
 import os
 import sys
 
+
 class Logger(object):
     "The core class that handles individual loggers and dispatching"
 
-    def __init__(self, logging_elt, log_dir, default_loglevel = 4):
+    def __init__(self, logging_elt, log_dir, default_loglevel=4):
 
         # Set up module-global vars
 

@@ -113,8 +113,8 @@ class worker(object):
         rules = self.fwstat.Rules
         
         for rule in rules:
-            if rule.Name = rulename:
-                if rule.Description[:9] == "mach_rule"
+            if rule.Name == rulename:
+                if rule.Description[:9] == "mach_rule":
                     control = True
         
         # We don't get any feedback ever so this will have to do.

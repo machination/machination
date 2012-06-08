@@ -12,10 +12,10 @@ import machination
 
 class worker(object):
     #Define a shorthand constant for HKLM.
-    sync_map{"NTP": "MANUAL",
-             "NT5DS": "DOMHIER",
-             "AllSync": "ALL"
-             "NoSync": "NO"}
+    sync_map = {"NTP": "MANUAL",
+                "NT5DS": "DOMHIER",
+                "AllSync": "ALL",
+                "NoSync": "NO"}
     cmd = "w32tm"
     
     def __init__(self, logger):
@@ -68,7 +68,7 @@ class worker(object):
         switch = work[1].tag.lower()
         if work[1].tag == "SyncFromFlags":
             opt = work[1].text
-        elif work[1].tag == "ManualPeerList:
+        elif work[1].tag == "ManualPeerList":
             peers = [peer.attrib["id"] for peer in work[1].iter("Peer")]
             opt = '"{0}"'.format(" ".join(peers))
         else:
@@ -89,7 +89,7 @@ class worker(object):
             wmsg(msg)
         return res
 
-    def __order(self, work)
+    def __order(self, work):
         # Order makes no sense
         pass
 
@@ -103,7 +103,7 @@ class worker(object):
         for line in output:
             if line[:4] == "Type":
                 elt = etree.Element("SyncFromFlags")
-                elt.text = self.sync_map{line[6:-8])
+                elt.text = self.sync_map[line[6:-8]]
             elif line[:10] == "NtpServer:":
                 elt = etree.Element("ManualPeerList")
                 servers = line[11:-8].split()

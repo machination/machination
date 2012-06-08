@@ -110,6 +110,7 @@ def get_worker(welt):
             # try to find and execute an OL worker
             try:
                 w = OLWorker(wid)
+            except Exception:
                 logger.emsg("No worker %s, giving up!" % wid)
                 raise
 

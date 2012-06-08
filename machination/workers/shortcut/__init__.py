@@ -55,8 +55,10 @@ class worker(object):
         for elem in work[0]:
             s_props[elem.tag] = elem.text
 
-        s_props["iconFile"] = s_props["target"] if (not s_props["iconFile"])
-        s_props["iconNumber"] = "0" if not s_props["iconFile"]
+        if not s_props["iconFile"]:
+            s_props["iconFile"] = s_props["target"]
+        if not s_props["iconNumber"]:
+            s_props["iconNumber"] = 0
         s_props["icon"] = ",".join(s_props["iconFile"],
                                    s_props["iconNumber"])
         s_props["name"] += ".lnk"

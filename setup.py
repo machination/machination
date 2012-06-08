@@ -103,13 +103,16 @@ def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
 
 if __name__ == "__main__":
 
-    if sys.argv[1] == 'bdist_msi':
+    if len(sys.argv) > 1 and sys.argv[1] == 'bdist_msi':
         scriptdir = "machination/service/win32/"
         scriptfile = "msi-post-install"
         scripts = [scriptdir + scriptfile]
 
         # Append an install-script to bdist_msi options
         scriptargs = [sys.argv[1:], '--install-script', scriptfile]
+    else:
+        scripts = []
+        scriptargs = []
 
     # Build machination core (without workers or tests)
     run_setup("machination",

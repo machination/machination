@@ -1446,6 +1446,51 @@ class AssertionCompiler(object):
         stack.reverse()
         while stack:
             a = stack.pop()
+            if a['ass-op'] == 'requires' or a['ass_op'] == 'excludes':
+                # mpath requires ass_arg is equivalent to:
+                #  mpath exists or create
+                #  ass_arg exists or addlib
+                #  id = "mpath requires ass_arg"
+                #  /s/w[m]/deps/dep[$id]/@src hastext mpath
+                #  /s/w[m]/deps/dep[$id]/@op hastext requires
+                #  /s/w[m]/deps/dep[$id]/@tgt hastext ass_arg
+                #
+                #
+                # mpath excludes ass_arg is equivalent to:
+                #  mpath exists or create
+                #  ass_arg notexists
+                #  id = "mpath excludes ass_arg"
+                #  /s/w[m]/deps/dep[$id]/@src hastext mpath
+                #  /s/w[m]/deps/dep[$id]/@op hastext excludes
+                #  /s/w[m]/deps/dep[$id]/@tgt hastext ass_arg
+                if a['ass_op'] == 'requires':
+                    ass_arg_op = 'addlib'
+                elif a['ass_op'] == 'excludes':
+                    ass_arg_op = 'delete'
+                depid = '{} {} {}'.format(a['mpath'], 'requires', a['ass_arg'])
+                new = [
+                    {'mpath': '/status/worker[__machination__]/deps[{}]/@tgt'.format(depid),
+                     'ass_op': 'hastext',
+                     'ass_arg': a['ass_arg'],
+                     'action_op': 'settext'},
+
+                    {'mpath': '/status/worker[__machination__]/deps[{}]/@op'.format(depid),
+                     'ass_op': 'hastext',
+                     'ass_arg': a['ass_op'],
+                     'action_op': 'settext'},
+                    {'mpath': '/status/worker[__machination__]/deps[{}]/@src'.format(depid),
+                     'ass_op': 'hastext',
+                     'ass_arg': a['mpath'],
+                     'action_op': 'settext'},
+                    {'mpath': a['ass_arg'],
+                     'ass_op': ass_arg_op,
+                     'action_op': 'addlib'},
+                    {'mpath': a['mpath'],
+                     'ass_op': 'exists',
+                     'action_op': 'create'}
+                    ]
+                stack.extend(new)
+                continue
             if not self.try_assert(a):
                 fname = "action_{}".format(a['action_op'])
                 poldir = self.get_poldir(a,mpolicies)
@@ -1505,6 +1550,41 @@ class AssertionCompiler(object):
                     return True
                 else:
                     return False
+
+        elif op == 'first':
+            if mpath.is_attribute():
+                raise Exception("can't assert the order of attributes")
+            elt = self.doc.xpath(mpath.to_xpath())[0]
+            if elt is elt.getparent()[0]:
+                return True
+            else:
+                return False
+        elif op == 'last':
+            if mpath.is_attribute():
+                raise Exception("can't assert the order of attributes")
+            elt = self.doc.xpath(mpath.to_xpath())[0]
+            if elt is elt.getparent()[-1]:
+                return True
+            else:
+                return False
+        elif op == 'before':
+            if mpath.is_attribute():
+                raise Exception("can't assert the order of attributes")
+            src_idx = self.doc.xpath(mpath.to_xpath())[0].index()
+            tgt_idx = self.doc.xpath(MRXpath(arg).to_xpath())[0].index()
+            if src_idx < tgt_idx:
+                return True
+            else:
+                return False
+        elif op == 'after':
+            if mpath.is_attribute():
+                raise Exception("can't assert the order of attributes")
+            src_idx = self.doc.xpath(mpath.to_xpath())[0].index()
+            tgt_idx = self.doc.xpath(MRXpath(arg).to_xpath())[0].index()
+            if src_idx > tgt_idx:
+                return True
+            else:
+                return False
 
         else:
             raise Exception("Assertion op '{}' unknown".format(op))
@@ -1678,10 +1758,42 @@ class AssertionCompiler(object):
     def action_delete(self, a, res_idx, poldir, stack):
         """Delete an element or attribute"""
 
-        mpath = MRXpath(a['mpath'])
         if poldir == -1:
             # never delete an existing node if remote wins
             return
+
+        mpath = MRXpath(a['mpath'])
+        lineage = [mpath]
+        lineage.extend(mpath.ancestors())
+        lineage.reverse()
+
+        if poldir == 1:
+            # always delete if local wins
+            self.delete_mpath(mpath)
+            self.res_idx[mpath.to_xpath()] = a
+            return
+
+        # test to see if a mandatory creation instruction (exists, hastext, ...)
+        # takes precedence
+        for p in lineage:
+            if p.to_xpath() in res_idx:
+                if((res_idx[p.to_xpath()]['ass_op'] == 'exists' or
+                    res_idx[p.to_xpath()]['ass_op'].startswith('hastext')) and
+                   res_idx[p.to_xpath()]['is_mandatory'] == "1"):
+                    return
+        # no mandatory creation instruction
+        self.delete_mpath(mpath)
+
+    def delete_mpath(mpath):
+        """Delete an mpath (MRXPath) from the document"""
+        if mpath->is_element():
+            elt = self.doc.xpath(mpath.to_xpath())[0]
+            elt.getparent().remove(elt)
+        else:
+            # an attribute
+            pelt = self.doc.xpath(mpath.parent().to_xpath())[0]
+            del pelt.attributes[mpath.name()]
+
 
     def action_addlib(self, a, res_idx, poldir, stack):
         """Add a library item"""

@@ -2,9 +2,10 @@
 <status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
   <worker id="__machination__">
     <deps>
-      <dep src="/status/worker[packageman]/pkg[example]"
+      <dep x2a:genidhash="src op tgt"
+           src="/status/worker[packageman]/package[example]"
            op="requires"
-           tgt="/status/worker[packageman]/pkg[dep1]"/>
+           tgt="/status/worker[packageman]/package[dep1]"/>
       <!-- Another dep will be written here implicitly by the requires
            assertion in packageman below -->
     </deps>

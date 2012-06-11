@@ -1,14 +1,12 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8:
 
-"""A worker for Machination functions not deemed important enough to have
-their own worker.
-
-Currently only handles NTP (enable/disable and ser server)."""
+"""A worker for Machination to modify NTP settings on Windows
+   (enable/disable and set server)."""
 
 from lxml import etree
 from os import popen
-import machination
+from machination import context
 
 
 class worker(object):
@@ -47,7 +45,7 @@ class worker(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            wmsg("Could not set time server list: " + stream)
+            context.emsg("Could not set time server list: " + stream)
         return res
 
     def __remove(self, work):
@@ -60,10 +58,10 @@ class worker(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            wmsg("Could not clear time server list: " + stream)
+            context.emsg("Could not clear time server list: " + stream)
         return res
 
-    def __modify(self, work):
+    def __deepmod(self, work):
         res = etree.element("wu", id=work.attrib["id"])
         # What are we changing?
         switch = work[1].tag.lower()
@@ -87,10 +85,13 @@ class worker(object):
             msg = "Could not modify {0}: {1}".format(work[1].tag, stream)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            wmsg(msg)
+            context.emsg(msg)
         return res
 
-    def __order(self, work):
+    def __datamod(self, work):
+        return self.__deepmod(self, work)
+
+    def __move(self, work):
         # Order makes no sense
         pass
 

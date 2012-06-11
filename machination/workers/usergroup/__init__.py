@@ -5,7 +5,7 @@
 
 
 from lxml import etree
-import machination
+from machination import context
 import win32netcon
 import win32com.client
 import win32net
@@ -189,7 +189,7 @@ class worker(object):
 
         res.attrib["status"] = "success"
         if test:
-            emsg(test)
+            context.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
@@ -216,13 +216,13 @@ class worker(object):
 
         res.attrib["status"] = "success"
         if test:
-            emsg(test)
+            context.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
         return res
 
-    def __modify(self, work):
+    def __deepmod(self, work):
         res = etree.element("wu",
                             id=work.attrib["id"])
 
@@ -246,11 +246,14 @@ class worker(object):
         res.attrib["status"] = "success"
 
         if test:
-            emsg(test)
+            context.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
         return res
+
+    def __datamod(self, work):
+        return self.__deepmod(work)
 
     def __order(self, work):
         pass

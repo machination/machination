@@ -11,6 +11,13 @@ profiles = {1: "Domain", 2: "Private", 3: "Public"}
 protocols = {1: "ICMP4", 6: "TCP", 17: "UDP", 58: "ICMP6"}
 direction = {1: "In", 2: "Out"}
 type = {0: "Block", 1: "Allow"}
+rule_fields = ["Name",
+               "Description",
+               "Protocol",
+               "Ports",
+               "Action",
+               "Application",
+               "Service"]
 
 
 class worker(object):
@@ -42,6 +49,10 @@ class worker(object):
         rule["Name"] = work[0].id
         for property in work[0]:
             rule[property.tag] = property.text
+
+        for field in self.rule_fields:
+            if field not in rule:
+                rule[field] = ""
 
         rule["Description"] = "mach_rule-" + rule["Description"]
 
@@ -76,9 +87,10 @@ class worker(object):
             rules.Add(ruleobj)
         except com_error as error:
             hr, msg, exc, arg = error.args
-            message = "Error adding rule: "
-            message += win32api.FormatMessage(exc[5])
-            emsg(message)
+            message = "Error adding rule: " + rule["Name"]
+            e_message = "Error details: " + win32api.FormatMessage(exc[5])
+            context.emsg(message)
+            context.dmsg(e_message)
             res.attrib["message"] = message
             res.attrib["status"] = "error"
         else:
@@ -125,6 +137,7 @@ class worker(object):
             res.attrib["status"] = "success"
         else:
             msg = "Rule: " + rulename + " is not a Machination rule."
+            context.emsg(msg)
             res.attrib["message"] = msg
             res.attrib["status"] = "error"
 

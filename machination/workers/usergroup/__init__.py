@@ -162,7 +162,7 @@ class worker(object):
         return mrx.id()
 
     def __add(self, work):
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         if work[0].tag == "user":
@@ -194,7 +194,7 @@ class worker(object):
         return res
 
     def __remove(self, work):
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         if work[0].tag == "user":
@@ -221,7 +221,7 @@ class worker(object):
         return res
 
     def __deepmod(self, work):
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         # As far as I can work out, we can only modify users, not groups

@@ -39,7 +39,7 @@ class worker(object):
 
     def __add(self, work):
         "Add new firewall rules."
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         # As firewall rules can have a few optional bits, read all
@@ -100,7 +100,7 @@ class worker(object):
 
     def __datamod(self, work):
         "Change existing firewall rules variables"
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         # The win7 firewall rule modification interface
@@ -114,7 +114,7 @@ class worker(object):
 
     def __deepmod(self, work):
         "Change existing firewall rules variables"
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         # The win7 firewall rule modification interface
@@ -131,7 +131,7 @@ class worker(object):
 
     def __remove(self, work):
         "Remove unwanted firewall rules"
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         rulename = work[0].attrib["id"]

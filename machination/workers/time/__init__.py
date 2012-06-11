@@ -34,7 +34,7 @@ class worker(object):
 
     def __add(self, work):
         # Add can only be called on ManualPeerList
-        res = etree.element("wu", id=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
         peers = [peer.attrib["id"] for peer in work[1].iter("Peer")]
         flat = " ".join(peers)
         command = '{0} /config /manualpeerlist:"{1}"'.format(self.cmd, flat)
@@ -49,7 +49,7 @@ class worker(object):
 
     def __remove(self, work):
         # Remove can only be called on ManualPeerList
-        res = etree.element("wu", id=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
         command = self.cmd + ' /config /manualpeerlist:""'
         stream = popen(command)
         if stream[:-13] == "successfully.":
@@ -61,7 +61,7 @@ class worker(object):
         return res
 
     def __deepmod(self, work):
-        res = etree.element("wu", id=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
         # What are we changing?
         switch = work[1].tag.lower()
         if work[1].tag == "SyncFromFlags":

@@ -34,7 +34,7 @@ class worker(object):
         return result
 
     def __add(self, work):
-        res = etree.element("wu", id=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
 
         back = self.__install(work)
 
@@ -47,7 +47,7 @@ class worker(object):
         return res
 
     def __remove(self, work):
-        res = etree.element("wu", id=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
 
         back = self.__uninstall(work)
 

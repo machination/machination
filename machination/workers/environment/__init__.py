@@ -62,7 +62,7 @@ class worker(object):
                                   sValueName=varname,
                                   sValue=val)
 
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
         if result:
             msg = "Could not set {0} to {1}".format(varname, val)

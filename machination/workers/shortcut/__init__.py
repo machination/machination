@@ -45,7 +45,7 @@ class worker(object):
         return result
 
     def __add(self, work):
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         # Parse out shortcut properties from XML
@@ -105,7 +105,7 @@ class worker(object):
         pass
 
     def __remove(self, work):
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         id = work[0].attrib["id"]

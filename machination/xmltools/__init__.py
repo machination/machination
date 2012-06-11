@@ -1555,27 +1555,45 @@ class AssertionCompiler(object):
                 else:
                     return False
 
+        # ordering assertions
+        #
+        # These aren't 'strong' enough to cause their respective
+        # elements to come into existence. If either the src or tgt
+        # elements doesn't exist then the assertion evaluates as true
+        # (resulting in no action). If the src and or tgt must exist,
+        # create seperate exists or hastext* assertions.
         elif op == 'first':
             if mpath.is_attribute():
                 raise Exception("can't assert the order of attributes")
-            elt = self.doc.xpath(mpath.to_xpath())[0]
-            if elt is elt.getparent()[0]:
+            elts = self.doc.xpath(mpath.to_xpath())
+            if not elts:
+                return True
+            if elts[0] is elts[0].getparent()[0]:
                 return True
             else:
                 return False
         elif op == 'last':
             if mpath.is_attribute():
                 raise Exception("can't assert the order of attributes")
-            elt = self.doc.xpath(mpath.to_xpath())[0]
-            if elt is elt.getparent()[-1]:
+            elts = self.doc.xpath(mpath.to_xpath())
+            if not elts:
+                return True
+            if elts[0] is elts[0].getparent()[-1]:
                 return True
             else:
                 return False
         elif op == 'before':
             if mpath.is_attribute():
                 raise Exception("can't assert the order of attributes")
-            src_idx = self.doc.xpath(mpath.to_xpath())[0].index()
-            tgt_idx = self.doc.xpath(MRXpath(arg).to_xpath())[0].index()
+            src_elts = self.doc.xpath(mpath.to_xpath())
+            if not src_elts:
+                return True
+            src_idx = src_elts[0].index()
+            tgt_mrx = MRXpath(arg)
+            tgt_elts = self.doc.xpath(tgt_mrx.to_xpath())
+            if not tgt_elts:
+                return True
+            tgt_idx = tgt_elts[0].index()
             if src_idx < tgt_idx:
                 return True
             else:
@@ -1583,8 +1601,15 @@ class AssertionCompiler(object):
         elif op == 'after':
             if mpath.is_attribute():
                 raise Exception("can't assert the order of attributes")
-            src_idx = self.doc.xpath(mpath.to_xpath())[0].index()
-            tgt_idx = self.doc.xpath(MRXpath(arg).to_xpath())[0].index()
+            src_elts = self.doc.xpath(mpath.to_xpath())
+            if not src_elts:
+                return True
+            src_idx = src_elts[0].index()
+            tgt_mrx = MRXpath(arg)
+            tgt_elts = self.doc.xpath(tgt_mrx.to_xpath())
+            if not tgt_elts:
+                return True
+            tgt_idx = tgt_elts[0].index()
             if src_idx > tgt_idx:
                 return True
             else:

@@ -12,8 +12,6 @@ import stat
 
 
 class worker(object):
-    logger = None
-    shell = None
     windowstyles = {"normal": 1,
                     "max": 3,
                     "min": 7}
@@ -31,11 +29,11 @@ class worker(object):
                "destination": "",
                "folderName": ""}
 
-    def __init__(self, logger):
+    def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
-        shell = win32com.client.Dispatch("WScript.Shell")
+        self.shell = win32com.client.Dispatch("WScript.Shell")
 
     def do_work(self, work_list):
         "Process the work units and return their status."
@@ -72,14 +70,14 @@ class worker(object):
             context.emsg(msg)
             return res
 
-        dest = shell.SpecialFolders(s_props["destination"])
+        dest = self.shell.SpecialFolders(s_props["destination"])
 
         if s_props["folderName"]:
             dest = os.path.join(dest, s_props["folderName"])
             os.makedirs(dest)
 
         filename = os.path.join(dest, s_props["name"])
-        link = shell.CreateShortcut(filename)
+        link = self.shell.CreateShortcut(filename)
         link.TargetPath = s_props["target"]
         link.WindowStyle = s_props["window"]
         link.IconLocation = s_props["icon"]
@@ -121,7 +119,7 @@ class worker(object):
 
         s_props["name"] += ".lnk"
 
-        dest = shell.SpecialFolders(s_props["destination"])
+        dest = self.shell.SpecialFolders(s_props["destination"])
         if s_props["folderName"]:
             dest = os.path.join(dest, s_props["folderName"])
         filename = os.path.join(dest, s_props["name"])

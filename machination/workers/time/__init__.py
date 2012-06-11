@@ -10,7 +10,6 @@ from machination import context
 
 
 class worker(object):
-    #Define a shorthand constant for HKLM.
     sync_map = {"NTP": "MANUAL",
                 "NT5DS": "DOMHIER",
                 "AllSync": "ALL",

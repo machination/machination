@@ -14,7 +14,6 @@ class worker(object):
 
     #Define a shorthand constant for HKLM.
     __HKLM = 2147483650
-    __HKCU = 0  # FIXME
     envloc = "system\currentcontrolset\control\session manager\environment"
 
     # Define methods used to access registry values based on type.
@@ -102,7 +101,7 @@ class worker(object):
         # Since we actually care about it, get the variable name from the
         # XML passed as part of the wu
         varname = work[1].attrib["id"]
-        result = r.DeleteValue(hDefKey=self.__HKCU,
+        result = r.DeleteValue(hDefKey=self.__HKLM,
                                sSubKeyName=self.envloc,
                                sValueName=varname)
         res = etree.Element("wu",

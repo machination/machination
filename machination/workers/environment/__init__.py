@@ -12,10 +12,9 @@ import os
 class worker(object):
     "Manipulates environment variables in Windows."
 
-    r = None
-
     #Define a shorthand constant for HKLM.
-    __HLKM = 2147483650
+    __HKLM = 2147483650
+    __HKCU = 0  # FIXME
     envloc = "system\currentcontrolset\control\session manager\environment"
 
     # Define methods used to access registry values based on type.
@@ -59,8 +58,8 @@ class worker(object):
             val = unicode(work[1].text, 'utf-8')
 
         # For convenience sake, all variables are stored as REG_EXPAND_SZ
-        result = r.SetExpandedStringValue(hDefKey=__HKLM,
-                                  sSubKeyName=envloc,
+        result = r.SetExpandedStringValue(hDefKey=self.__HKLM,
+                                  sSubKeyName=self.envloc,
                                   sValueName=varname,
                                   sValue=val)
 
@@ -103,10 +102,10 @@ class worker(object):
         # Since we actually care about it, get the variable name from the
         # XML passed as part of the wu
         varname = work[1].attrib["id"]
-        result = r.DeleteValue(hDefKey=_HKCU,
-                               sSubKeyName=envloc,
+        result = r.DeleteValue(hDefKey=self.__HKCU,
+                               sSubKeyName=self.envloc,
                                sValueName=varname)
-        res = etree.element("wu",
+        res = etree.Element("wu",
                             id=work.attrib["id"])
 
         if result:
@@ -128,8 +127,8 @@ class worker(object):
 
         # Build status xml
         for key in env_dict:
-            if key.upper() in multi_vars:
-                line = self.__parse_multi(key, env_dict[key], multi_vars[key])
+            if key.upper() in self.multi_vars:
+                line = self.__parse_multi(key, env_dict[key], self.multi_vars[key])
             else:
                 line = etree.Element("var")
                 line.attrib["id"] = key
@@ -141,20 +140,20 @@ class worker(object):
         "Generate a dictionary of environment variables"
         env = {}
 
-        [result, names, types] = r.EnumValues(hDefKey=__HKLM,
-                                              sSubKeyName=envloc)
+        [result, names, types] = r.EnumValues(hDefKey=self.__HKLM,
+                                              sSubKeyName=self.envloc)
         if result:
             context.emsg("Could not parse environment vars: {0}".format(result))
 
         for key, type in zip(names, types):
-            method = "Get{0}Value".format(methods(type))
-            result, value = getattr(r, method)(hDefKey=__HKLM,
-                                               sSubKeyName=envloc,
+            method = "Get{0}Value".format(self.methods[type])
+            result, value = getattr(r, method)(hDefKey=self.__HKLM,
+                                               sSubKeyName=self.envloc,
                                                sValueName=key)
             if result:
                 context.emsg("Could not get {0} value: {1}".format(key, result))
             else:
-                env[key] = [methods(type), value]
+                env[key] = [self.methods[type], value]
         return env
 
     def __parse_multi(self, keyname, value, sep):

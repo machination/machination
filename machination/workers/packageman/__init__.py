@@ -11,7 +11,6 @@ from machination import platutils
 import os
 import sys
 import subprocess
-import msilib
 import wmi
 
 
@@ -129,7 +128,7 @@ class worker(object):
         msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
 
         log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-        opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
+        opts = " ".join(["%s=%s" % (k.upper(), v) for k, v in paramlist.items()])
         cmd = 'msiexec /i {0} /qn /lvoicewarmup "{1}" {2}'.format(msipath,
                                                           log,
                                                           opts)
@@ -209,7 +208,7 @@ class worker(object):
         guid = platutils.win.get_installed_guid(msipath)
 
         log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
-        opts = " ".join(["%s=%s" % (k.uppercase, v) for k, v in paramlist])
+        opts = " ".join(["%s=%s" % (k.upper(), v) for k, v in paramlist.items()])
         cmd = 'msiexec /x {0} /qn /lvoicewarmup "{1}" {2}'.format(guid,
                                                           log,
                                                           opts)
@@ -235,13 +234,13 @@ class worker(object):
         __HLKM = 2147483650
         uloc = "software\microsoft\windows\currentversion\uninstall"
 
-        result, names = r.EnumKey(HKLM, uloc)
+        result, names = r.EnumKey(__HKLM, uloc)
 
         if key in names:
             back = True
         else:
             uloc = "software\wow6432node\microsoft\windows\currentversion\uninstall"
-            result, names = r.EnumKey(HKLM, uloc2)
+            result, names = r.EnumKey(__HKLM, uloc)
 
             if result:
                 # Reg key not found--running on 32bit system

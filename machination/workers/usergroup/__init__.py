@@ -19,15 +19,13 @@ class worker(object):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
-        u = {}
-
-        sp_users = ("Administrator",
+        self.sp_users = ("Administrator",
                     "ASPNET",
                     "Guest",
                     "HelpAssistant",
                     "SUPPORT_388945a0")
 
-        sp_groups = ("Administrators",
+        self.sp_groups = ("Administrators",
                      "Backup Operators",
                      "Guests",
                      "Network Configuration Operators",
@@ -81,7 +79,7 @@ class worker(object):
 
     def __del_user(self, username):
         # Don't ever delete special user accounts
-        if username in sp_users:
+        if username in self.sp_users:
             return None
         try:
             win32net.NetUserDel(None, username)
@@ -93,7 +91,7 @@ class worker(object):
     def __add_group(self, name):
         g_info = {"name": name}
 
-        if name in sp_groups:
+        if name in self.sp_groups:
             return "Cannot add a special group"
         try:
             win32net.NetLocalGroupAdd(None, 1, g_info)
@@ -115,12 +113,12 @@ class worker(object):
                                                                g_Name,
                                                                3)
         back = None
-        if (count == 0) and (g_name not in sp_groups):
+        if count == 0 and g_name not in self.sp_groups:
             back = self.__del_group(g_name)
         return back
 
     def __del_group(self, name):
-        if name in sp_groups:
+        if name in self.sp_groups:
             return None
         try:
             win32net.NetLocalGroupDel(None, name)

@@ -59,10 +59,21 @@ class worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __modify(self, work):
-        return self.__add(work)
+    def __datamod(self, work):
+        d = self.__remove(work)
+        if d.attrib["status"] == "error":
+            return d
+        else:
+            return self.__add(work)
 
-    def __order(self, work):
+    def __deepmod(self, work):
+        d = self.__remove(work)
+        if d.attrib["status"] == "error":
+            return d
+        else:
+            return self.__add(work)
+
+    def __move(self, work):
         pass
 
     def __install(self, work):

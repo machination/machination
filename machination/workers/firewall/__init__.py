@@ -98,7 +98,7 @@ class worker(object):
 
         return res
 
-    def __modify(self, work):
+    def __datamod(self, work):
         "Change existing firewall rules variables"
         res = etree.element("wu",
                             id=work.attrib["id"])
@@ -109,10 +109,24 @@ class worker(object):
         d = self.__remove(work)
         if d.attrib["status"] == "error":
             return d
-        a = self.__add(work)
-        return a
+        else:
+            return self.__add(work)
 
-    def __order(self, work):
+    def __deepmod(self, work):
+        "Change existing firewall rules variables"
+        res = etree.element("wu",
+                            id=work.attrib["id"])
+
+        # The win7 firewall rule modification interface
+        # is notoriously fragile. So let's not and say we did.
+
+        d = self.__remove(work)
+        if d.attrib["status"] == "error":
+            return d
+        else:
+            return self.__add(work)
+
+    def __move(self, work):
         pass
 
     def __remove(self, work):

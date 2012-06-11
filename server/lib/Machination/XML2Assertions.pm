@@ -6,6 +6,7 @@ use XML::LibXML;
 use Machination::MPath;
 use Text::ParseWords;
 use Data::Dumper;
+use Digest::SHA qw(sha256_hex);
 
 has 'doc' => (is=>"ro",
               required=>1,
@@ -56,6 +57,26 @@ sub to_assertions {
   my @a;
   my ($ass_op, $ass_arg, $action_op, $action_arg);
 
+  # check for id generation
+  if ($node->hasAttributeNS($self->ns, 'genid')) {
+    my @attnames = parse_line
+      ('\s+', 0, $node->getAttributeNS($self->ns, 'genid'));
+    my @text;
+    foreach my $name (@attnames) {
+      push @text, $node->getAttribute($name);
+    }
+    $node->setAttribute('id', join(" ", @text));
+  }
+  if ($node->hasAttributeNS($self->ns, 'genidhash')) {
+    my @attnames = parse_line
+      ('\s+', 0, $node->getAttributeNS($self->ns, 'genidhash'));
+    my @text;
+    foreach my $name (@attnames) {
+      push @text, $node->getAttribute($name);
+    }
+    $node->setAttribute('id', sha256_hex(join(" ", @text)));
+  }
+
   # attributes
   my $atts_exist;
   foreach my $att ($node->attributes) {
@@ -87,6 +108,7 @@ sub to_assertions {
   }
 
   my $mp = Machination::MPath->new($node);
+
   if ($node->hasAttributeNS($self->ns, "assert")) {
 #    $ass_arg = $node->textContent;
 #    ($ass_op, $ass_arg, $action_op, $action_arg) = (undef);

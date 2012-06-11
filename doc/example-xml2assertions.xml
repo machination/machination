@@ -25,6 +25,14 @@
          att1="choice1 choice\ 2 choice3"
          att2="regex"
          >some other random text</var>
+    <var id="PATH" type="list" separator=";">
+      <item id="lastitem" x2a:assert="last">/last/path/item</item>
+      <item id="firstitem" x2a:assert="first">/first/path/item</item>
+      <item id="afterfirst"
+            x2a:assert="after firstitem">/afterfirst/path/item</item>
+      <item id="beforelast"
+            x2a:assert="before lastitem">/beforelast/path/item</item>
+    </var>
   </worker>
   <worker id="fetcher">
     <bundle id="example-1-hexdigest"/>

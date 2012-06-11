@@ -4,7 +4,7 @@
 """A worker to set shortcuts in Windows."""
 
 from lxml import etree
-import machination
+from machination import context
 import win32com.client
 import os
 import shutil
@@ -66,10 +66,11 @@ class worker(object):
             s_props["window"] = windowstyle[windowStyleName]
 
         if not target:
-            msg = "Must provide shortcut for target"
+            msg = "Must provide target for shortcut " + id
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            emsg(msg)
+            context.emsg(msg)
+            return res
 
         dest = shell.SpecialFolders(s_props["destination"])
 
@@ -90,14 +91,19 @@ class worker(object):
         res.attrib["status"] = "success"
         return res
 
-    def __modify(self, work):
+    def __datamod(self, work):
         d = self.__remove(work)
         if d.attrib["status"] == "error":
             return d
-        a = self.__add(work)
-        return a
+        return self.__add(work)
 
-    def __order(self, work):
+    def __deepmod(self, work):
+        d = self.__remove(work)
+        if d.attrib["status"] == "error":
+            return d
+        return self.__add(work)
+
+    def __move(self, work):
         pass
 
     def __remove(self, work):

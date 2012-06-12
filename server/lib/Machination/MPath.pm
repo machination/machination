@@ -97,7 +97,8 @@ sub set_path {
         $name = "\@$name";
       }
       if($node->nodeType == XML_ELEMENT_NODE && $node->hasAttribute("id")) {
-        $name .= "[" . $node->getAttribute("id") . "]";
+#        $name .= "[" . $node->getAttribute("id") . "]";
+        $name = [$name, $node->getAttribute("id")];
       }
       unshift @rep, $name;
       $node = $node->parentNode;
@@ -225,6 +226,28 @@ sub name {
   $name = $name->[0] if ref $name;
   $name =~ s/^@//;
   return $name;
+}
+
+=item B<id>
+
+$id = $mp->id
+
+or
+
+$newid = $mp->id($newid)
+
+=cut
+
+sub id {
+  my $self = shift;
+
+  if(@_) {
+    print Dumper($self->{rep});
+    $self->{rep}->[-1] = [$self->name, $_[0]];
+    print Dumper($self->{rep});
+  }
+  my $last = $self->{rep}->[-1];
+  ref $last ? return $last->[1] : return;
 }
 
 =item B<parent>

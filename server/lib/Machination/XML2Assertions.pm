@@ -119,10 +119,27 @@ sub to_assertions {
     if($ass_op =~ /^hastext/) {
       $ass_arg = $node->textContent;
     }
+    # get the argument if there is one
     if($ass_op eq 'requires' || $ass_op eq 'excludes' ||
       $ass_op eq 'before' || $ass_op eq 'after') {
       $ass_arg = shift @words;
     }
+
+    # add appropriate exists assertions for ordering assertions
+    my @ordering = qw(first last before after);
+    if($ass_op ~~ @ordering) {
+      push @a, {mpath=>$mp->to_string,
+                ass_op=>"exists",
+                action_op=>'create'};
+      if(defined $ass_arg) {
+        my $tp = Machination::MPath->new($mp);
+        $tp->id($ass_arg);
+        push @a, {mpath=>$tp->to_string(),
+                  ass_op=>'exists',
+                  action_op=>'create'};
+      }
+    }
+
     $action_op = shift @words;
     $action_arg = shift @words;
     push @a, {mpath=>$mp->to_string(),

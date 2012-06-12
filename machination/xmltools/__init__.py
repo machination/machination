@@ -675,10 +675,12 @@ class MRXpath(object):
             return self.rep[-1][0]
         return None
 
-    def id(self):
+    def id(self, *args):
         """return id of the object or None"""
         if self.is_attribute():
             raise Exception("an attribute may not have an id")
+        if args:
+            self.rep[-1][1] = str(args[0])
         if self.is_element():
             if len(self.rep[-1]) > 1:
                 return self.rep[-1][1]
@@ -1944,7 +1946,9 @@ class AssertionCompiler(object):
         # got to this action if not.
         node = self.doc.xpath(mpath.to_xpath())[0]
         # same goes for the target element
-        tnode = self.doc.xpath(MRXpath(a['ass_arg']).to_xpath())[0]
+        tmrx = MRXpath(mpath)
+        tmrx.id(a['ass_arg'])
+        tnode = self.doc.xpath(tmrx.to_xpath())[0]
 
         # No policy or mandatory overrides - go on and move.
         p = node.getparent()
@@ -1979,7 +1983,9 @@ class AssertionCompiler(object):
         # got to this action if not.
         node = self.doc.xpath(mpath.to_xpath())[0]
         # Same goes for the target element.
-        tnode = self.doc.xpath(MRXpath(a['ass_arg']).to_xpath())[0]
+        tmrx = MRXpath(mpath)
+        tmrx.id(a['ass_arg'])
+        tnode = self.doc.xpath(tmrx.to_xpath())[0]
 
         # No policy or mandatory overrides - go on and move.
         p = node.getparent()

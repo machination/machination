@@ -1811,10 +1811,11 @@ class AssertionCompiler(object):
                     return
         # no mandatory creation instruction
         self.delete_mpath(mpath)
+        self.res_idx[mpath.to_xpath()] = a
 
     def delete_mpath(mpath):
         """Delete an mpath (MRXPath) from the document"""
-        if mpath->is_element():
+        if mpath.is_element():
             elt = self.doc.xpath(mpath.to_xpath())[0]
             elt.getparent().remove(elt)
         else:
@@ -1862,3 +1863,125 @@ class AssertionCompiler(object):
                            res_idx,
                            poldir,
                            stack)
+
+    def action_reorderfirst(self, a, res_idx, poldir, stack):
+        """Make an element first amongst its siblings"""
+
+        mpath = MRXpath(a['mpath'])
+
+        # Find the node to be moved. It must exist - we wouldn't have
+        # got to this action if not.
+        node = self.doc.xpath(mpath.to_xpath())[0]
+
+        # test to see if a reorderlast or reorderafter takes precedence
+        if poldir == -1:
+            # see if the node is in the wrong place because of a
+            # previous ordering instruction
+            if(res_idx[mpath.to_xpath()]['ass_op'] == 'reorderlast' or
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderafter'):
+                return
+        elif poldir == 0 and res_idx[mpath.to_xpath()]['is_mandatory'] == "1":
+            # check there is no mandatory notextists for mpath
+            if(res_idx[mpath.to_xpath()]['ass_op'] == 'reorderlast' or
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderafter'):
+                return
+
+        # No policy or mandatory overrides - go on and move.
+        node.getparent().insert(0,node)
+        self.res_idx[mpath.to_xpath()] = a
+
+    def action_reorderlast(self, a, res_idx, poldir, stack):
+        """Make an element last amongst its siblings"""
+
+        mpath = MRXpath(a['mpath'])
+
+        # Find the node to be moved. It must exist - we wouldn't have
+        # got to this action if not.
+        node = self.doc.xpath(mpath.to_xpath())[0]
+
+        # test to see if a reorderfirst or reorderbefore takes precedence
+        if poldir == -1:
+            # see if the node is in the wrong place because of a
+            # previous ordering instruction
+            if(res_idx[mpath.to_xpath()]['ass_op'] == 'reorderfirst' or
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderbefore'):
+                return
+        elif poldir == 0 and res_idx[mpath.to_xpath()]['is_mandatory'] == "1":
+            # check there is no mandatory notextists for mpath
+            if(res_idx[mpath.to_xpath()]['ass_op'] == 'reorderfirst' or
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderbefore'):
+                return
+
+        # No policy or mandatory overrides - go on and move.
+        node.getparent().append(node)
+        self.res_idx[mpath.to_xpath()] = a
+
+    def action_reorderafter(self, a, res_idx, poldir, stack):
+        """Move an element after a specified sibling"""
+
+        mpath = MRXpath(a['mpath'])
+
+        # test to see if a reorderfirst or reorderbefore takes precedence
+        if (
+            poldir == -1 or
+            (
+             poldir == 0 and
+             res_idx[mpath.to_xpath()]['is_mandatory'] == "1"
+            )
+           ):
+            # see if the node is in the wrong place because of a
+            # previous ordering instruction
+            if(
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderfirst' or
+               (
+                res_idx[mpath.to_xpath()]['ass_op'] == 'reorderbefore' and
+                res_idx[mpath.to_xpath()]['ass_arg'] == a['ass_arg']
+               )
+              ):
+                return
+
+        # Find the node to be moved. It must exist - we wouldn't have
+        # got to this action if not.
+        node = self.doc.xpath(mpath.to_xpath())[0]
+        # same goes for the target element
+        tnode = self.doc.xpath(MRXpath(a['ass_arg']).to_xpath())[0]
+
+        # No policy or mandatory overrides - go on and move.
+        p = node.getparent()
+        p.insert(p.index(tnode)+1,node)
+        self.res_idx[mpath.to_xpath()] = a
+
+    def action_reorderbefore(self, a, res_idx, poldir, stack):
+        """Move an element before a specified sibling"""
+
+        mpath = MRXpath(a['mpath'])
+
+        # test to see if a reorderfirst or reorderbefore takes precedence
+        if (
+            poldir == -1 or
+            (
+             poldir == 0 and
+             res_idx[mpath.to_xpath()]['is_mandatory'] == "1"
+            )
+           ):
+            # see if the node is in the wrong place because of a
+            # previous ordering instruction
+            if(
+               res_idx[mpath.to_xpath()]['ass_op'] == 'reorderlast' or
+               (
+                res_idx[mpath.to_xpath()]['ass_op'] == 'reorderafter' and
+                res_idx[mpath.to_xpath()]['ass_arg'] == a['ass_arg']
+               )
+              ):
+                return
+
+        # Find the node to be moved. It must exist - we wouldn't have
+        # got to this action if not.
+        node = self.doc.xpath(mpath.to_xpath())[0]
+        # Same goes for the target element.
+        tnode = self.doc.xpath(MRXpath(a['ass_arg']).to_xpath())[0]
+
+        # No policy or mandatory overrides - go on and move.
+        p = node.getparent()
+        p.insert(p.index(tnode),node)
+        self.res_idx[mpath.to_xpath()] = a

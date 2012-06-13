@@ -21,7 +21,7 @@ associated utilities.
 %global smlib %{srclib}/Machination
 
 %prep
-cp -a %source .
+cp -a %{source} .
 
 %build
 

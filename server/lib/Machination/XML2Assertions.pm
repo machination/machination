@@ -125,6 +125,9 @@ sub to_assertions {
       $ass_arg = shift @words;
     }
 
+    $action_op = shift @words;
+    $action_arg = shift @words;
+
     # add appropriate exists assertions for ordering assertions
     my @ordering = qw(first last before after);
     if($ass_op ~~ @ordering) {
@@ -138,10 +141,9 @@ sub to_assertions {
                   ass_op=>'exists',
                   action_op=>'create'};
       }
+      $action_op = "reorder$ass_op";
     }
 
-    $action_op = shift @words;
-    $action_arg = shift @words;
     push @a, {mpath=>$mp->to_string(),
               ass_op=>$ass_op,
               ass_arg=>$ass_arg,

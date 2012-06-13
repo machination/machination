@@ -664,7 +664,7 @@ sub call_GetLibraryItem {
   return {found=>undef, assertions=>[]} unless defined $hp;
 
   # now fetch the assertions from the item
-  @ass = $ha->fetch_from_agroup($hp->type_id, $hp->id);
+  my @ass = $ha->fetch_from_agroup($hp->type_id, $hp->id);
   return {found=>$hp->to_string(), assertions=>\@ass};
 }
 

@@ -242,9 +242,7 @@ sub id {
   my $self = shift;
 
   if(@_) {
-    print Dumper($self->{rep});
     $self->{rep}->[-1] = [$self->name, $_[0]];
-    print Dumper($self->{rep});
   }
   my $last = $self->{rep}->[-1];
   ref $last ? return $last->[1] : return;

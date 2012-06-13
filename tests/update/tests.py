@@ -39,9 +39,9 @@ class UpdateTestCase(unittest.TestCase):
         wc = WebClient('http://localhost/machination/hierarchy/cert',
                        'os_instance:win7-1')
         path = '/test/by_os/Windows/7/x64/os_instance:win7-1'
-        idpair = self.wc.call("IdPair", path)
-        channel = self.wc.call("ProfChannel", idpair['type_id'])
-        data = self.wc.call("GetAssertionList", path, channel)
+        idpair = wc.call("IdPair", path)
+        channel = wc.call("ProfChannel", idpair['type_id'])
+        data = wc.call("GetAssertionList", path, channel)
         ac = xmltools.AssertionCompiler(wc)
         st, res = ac.compile(data)
         print(xmltools.pstring(st.getroot()))

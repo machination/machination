@@ -1452,7 +1452,7 @@ class AssertionCompiler(object):
         stack.reverse()
         while stack:
             a = stack.pop()
-            if a['ass-op'] == 'requires' or a['ass_op'] == 'excludes':
+            if a['ass_op'] == 'requires' or a['ass_op'] == 'excludes':
                 # mpath requires ass_arg is equivalent to:
                 #  mpath exists or create
                 #  ass_arg exists or addlib

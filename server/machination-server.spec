@@ -9,8 +9,6 @@ URL: https://github.com/machination/machination/
 source: machination
 
 buildarch: noarch
-buildrequires:
-requires:
 
 %description
 Machination is a configuration management system. This package

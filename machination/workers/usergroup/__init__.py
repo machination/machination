@@ -110,7 +110,7 @@ class worker(object):
 
     def __check_group_rm(self, g_name):
         members, count, handle = win32net.NetLocalGroupGetMembers(None,
-                                                               g_Name,
+                                                               g_name,
                                                                3)
         back = None
         if count == 0 and g_name not in self.sp_groups:

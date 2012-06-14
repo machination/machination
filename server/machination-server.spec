@@ -27,11 +27,11 @@ cp -a %{SOURCE0} .
 
 %install
 rm -rf %{buildroot}
-for dir in `find %{srclib} -type d -printf %P\\\\n`
+for dir in `find %{srclib} -type d -printf %%P\\\\n`
 do
     mkdir -p %{buildroot}/$dir/
 done
-for file in `find %{srclib} -type f -printf %P\\\\n`
+for file in `find %{srclib} -type f -printf %%P\\\\n`
 do
     cp -p %{srclib}/$file %{buildroot}/$file
 done

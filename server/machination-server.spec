@@ -33,10 +33,10 @@ do
 done
 for file in `find %{srclib} -type f -printf %%P\\\\n`
 do
-    cp -p %{srclib}/$file %{buildroot}/$file
+    cp -p %{srclib}/$file %{buildroot}/%{perllib}/$file
 done
 
 %clean
 
 %files
-%{_datadir}/*
+%{perllib}/*

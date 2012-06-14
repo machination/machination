@@ -29,11 +29,11 @@ cp -a %{SOURCE0} .
 rm -rf %{buildroot}
 for dir in `find %{srclib} -type d -printf %%P\\\\n`
 do
-    mkdir -p %{buildroot}/$dir/
+    mkdir -p %{buildroot}%{perllib}/$dir/
 done
 for file in `find %{srclib} -type f -printf %%P\\\\n`
 do
-    cp -p %{srclib}/$file %{buildroot}/%{perllib}/$file
+    cp -p %{srclib}/$file %{buildroot}%{perllib}/$file
 done
 
 %clean

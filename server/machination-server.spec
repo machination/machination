@@ -27,10 +27,16 @@ cp -a %{SOURCE0} .
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}%{mlib}/
-cp -p %{smlib}/HAccessor.pm %{buildroot}%{mlib}/
+for dir in `find %{srclib} -type d -printf %P\\\\n`
+do
+    mkdir -p %{buildroot}/$dir/
+done
+for file in `find %{srclib} -type f -printf %P\\\\n`
+do
+    cp -p %{srclib}/$file %{buildroot}/$file
+done
 
 %clean
 
 %files
-%{mlib}/HAccessor.pm
+%{_datadir}/*

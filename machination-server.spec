@@ -10,6 +10,7 @@ source: machination
 
 buildarch: noarch
 
+buildrequires: python-devel
 requires: config(httpd)
 
 %description
@@ -18,9 +19,7 @@ installs the Machination hierarchy (directory/tree) service and
 associated utilities.
 
 %global perllib %{_datadir}/perl5
-%global srclib machination/server/lib
-%global mlib %{perllib}/Machination
-%global smlib %{srclib}/Machination
+%global srcperllib machination/server/lib
 
 %prep
 cp -a %{SOURCE0} .
@@ -29,19 +28,22 @@ cp -a %{SOURCE0} .
 
 %install
 rm -rf %{buildroot}
-for dir in `find %{srclib} -type d -printf %%P\\\\n`
+for dir in `find %{srcperllib} -type d -printf %%P\\\\n`
 do
     mkdir -p %{buildroot}%{perllib}/$dir/
 done
-for file in `find %{srclib} -type f -printf %%P\\\\n`
+for file in `find %{srcperllib} -type f -printf %%P\\\\n`
 do
-    cp -p %{srclib}/$file %{buildroot}%{perllib}/$file
+    cp -p %{srcperllib}/$file %{buildroot}%{perllib}/$file
 done
+mkdir -p %{buildroot}/var/www/cgi-bin
+cp -p machination/server/certcgi/machination-join.py %{buildroot}/var/www/cgi-bin/
 
 %clean
 
 %files
 %{perllib}/*
+/var/www/cgi-bin/machination-join.py
 
 # needs:
 

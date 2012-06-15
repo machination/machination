@@ -10,6 +10,8 @@ source: machination
 
 buildarch: noarch
 
+requires: conf(httpd)
+
 %description
 Machination is a configuration management system. This package
 installs the Machination hierarchy (directory/tree) service and
@@ -40,3 +42,18 @@ done
 
 %files
 %{perllib}/*
+
+# needs:
+
+# probably installed?
+
+# existing:
+# mod_perl
+# perl-Apache-DBI
+# perl-Exception-Class
+# perl-XML-LibXML
+# perl-XML-XPath
+
+# need created/found:
+# perl-HOP-Stream
+# perl-Exception-Class-DBI

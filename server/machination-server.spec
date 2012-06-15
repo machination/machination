@@ -10,7 +10,7 @@ source: machination
 
 buildarch: noarch
 
-requires: conf(httpd)
+requires: config(httpd)
 
 %description
 Machination is a configuration management system. This package

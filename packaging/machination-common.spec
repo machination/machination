@@ -11,6 +11,7 @@ source: machination
 buildarch: noarch
 
 buildrequires: python-devel
+requires: python-lxml
 
 %description
 Machination is a configuration management system. This package

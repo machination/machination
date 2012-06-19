@@ -33,10 +33,12 @@ do
 done
 mkdir -p %{buildroot}/var/lib/machination
 mkdir -p %{buildroot}/var/log/machination
+mkdir -p %{buildroot}/etc/machination
 cp -p machination/packaging/default-desired-status.xml %{buildroot}/var/lib/machination/desired-status.xml
 
 %files
 %{python_sitelib}/*
-/var/log/machination
+/var/log/machination/
+/etc/machination/
 %config(noreplace) /var/lib/machination/desired-status.xml
 

@@ -39,11 +39,29 @@ done
 mkdir -p %{buildroot}/var/www/cgi-bin
 cp -p machination/server/certcgi/machination-join.py %{buildroot}/var/www/cgi-bin/
 
+mkdir -p %{buildroot}/etc/httpd/conf.d
+cp -p machination/packaging/default-mod-perl-machination.conf %{buildroot}/etc/httpd/conf.d/machination.conf
+
+mkdir -p %{buildroot}/etc/machination/server/secrets
+cp -p machination/packaging/default-server-config.xml %{buildroot}/etc/machination/server/config.xml
+cp -p machination/packaging/default-dbcred.xml %{buildroot}/etc/machination/server/secrets/dbcred.xml
+
+mkdir -p %{buildroot}/etc/machination/server/bootstrap
+mkdir -p %{buildroot}/etc/machination/server/bootstrap/functions
+for file in `find machination/server/database -type f -printf %%P\\\\n`
+do
+    cp -p machination/server/database/$file %{buildroot}/etc/machination/server/bootstrap/$file
+done
+
 %clean
 
 %files
 %{perllib}/*
 /var/www/cgi-bin/machination-join.py
+%config(noreplace) /etc/httpd/conf.d/machination.conf
+/etc/machination/server/
+%config(noreplace) /etc/machination/server/config.xml
+%config(noreplace) /etc/machination/server/secrets/dbcred.xml
 
 # needs:
 

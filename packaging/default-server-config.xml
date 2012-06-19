@@ -1,0 +1,109 @@
+<config>
+  <!-- machination dir (mdir) is defined to be the parent dir of this
+       config file -->
+
+  <!-- define a path inside mdir by having no leading "/" -->
+  <dir xml:id="dir.SECRETS">
+    <component value="secrets"/>
+  </dir>
+  <!-- define a path outside mdir by starting with a "/" -->
+  <dir xml:id="dir.VAR">
+    <component value="/var/machination"/>
+  </dir>
+  <!-- use a previously defined dir in any new dir like this -->
+  <dir xml:id="dir.ILLUSTRATION">
+    <component ref="dir.VAR"/>
+    <component value="illustration"/>
+  </dir>
+
+  <dir xml:id="dir.LOG">
+    <component value="/var/log/machination/file"/>
+  </dir>
+
+  <dir xml:id="dir.DATABASE">
+    <component value="database"/>
+  </dir>
+
+  <!-- specify files like this -->
+  <file xml:id="file.SPLAT" dir="dir.SECRETS" name="splat.xml"/>
+
+  <file xml:id="file.TEST" dir="dir.SECRETS" name="test.txt"/>
+
+  <subconfig xml:id="subconfig.database">
+    <file xml:id="file.database.CREDENTIALS"
+	  dir="dir.SECRETS" name="dbcred.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_ASSERTIONS"
+	  dir="dir.DATABASE" name="bootstrap_assertions.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_LIB_ASSERTIONS"
+	  dir="dir.DATABASE" name="bootstrap_lib_assertions.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_CHANNELS"
+	  dir="dir.DATABASE" name="bootstrap_channels.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_SET_CONDITIONS"
+	  dir="dir.DATABASE" name="bootstrap_set_conditions.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_SETMEMBER_TYPES"
+	  dir="dir.DATABASE" name="bootstrap_setmember_types.xml"/>
+    <file xml:id="file.database.BOOTSTRAP_OSES"
+	  dir="dir.DATABASE" name="bootstrap_oses.xml"/>
+    <connection method="network">
+      <server>localhost</server>
+      <port>5432</port>
+      <database>machination</database>
+      <driver>Pg</driver>
+    </connection>
+  </subconfig>
+
+<!-- no longer used
+  <subconfig xml:id="subconfig.hierarchy">
+    <file xml:id="file.hierarchy.BOOTSTRAP"
+	  dir="dir.DATABASE" name="bootstrap_hierarchy.xml"/>
+    <file xml:id="file.hierarchy2.BOOTSTRAP"
+	  dir="dir.DATABASE" name="bootstrap_hierarchy2.xml"/>
+    <hc id="/system" hpath="/system"/>
+    <hc id="/system/sets" hpath="/system/sets"/>
+    <hc id="/system/sets/universal" hpath="/system/sets/universal"/>
+    <hc id="/system/sets/empty" hpath="/system/sets/empty"/>
+  </subconfig>
+-->
+
+  <subconfig xml:id="subconfig.haccess">
+    <dir xml:id="dir.SHM">
+      <component value="/dev/shm/machination"/>
+    </dir>
+    <log>
+      <logMethods streams="0" file="1" syslog="1"/>
+      <file xml:id="file.haccess.LOG"
+	    dir="dir.LOG" name="haccess.log"/>
+      <syslog facility="LOG_LOCAL5"
+	      port="514"
+	      server="localhost"/>
+      <progname>machination.haccess</progname>
+      <msgDelimeter>**</msgDelimeter>
+      <newlineAfterPrefix>0</newlineAfterPrefix>
+      <indent>delimeter</indent>
+      <message_settings>
+	<cat_prefix></cat_prefix>
+	<error level="10"
+	       left="&lt;" right="&gt;"
+	       prefix="ERROR:"
+	       syslog_priority="LOG_ERR"
+	       ostream="STDERR"/>
+	<debug level="10"
+	       left="[" right="]"
+	       prefix=""
+	       syslog_priority="LOG_DEBUG"
+	       ostream="STDERR"/>
+	<log level="4"
+	     left="(" right=")"
+	     prefix=""
+	     syslog_priority="LOG_INFO"
+	     ostream="STDOUT"/>
+	<warning level="4"
+	       left="{" right="}"
+	       prefix="WARNING:"
+	       syslog_priority="LOG_WARNING"
+	       ostream="STDERR"/>
+      </message_settings>
+    </log>
+  </subconfig>
+
+</config>

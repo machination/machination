@@ -31,6 +31,12 @@ for file in `find machination/machination -type f -printf %%P\\\\n`
 do
     cp -p machination/machination/$file %{buildroot}%{python_sitelib}/machination/$file
 done
+mkdir -p %{buildroot}/var/lib/machination
+mkdir -p %{buildroot}/var/log/machination
+cp -p machination/packaging/default-desired-status.xml %{buildroot}/var/lib/machination/desired-status.xml
 
 %files
 %{python_sitelib}/*
+/var/log/machination
+%config(noreplace) /var/lib/machination/desired-status.xml
+

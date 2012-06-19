@@ -11,7 +11,7 @@ source: machination
 buildarch: noarch
 
 buildrequires: python-devel
-requires: config(httpd)
+requires: config(httpd), machination-common
 
 %description
 Machination is a configuration management system. This package

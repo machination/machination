@@ -43,6 +43,16 @@ GetOptions(
            "config=s" => \$config,
            );
 
+foreach my $k (keys %$colors) {
+  eval{colored([$colors->{$k}], "text");};
+  if(my $e = $@) {
+    unless($e =~ /^Invalid attribute name bright_/) {
+      die $e;
+    }
+    $colors->{$k} =~ s/bright_//;
+  }
+}
+
 # set up our list of commands
 my @cmds = qw(config pwd cd ls show reload);
 my %cmds = map {$_ => \&{"_".$_}, } @cmds;

@@ -27,7 +27,7 @@
     <component value="secrets"/>
   </dir>
   <dir xml:id="dir.LOG">
-    <component value="/var/log/machination/file"/>
+    <component value="/var/log/machination/server/file"/>
   </dir>
   <dir xml:id="dir.DATABASE">
     <component ref="dir.DATA"/>
@@ -42,6 +42,10 @@
   <subconfig xml:id="subconfig.database">
     <file xml:id="file.database.CREDENTIALS"
 	  dir="dir.SECRETS" name="dbcred.xml"/>
+    <dir xml:id="dir.database.FUNCTIONS">
+      <component ref="dir.DATABASE"/>
+      <component value="functions"/>
+    </dir>
     <file xml:id="file.database.BOOTSTRAP_ASSERTIONS"
 	  dir="dir.DATABASE" name="bootstrap_assertions.xml"/>
     <file xml:id="file.database.BOOTSTRAP_LIB_ASSERTIONS"

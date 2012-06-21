@@ -3415,14 +3415,18 @@ sub create_special_sets {
   my $self = shift;
   my ($type) = @_;
 
-  my $univ_hpath = $self->conf->root->
-    findvalue('/config/subconfig[@xml:id="subconfig.hierarchy"]' .
-              '/hc[@id="/system/sets/universal"]/@hpath');
-  my $empty_hpath = $self->conf->root->
-    findvalue('/config/subconfig[@xml:id="subconfig.hierarchy"]' .
-              '/hc[@id="/system/sets/empty"]/@hpath');
-  $univ_hpath = "/system/sets/universal" unless(defined $univ_hpath);
-  $empty_hpath = "/system/sets/empty" unless(defined $empty_hpath);
+#  my $univ_hpath = $self->conf->root->
+#    findvalue('/config/subconfig[@xml:id="subconfig.hierarchy"]' .
+#              '/hc[@id="/system/sets/universal"]/@hpath');
+#  my $empty_hpath = $self->conf->root->
+#    findvalue('/config/subconfig[@xml:id="subconfig.hierarchy"]' .
+#              '/hc[@id="/system/sets/empty"]/@hpath');
+#  $univ_hpath = "/system/sets/universal" unless(defined $univ_hpath);
+#  $empty_hpath = "/system/sets/empty" unless(defined $empty_hpath);
+  my $univ_hpath = "/system/sets/universal";
+  my $empty_hpath = "/system/sets/empty";
+
+#  print "$univ_hpath\n$empty_hpath\n";
 
   my $uhp = Machination::HPath->new($self,$univ_hpath);
   my $ehp = Machination::HPath->new($self,$empty_hpath);

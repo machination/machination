@@ -22,6 +22,7 @@ associated utilities.
 %global srcperllib machination/server/lib
 
 %prep
+rm -rf ./machination
 cp -a %{SOURCE0} .
 
 %build
@@ -59,6 +60,8 @@ do
     cp -p machination/server/bin/$file %{buildroot}%{_bindir}/$file
 done
 
+mkdir -p %{buildroot}/var/log/machination/server/file
+
 %clean
 
 %files
@@ -71,6 +74,7 @@ done
 %config(noreplace) /etc/machination/server/config.xml
 %attr(0750,apache,apache) /etc/machination/server/secrets
 %config(noreplace) %attr(0640,apache,apache) /etc/machination/server/secrets/dbcred.xml
+%attr(0750,apache,apache) /var/log/machination/server/
 
 # needs:
 

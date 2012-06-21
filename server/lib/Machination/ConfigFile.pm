@@ -32,9 +32,8 @@ my $defaults =
    "dir.SECRETS" => "secrets",
    "dir.TEST" => "splat",
    "dir.DATABASE" => "database",
-   "dir.database.FUNCTIONS" => "database/functions",
    "file.database.CREDENTIALS" => ["dir.SECRETS","dbcred.xml"],
-    "file.database.VALID_OPS" => ["dir.database","valid_ops.xml"],
+   "file.database.VALID_OPS" => ["dir.DATABASE","valid_ops.xml"],
 };
 
 =pod
@@ -130,7 +129,7 @@ sub parser {
 
 sub doc {
   my $self = shift;
-  
+
   unless($self->file) {
     MachinationException->
 	    throw("tried to get doc with no file set");
@@ -155,34 +154,34 @@ sub root {
 =cut
 
 sub get_dir {
-    my $self = shift;
-    my ($id) = @_;
+  my $self = shift;
+  my ($id) = @_;
 
-    my $dir;
-    my $found = $self->doc->getElementById($id);
-    if($found) {
-	my $sep = "";
-	foreach my $c ($found->findnodes("component")) {
+  my $dir;
+  my $found = $self->doc->getElementById($id);
+  if($found) {
+    my $sep = "";
+    foreach my $c ($found->findnodes("component")) {
 	    if($c->hasAttribute('value')){
-		$dir .= $sep . $c->getAttribute('value');
+        $dir .= $sep . $c->getAttribute('value');
 	    } elsif($c->hasAttribute('ref')) {
-		$dir .= $sep . $self->get_dir($c->getAttribute('ref')); 
+        $dir .= $sep . $self->get_dir($c->getAttribute('ref'));
 	    } else {
-		MachinationException->
-		    throw("don't know how to interpret component element:\n" .
-			  $c->toString(1));
+        MachinationException->
+          throw("don't know how to interpret component element:\n" .
+                $c->toString(1));
 	    }
 	    $sep = "/";
-	}
-    } else {
-	$dir = $self->defaults->{$id};
     }
+  } else {
+    $dir = $self->defaults->{$id};
+  }
 
-    if(substr($dir,0,1) ne "/") {
-	$dir = $self->mpath . "/" . $dir;
-    }
+  if(substr($dir,0,1) ne "/") {
+    $dir = $self->mpath . "/" . $dir;
+  }
 
-    return $dir;
+  return $dir;
 }
 
 =item * $file_path  = $conf->get_file($file_id)
@@ -210,7 +209,7 @@ sub get_file {
 sub get_value {
   my $self = shift;
   #    my ($xpath) = @_;
-  
+
   my $id;
   my $xpath;
   my $base_node;
@@ -222,7 +221,7 @@ sub get_value {
     $xpath = shift;
     $base_node = $self->doc->getElementById($id);
   }
-  
+
   my @nodes = $base_node->findnodes($xpath);
   if(@nodes) {
     return $nodes[0]->textContent;

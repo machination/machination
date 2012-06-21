@@ -16,7 +16,7 @@ use HOP::Stream ':all';
 Exception::Class::Base->Trace(1) if $ENV{DEBUG};
 
 my $client_type = "ha";
-my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
+my $config = "/etc/machination/server/config.xml";
 my $url = "http://localhost/machination/hierarchy/";
 my $user = getpwuid($>);
 GetOptions(

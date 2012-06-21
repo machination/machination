@@ -15,7 +15,7 @@ die "Please change the hierarchy admin user in $bshfile before bootstrapping"
   if($hadmin eq 'changeme_to_admin_user@somewhere.com');
 
 # create the database
-qx"create_machination_db.pl";
+qx"machination-createdb";
 die if $?;
 
 # bootstrap the hierarchy

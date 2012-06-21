@@ -6,7 +6,7 @@ use Text::ParseWords;
 
 Exception::Class::Base->Trace(1);
 
-my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
+my $config = "/etc/machination/server/config.xml";
 my $objtype = "ha";
 my $class;
 my @newargs;

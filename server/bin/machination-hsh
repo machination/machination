@@ -34,7 +34,7 @@ my $abbrevs = [
               ];
 
 #my $client_type = "ha";
-my $config = "/home/eggy/svn/machination/trunk/test/machination/config.xml";
+my $config = "/etc/machination/server/config.xml";
 my $url = "http://localhost/machination/hierarchy/";
 my $user = getpwuid($>);
 my $ha = Machination::HAccessor->new($config);

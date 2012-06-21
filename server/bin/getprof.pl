@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use Machination::WebClient;
 use Machination::XMLConstructor;
 use Machination::ConfigFile;

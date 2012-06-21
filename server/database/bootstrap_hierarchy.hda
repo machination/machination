@@ -1,4 +1,4 @@
-setvar(_USER_,chiggs1@EASE.ED.AC.UK)
+setvar(_USER_,changeme_to_admin_user@somewhare.com)
 /system/people
 ../os_instances
 ../mpolicies

@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 use Machination::HAccessor;
 use Data::Dumper;
 use Getopt::Long;

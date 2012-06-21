@@ -2,31 +2,22 @@
 use strict;
 use warnings;
 
-use DBI;
-use XML::LibXML;
+use Machination::HAccessor;
 
-my $crfile = '/etc/machination/server/secrets/dbcred.xml';
-my $uxpath = '/cred/username';
-my $pxpath = '/cred/password';
+my $bshfile = '/var/lib/machination/server/bootstrap/bootstrap_hierarchy.hda';
 
-my $cred = XML::LibXML->load_xml(location=>$crfile);
-my ($uname, $pass);
-eval { $uname = ($cred->findnodes($uxpath))[0]->textContent};
-die "could not find $uxpath in $crfile" if $@;
-eval { $pass = ($cred->findnodes($pxpath))[0]->textContent};
-die "could not find $pxpath in $crfile" if $@;
+# initial hierarchy admin user
+open BSH, $bshfile;
+my $bline = <BSH>;
+print $bline . "\n";
+my ($hadmin) = $bline =~ /setvar\(_USER_,(.*)\)$/;
+close BSH;
+die "Please change the hierarchy admin user in $bshfile before bootstrapping"
+  if($hadmin eq 'changeme_to_admin@somewhere.com');
 
-print "$uname\n$pass\n";
+# create the database
+qx"create_machination_db.pl";
 
-my $pg_uid = getpwnam('postgres');
-my $pg_gid = getgrnam('postgres');
+# bootstrap the hierarchy
 
-$) = $pg_gid;
-$> = $pg_uid;
-
-my $dbh = DBI->connect("dbi:Pg:dbname=postgres",'postgres','',{RaiseError=>1, AutoCommit=>1});
-
-$uname = "frog with password 'splat'; create user mince ";
-
-$dbh->do("create user $uname with password ?", {}, $pass);
-
+my $ha = Machination::HAccessor->new("/etc/machination/server/config.xml");

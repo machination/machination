@@ -46,17 +46,24 @@ mkdir -p %{buildroot}/etc/machination/server/secrets
 cp -p machination/packaging/default-server-config.xml %{buildroot}/etc/machination/server/config.xml
 cp -p machination/packaging/default-dbcred.xml %{buildroot}/etc/machination/server/secrets/dbcred.xml
 
-mkdir -p %{buildroot}/var/lib/machination/server/bootstrap
-mkdir -p %{buildroot}/var/lib/machination/server/bootstrap/functions
+mkdir -p %{buildroot}/var/lib/machination/server/database
+mkdir -p %{buildroot}/var/lib/machination/server/database/functions
 for file in `find machination/server/database -type f -printf %%P\\\\n`
 do
-    cp -p machination/server/database/$file %{buildroot}/var/lib/machination/server/bootstrap/$file
+    cp -p machination/server/database/$file %{buildroot}/var/lib/machination/server/database/$file
+done
+
+mkdir -p %{buildroot}%{_bindir}
+for file in `find machination/server/bin -type f -printf %%P\\\\n`
+do
+    cp -p machination/server/bin/$file %{buildroot}%{_bindir}/$file
 done
 
 %clean
 
 %files
 %{perllib}/*
+%{_bindir}/*
 /var/www/cgi-bin/machination-join.py
 %config(noreplace) /etc/httpd/conf.d/machination.conf
 %attr(-,apache,apache) /var/lib/machination/server/

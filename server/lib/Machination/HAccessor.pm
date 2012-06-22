@@ -4114,10 +4114,8 @@ sub op_create_obj {
 	my $sth = $dbh->
 		prepare_cached($sql,
                    {dbi_dummy=>"HAccessor.create_obj"});
-  print "statement prepared\n";
 	$sth->execute(@values);
 	$sth->finish;
-  print "created obj\n";
 
 	# get the id for the entry we just made
 	$sth = $dbh->

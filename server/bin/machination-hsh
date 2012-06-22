@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
 use Machination::HAccessor;
@@ -41,6 +42,7 @@ my $ha = Machination::HAccessor->new($config);
 my $pwd = "/";
 GetOptions(
            "config=s" => \$config,
+           "user=s" => \$user,
            );
 
 foreach my $k (keys %$colors) {
@@ -54,7 +56,8 @@ foreach my $k (keys %$colors) {
 }
 
 # set up our list of commands
-my @cmds = qw(config pwd cd ls show reload);
+my @cmds = qw(config pwd cd ls show reload
+              create delete attach xml2lib);
 my %cmds = map {$_ => \&{"_".$_}, } @cmds;
 
 my $term = Term::ReadLine->new('Machination hsh');
@@ -66,7 +69,10 @@ while ( defined ($_ = $term->readline($prompt)) ) {
   my $cmd = shift @words;
   if (exists $cmds{$cmd}) {
     my $res = eval { $cmds{$cmd}(@words) };
-    warn $@ if $@;
+    if($@) {
+      warn $@;
+      $ha->write_dbh->rollback if($@ =~ /^DBD::Pg::st execute failed/)
+    }
     print $OUT $res, "\n" unless $@;
   } else {
     warn "no such command '$cmd'";
@@ -275,6 +281,58 @@ sub _show {
     push @ret, $str;
   }
   return join("\n", @ret);
+}
+
+sub _create {
+  my $path = __abs_path(shift);
+  my $hp = Machination::HPath->new($ha, $path);
+  die "$path already exists" if $hp->id;
+  my $fields = {};
+  foreach my $argstr (@_) {
+    my ($name, $value) = $argstr =~ /^(.*?)=(.*)$/;
+    $fields->{$name} = $value;
+  }
+
+  return $ha->create_obj({actor=>$user},
+                         $hp->type_id,
+                         $hp->name,
+                         $hp->parent_id,
+                         $fields);
+}
+
+sub _delete {
+  my @deleted;
+  foreach my $path (@_) {
+    $path = __abs_path($path);
+    my $hp = Machination::HPath->new($ha, $path);
+
+    eval {$ha->delete_obj({actor=>$user},$hp->type_id, $hp->id)};
+    if($@) {
+      warn $@;
+    } else {
+      push @deleted, $path;
+    }
+  }
+  return "deleted:\n" . join("\n",@deleted);
+}
+
+sub _xml2lib {
+  my ($path, $channel, $xml, @opts) = @_;
+  $path = __abs_path($path);
+  my $opts = {};
+  foreach my $opt (@opts) {
+    my ($name, $value) = /^(.*?)=(.*)/;
+    $opts->{$name} = $value;
+  }
+  $channel = $ha->channel_id($channel) unless($channel=~/^\d+$/);
+  my $hp = Machination::HPath->new($ha, $path);
+  $ha->assertion_group_from_xml({actor=>$user},
+                                $hp->parent_id,
+                                $hp->name,
+                                $channel,
+                                $xml,
+                                $opts);
+  return $path;
 }
 
 sub __colorize_path {

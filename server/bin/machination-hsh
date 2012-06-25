@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+use lib 'server/lib';
+
 use strict;
 use warnings;
 use Machination::HAccessor;
@@ -317,11 +319,11 @@ sub _delete {
 }
 
 sub _xml2lib {
-  my ($path, $channel, $xml, @opts) = @_;
+  my ($path, $channel, $xml, @kwargs) = @_;
   $path = __abs_path($path);
   my $opts = {};
-  foreach my $opt (@opts) {
-    my ($name, $value) = /^(.*?)=(.*)/;
+  foreach my $arg (@kwargs) {
+    my ($name, $value) = $arg =~ /^(.*?)=(.*)/;
     $opts->{$name} = $value;
   }
   $channel = $ha->channel_id($channel) unless($channel=~/^\d+$/);
@@ -333,6 +335,27 @@ sub _xml2lib {
                                 $xml,
                                 $opts);
   return $path;
+}
+
+sub _attach {
+  my ($apath,$hcpath,$mandatory,$active,$setpath) = @_;
+  my $ap = Machination::HPath->new($ha, __abs_path($apath));
+  my $hcp = Machination::HPath->new($ha, __abs_path($hcpath));
+  my $set_id;
+  if(defined $setpath) {
+    $set_id = Machination::HPath->new($ha, __abs_path($setpath))->id;
+  }
+  $mandatory = 0 unless(defined $mandatory);
+  $active = 1 unless(defined $active);
+
+  $ha->attach_to_hc({actor=>$user},
+                    $ap->type_id,
+                    $ap->id,
+                    $hcp->id,
+                    $mandatory,
+                    $active,
+                    $set_id);
+  return $ap->id;
 }
 
 sub __colorize_path {

@@ -1,10 +1,10 @@
 <status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
   <worker id="fetcher">
-    <bundle id="forcepad-2.4.2-hexdigest" keep="1"/>
+    <bundle id="forcepad-2.4.2-nodigest" keep="1"/>
   </worker>
   <worker id="packageman">
     <package id="forcepad-2.4.2">
-      <bundle id="forcepad-2.4.2-hexdigest"/>
+      <machinationFetcherBundle id="forcepad-2.4.2-nodigest"/>
       <pkginfo type="simple"/>
     </package>
   </worker>

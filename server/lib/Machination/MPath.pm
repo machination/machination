@@ -162,7 +162,13 @@ sub to_string {
   foreach my $node (@$rep) {
     if (ref $node) {
       my $id = $node->[1];
-      $id = "\@id=\"$id\"" if($opts{to_xpath});
+      if($opts{to_xpath}) {
+        $id =~ s/\'/\&apos;/g;
+        $id = "\@id='$id'";
+      } else {
+        $id =~ s/\'/\\\'/g;
+        $id = "'$id'";
+      }
       push @path, $node->[0] . "[$id]";
     } else {
       push @path, $node;

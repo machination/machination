@@ -36,9 +36,9 @@ class UpdateTestCase(unittest.TestCase):
         self.w.set_status(st)
 
     def test_compile(self):
-        wc = WebClient('http://localhost/machination/hierarchy/cert',
-                       'os_instance:win7-1')
-        path = '/test/by_os/Windows/7/x64/os_instance:win7-1'
+        wc = WebClient('http://w4043.see.ed.ac.uk/machination/hierarchy',
+                       'os_instance:test-win7-1')
+        path = '/by_os/windows/by_version/7/os_instance:test-win7-1'
         idpair = wc.call("IdPair", path)
         channel = wc.call("ProfChannel", idpair['type_id'])
         data = wc.call("GetAssertionList", path, channel)

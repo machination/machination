@@ -1704,6 +1704,11 @@ class AssertionCompiler(object):
                 if p.id():
                     new.set('id', p.id())
                 pelt.append(new)
+                if p.name() == 'machinationFetcherBundle':
+                    # add a dep for the bundle
+                    src = p.to_xpath()
+                    tgt = "/status/worker[fetcher]/bundle[{}]".format(p.id())
+                    stack.extend(dep_assertions(src, 'requires', tgt))
                 pelt = new
 
         if record_index:
@@ -1991,3 +1996,22 @@ class AssertionCompiler(object):
         p = node.getparent()
         p.insert(p.index(tnode),node)
         self.res_idx[mpath.to_xpath()] = a
+
+    def dep_assertions(src, op, tgt):
+        """Return a list of assertions representing dependency"""
+        depid = '{} {} {}'.format(src, op, tgt)
+        deppath = '/status/worker[__machination__]/deps[{}]'.format(depid)
+        return [
+            {'mpath': '{}/@tgt'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': tgt,
+             'action_op': 'settext'},
+            {'mpath': '{}/@op'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': op,
+             'action_op': 'settext'},
+            {'mpath': '{}/@src'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': src,
+             'action_op': 'settext'},
+            ]

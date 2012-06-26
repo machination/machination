@@ -66,6 +66,10 @@
     </connection>
   </subconfig>
 
+  <subconfig xml:id="subconfig.hsh">
+    <defaultUser>{}@COSIGN.REALM</defaultUser>
+  </subconfig>
+
 <!-- no longer used
   <subconfig xml:id="subconfig.hierarchy">
     <file xml:id="file.hierarchy.BOOTSTRAP"

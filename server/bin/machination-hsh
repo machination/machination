@@ -39,13 +39,17 @@ my $abbrevs = [
 #my $client_type = "ha";
 my $config = "/etc/machination/server/config.xml";
 my $url = "http://localhost/machination/hierarchy/";
-my $user = getpwuid($>);
 my $ha = Machination::HAccessor->new($config);
+my $utemplate = $ha->conf->get_value("subconfig.hsh","defaultUser");
+my $user = getpwuid($>);
 my $pwd = "/";
 GetOptions(
            "config=s" => \$config,
            "user=s" => \$user,
            );
+
+$utemplate =~ s/{}/$user/;
+$user = $utemplate;
 
 foreach my $k (keys %$colors) {
   eval{colored([$colors->{$k}], "text");};

@@ -1,11 +1,14 @@
 import pprint
 import sys
 from lxml import etree
-import urllib.request
 from machination.xmldata import from_xml, to_xml
 from machination import context
 from machination.xmltools import pstring
 
+try:
+    import urllib.request as urllib_request
+except ImportError:
+    import urllib2 as urllib_request
 
 class WebClient(object):
     """Machination WebClient"""
@@ -24,12 +27,12 @@ class WebClient(object):
         print(etree.tostring(call_elt, pretty_print=True))
 
         # construct and send a request
-        r = urllib.request.Request(
+        r = urllib_request.Request(
             self.url,
             etree.tostring(call_elt, encoding=self.encoding),
             {'Content-Type':
                  'application/x-www-form-urlencoded;charset={}'.format(self.encoding)})
-        f = urllib.request.urlopen(r)
+        f = urllib_request.urlopen(r)
         s = f.read().decode(self.encoding)
 #        print("got:\n" + s)
         elt = etree.fromstring(s)
@@ -39,8 +42,4 @@ class WebClient(object):
         return ret
 
     def help(self):
-        f = urllib2.urlopen(self.url, '<r call="Help" user="'
-                            + self.user +
-                            '"><s>/</s></r>')
-        s = f.read()
-        print(s)
+        return self.call("Help")

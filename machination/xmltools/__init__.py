@@ -407,7 +407,9 @@ class MRXpath(object):
     # A quick lexer, trick found at
     # http://www.evanfosmark.com/2009/02/sexy-lexing-with-python/
     # Thanks for your article Evan
-    def token_qstring(scanner, token): return "QSTRING", token[1:-1]
+    def token_qstring(scanner, token):
+        token = re.sub(r'\\(.)', r'\1', token)
+        return "QSTRING", token[1:-1]
     def token_sep(scanner, token): return "SEP", token
     def token_bracket(scanner, token): return "BRACKET", token
     def token_op(scanner, token): return "OP", token
@@ -688,16 +690,26 @@ class MRXpath(object):
                 return None
         return None
 
+    def quote_id(self, text, style = None):
+        """Quote an id correctly.
+
+        Args:
+          style: one of 'bs', 'db', 'apos', 'quot'"""
+        if style is None or style == 'bs':
+            text = re.sub(r'\\',r'\\\\',text)
+            text = re.sub(r'\'','\\\'',text)
+            return text
+
     def to_xpath(self):
         """return xpath string"""
         if self.xp_cache is None:
-            self.xp_cache = "/".join(["%s[@id='%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep])
+            self.xp_cache = "/".join(["%s[@id='%s']" % (e[0], self.quote_id(e[1])) if len(e) == 2 else e[0] for e in self.rep])
         return self.xp_cache
 
     @functools.lru_cache(maxsize=None)
     def to_abbrev_xpath(self):
         """return Machination abbreviated xpath string"""
-        return "/".join(["%s['%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep])
+        return "/".join(["%s['%s']" % (e[0], self.quote_id(e[1])) if len(e) == 2 else e[0] for e in self.rep])
 
     @functools.lru_cache(maxsize=None)
     def to_noid_path(self):
@@ -707,7 +719,7 @@ class MRXpath(object):
     @functools.lru_cache(maxsize=None)
     def to_xpath_list(self):
         """return list of xpath path elements"""
-        return ["%s[@id='%s']" % (e[0], e[1]) if len(e) == 2 else e[0] for e in self.rep]
+        return ["%s[@id='%s']" % (e[0], self.quote_id(e[1])) if len(e) == 2 else e[0] for e in self.rep]
 
     def strip_prefix(self, prefix):
         prefix = MRXpath(prefix)
@@ -1623,6 +1635,8 @@ class AssertionCompiler(object):
     def get_poldir(self, assertion, mpolicies):
         """Find which direction a policy points
         """
+        if('mpolicy' in assertion):
+            return assertion['mpolicy']
         pols = self.get_mpolicy(assertion['hc_id'], mpolicies)
         pols.reverse()
         direction = 0
@@ -1652,6 +1666,29 @@ class AssertionCompiler(object):
         """
 
         mpath = MRXpath(mpath)
+
+    def dep_assertions(self, src, op, tgt):
+        """Return a list of assertions representing dependency"""
+        depid = '{} {} {}'.format(src, op, tgt)
+        depid = hashlib.sha256(depid.encode('utf8')).hexdigest()
+        deppath = '/status/worker[__machination__]/deps/dep[{}]'.format(depid)
+        return [
+            {'mpath': '{}/@tgt'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': tgt,
+             'action_op': 'settext',
+             'mpolicy': 0},
+            {'mpath': '{}/@op'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': op,
+             'action_op': 'settext',
+             'mpolicy': 0},
+            {'mpath': '{}/@src'.format(deppath),
+             'ass_op': 'hastext',
+             'ass_arg': src,
+             'action_op': 'settext',
+             'mpolicy': 0},
+            ]
 
     def action_create(self, a, res_idx, poldir, stack,
                       record_index=True):
@@ -1707,8 +1744,8 @@ class AssertionCompiler(object):
                 if p.name() == 'machinationFetcherBundle':
                     # add a dep for the bundle
                     src = p.to_xpath()
-                    tgt = "/status/worker[fetcher]/bundle[{}]".format(p.id())
-                    stack.extend(dep_assertions(src, 'requires', tgt))
+                    tgt = "/status/worker[fetcher]/bundle['{}']".format(p.quote_id(p.id()))
+                    stack.extend(self.dep_assertions(src, 'requires', tgt))
                 pelt = new
 
         if record_index:
@@ -1996,22 +2033,3 @@ class AssertionCompiler(object):
         p = node.getparent()
         p.insert(p.index(tnode),node)
         self.res_idx[mpath.to_xpath()] = a
-
-    def dep_assertions(src, op, tgt):
-        """Return a list of assertions representing dependency"""
-        depid = '{} {} {}'.format(src, op, tgt)
-        deppath = '/status/worker[__machination__]/deps[{}]'.format(depid)
-        return [
-            {'mpath': '{}/@tgt'.format(deppath),
-             'ass_op': 'hastext',
-             'ass_arg': tgt,
-             'action_op': 'settext'},
-            {'mpath': '{}/@op'.format(deppath),
-             'ass_op': 'hastext',
-             'ass_arg': op,
-             'action_op': 'settext'},
-            {'mpath': '{}/@src'.format(deppath),
-             'ass_op': 'hastext',
-             'ass_arg': src,
-             'action_op': 'settext'},
-            ]

@@ -44,7 +44,8 @@ class UpdateTestCase(unittest.TestCase):
         data = wc.call("GetAssertionList", path, channel)
         ac = xmltools.AssertionCompiler(wc)
         st, res = ac.compile(data)
-        print(xmltools.pstring(st.getroot()))
+#        print(xmltools.pstring(st.getroot()))
+        print(etree.tostring(st, pretty_print=True, encoding='utf8').decode('utf8'))
 
     def est_desired_status(self):
         st = self.u.desired_status()

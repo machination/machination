@@ -148,6 +148,7 @@ sub handler {
 
   # find config file
   $r->content_type("text/plain");
+
   my $machination_config = $r->dir_config('MachinationConfig');
   $machination_config = $machination_config_default
     unless(defined $machination_config);
@@ -159,6 +160,35 @@ sub handler {
     $shared_memory_dir = $ha->conf->get_dir("dir.SHM");
     -d $shared_memory_dir || make_path($shared_memory_dir);
   }
+
+  # sort out authentication and set up remote user
+  my $uri_base = $ha->conf->get_value("subconfig.haccess", "\@uriBase");
+  my $ruri = substr($r->uri,length($uri_base));
+  $ruri =~ s/^\///;
+  my ($authen_type, $rem_user) = split(/\//, $ruri);
+  my $haccess_conf_node = $ha->conf->doc->getElementById("subconfig.haccess");
+  my @authen_nodes = $haccess_conf_node->findnodes("authentication/type[\@id='$authen_type']");
+  unless(@authen_nodes) {
+    error("Unsupported authentication type '$authen_type'");
+    return Apache2::Const::OK;
+  }
+  $rem_user = $r->user unless $authen_type eq "debug";
+  my $obj_type;
+  if(my $pat = $authen_nodes[0]->getAttribute("entityNamePattern")) {
+    my @cap = $rem_user =~ /$pat/;
+    my $obj_buf = $authen_nodes[0]->getAttribute("objBuffer");
+    $obj_buf = 1 unless($obj_buf);
+    my $name_buf;
+    if($obj_buf == 1) {
+      $name_buf = 2;
+    } else {
+      $name_buf = 1;
+    }
+    $obj_type = $cap[$obj_buf-1];
+    $rem_user = $cap[$name_buf-1];
+  }
+  print "hello '$obj_type' '$rem_user'\n";
+  return Apache2::Const::OK;
 
   unless($r->method eq "POST") {
     error("HTTP method must be POST");

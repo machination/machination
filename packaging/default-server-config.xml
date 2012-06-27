@@ -83,7 +83,12 @@
   </subconfig>
 -->
 
-  <subconfig xml:id="subconfig.haccess">
+  <subconfig xml:id="subconfig.haccess" uriBase="/machination/hierarchy">
+    <authentication>
+      <type id="basic"/>
+      <type id="cosign" entityNamePattern="^(.*?)@"/>
+      <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
+    </authentication>
     <dir xml:id="dir.SHM">
       <component value="/dev/shm/machination"/>
     </dir>

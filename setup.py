@@ -109,7 +109,7 @@ if __name__ == "__main__":
         scripts = [scriptdir + scriptfile]
 
         # Append an install-script to bdist_msi options
-        scriptargs = [sys.argv[1:], '--install-script', scriptfile]
+        scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
     else:
         scripts = []
         scriptargs = []

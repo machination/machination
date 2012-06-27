@@ -184,11 +184,12 @@ sub handler {
     } else {
       $name_buf = 1;
     }
-    $obj_type = $cap[$obj_buf-1];
-    $rem_user = $cap[$name_buf-1];
+    $obj_type = $cap[$obj_buf - 1];
+    $rem_user = $cap[$name_buf - 1];
   }
-  print "hello '$obj_type' '$rem_user'\n";
-  return Apache2::Const::OK;
+  if($authen_nodes[0]->hasAttribute("objType")) {
+    $obj_type = $authen_nodes[0]->getAttribute("objType");
+  }
 
   unless($r->method eq "POST") {
     error("HTTP method must be POST");
@@ -214,7 +215,6 @@ sub handler {
   }
 
   my $call = $req->getAttribute("call");
-  my $rem_user = $req->getAttribute("user");
 
   unless(exists $calls{$call}) {
     error("no such call \"$call\"");
@@ -291,9 +291,11 @@ sub call_HierarchyChannel {
 =cut
 
 sub call_Help {
+  my $user = shift;
   my $info;
 
   $info .= "Machination WebHierarchy\n";
+  $info .= "Hello $user\n\n";
   $info .= "MPM: " . Apache2::MPM->show() . "\n";
   $info .= "threaded: " . Apache2::MPM->is_threaded() . "\n";
 

@@ -44,6 +44,12 @@ def win_machination_path():
         return 'c:\Program Files\Machination'
 
 
+def conf_dir():
+    """returns path to conf dir
+
+    usually /etc/machination or C:\Program Files\Machination"""
+    return _get_dir("conf")
+
 def status_dir():
     """returns path to status dir
 
@@ -109,7 +115,9 @@ def _get_dir(name):
     # if all else fails, return the default
     platname = platform.system()[:3]
     # ugly: a better way anyone?
-    if name == "status":
+    if name == "conf":
+        return os.path.join(win_machination_path()) if platname == "Win" else '/etc/machination'
+    elif name == "status":
         return os.path.join(win_machination_path(), "status") if platname == "Win" else '/var/lib/machination'
     elif name == "cache":
         return os.path.join(win_machination_path(), "cache") if platname == "Win" else '/var/cache/machination'

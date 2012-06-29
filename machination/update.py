@@ -93,7 +93,8 @@ class Update(object):
         """Get the desired status. Will download and compile status if necessary."""
         if self._desired_status is None:
             services = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service')
-            # TODO download from all services and merge
+            # TODO download from all services and merge. For now just
+            # do the first one.
             hurl = services[0].xpath('hierarchy/@id')
             service_id = services[0]['id']
             # find the machination id for this service

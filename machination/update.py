@@ -28,6 +28,7 @@ class Update(object):
         self._initial_status = initial_status
         self._desired_status = desired_status
         self._previous_status = None
+        #TODO: Create class-level WebClient
 
     def do_update(self):
         """Perform an update cycle"""

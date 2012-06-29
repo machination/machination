@@ -31,7 +31,8 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, url):
+    def __init__(self, service_id, url):
+        self.service_id
         self.url = url
 #        self.user = user
         self.encoding = 'utf-8'
@@ -51,8 +52,14 @@ class WebClient(object):
             {'Content-Type':
                  'application/x-www-form-urlencoded;charset=%s' % self.encoding})
         cert_handler = HTTPSClientAuthHandler(
-            os.path.join(context.conf_dir(), 'secrets', 'client.key'),
-            os.path.join(context.conf_dir(), 'secrets', 'client.crt'))
+            os.path.join(context.conf_dir(),
+                         'services',
+                         self.service_id,
+                         'client.key'),
+            os.path.join(context.conf_dir(),
+                         'services',
+                         self.service_id,
+                         'client.crt'))
         opener = urllib_request.build_opener(cert_handler)
         urllib_request.install_opener(opener)
         f = urllib_request.urlopen(r)

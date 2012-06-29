@@ -28,7 +28,6 @@ class Update(object):
         self._initial_status = initial_status
         self._desired_status = desired_status
         self._previous_status = None
-        #TODO: Create class-level WebClient
 
     def do_update(self):
         """Perform an update cycle"""
@@ -93,15 +92,30 @@ class Update(object):
     def desired_status(self):
         """Get the desired status. Will download and compile status if necessary."""
         if self._desired_status is None:
-            # TODO(colin): replace this with fetch / compile
-            self._desired_status = etree.parse(os.path.join(
-                    context.cache_dir(), 'desired-status.xml')).getroot()
+            services = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service')
+            # TODO download from all services and merge
+            hurl = services[0].xpath('hierarchy/@id')
+            service_id = services[0]['id']
+            # find the machination id for this service
+            with open(os.path.join(context.conf_dir(),
+                                   'services',
+                                   service_id,
+                                   'mid.txt')) as fd:
+                mid = rf.readline().rstrip("\r\n")
+            wc = WebClient(service_id, hurl . '/cert')
+            data = wc.call('GetAssertionList',
+                           'os_instance',
+                           mid)
+            ac = xmltools.AssertionCompiler(wc)
+            self._desired_status, res = ac.compile(data)
+#            self._desired_status = etree.parse(os.path.join(
+#                    context.status_dir(), 'desired-status.xml')).getroot()
         return self._desired_status
 
     def previous_status(self):
         """Get the status from the previous run."""
         if self._previous_status is None:
-            fname = os.path.join(context.cache_dir(), 'previous-status.xml')
+            fname = os.path.join(context.status_dir(), 'previous-status.xml')
             try:
                 self._previous_status = etree.parse(fname).getroot()
             except IOError:

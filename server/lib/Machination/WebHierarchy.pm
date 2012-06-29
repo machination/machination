@@ -590,7 +590,7 @@ $list = GetAssertionList($type_name, $obj_name, $channel)
 =cut
 
 sub call_GetAssertionList {
-  my ($owner,$approval,$type_name,$obj_name, $channel) = @_;
+  my ($owner,$approval,$type_name, $obj_name, $channel) = @_;
   my $info;
 
   my $obj_type_id = $ha->type_id($type_name);
@@ -600,7 +600,7 @@ sub call_GetAssertionList {
   my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);
   $authorised = 1 if($own_type_id == $obj_type_id &&
                      $own_id == $obj_id);
-  die "$owner is not allowed to view the assertion list for $object"
+  die "$owner is not allowed to view the assertion list for $type_name:$obj_name"
     unless $authorised;
 
   my @parents = $ha->fetch_parents($obj_type_id,$obj_id);

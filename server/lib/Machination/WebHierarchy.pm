@@ -124,6 +124,7 @@ our $hierarchy_channel;
 our $shared_memory_dir;
 
 my $xmld = Machination::XMLDumper->new;
+my $orig_rem_user;
 
 =head3 Functions:
 
@@ -173,11 +174,12 @@ sub handler {
     return Apache2::Const::OK;
   }
   $rem_user = $r->user unless $authen_type eq "debug";
+  $log->dmsg($cat, "original remote user: $rem_user", 4);
+  $orig_rem_user = $rem_user;
   my $obj_type;
   if(my $pat = $authen_nodes[0]->getAttribute("entityNamePattern")) {
     my @cap = $rem_user =~ /$pat/;
     my $obj_buf = $authen_nodes[0]->getAttribute("objBuffer");
-    $obj_buf = 1 unless($obj_buf);
     my $name_buf;
     if($obj_buf == 1) {
       $name_buf = 2;
@@ -187,6 +189,7 @@ sub handler {
     $obj_type = $cap[$obj_buf - 1];
     $rem_user = $cap[$name_buf - 1];
   }
+  $log->dmsg($cat, "transformed remote user: $rem_user", 4);
   if($authen_nodes[0]->hasAttribute("objType")) {
     $obj_type = $authen_nodes[0]->getAttribute("objType");
   }
@@ -295,7 +298,7 @@ sub call_Help {
   my $info;
 
   $info .= "Machination WebHierarchy\n";
-  $info .= "Hello $user\n\n";
+  $info .= "Hello $user (originally $orig_rem_user)\n\n";
   $info .= "MPM: " . Apache2::MPM->show() . "\n";
   $info .= "threaded: " . Apache2::MPM->is_threaded() . "\n";
 

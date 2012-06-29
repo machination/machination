@@ -11,7 +11,8 @@ import sys
 def git_describe(abbrev=4):
     try:
         return subprocess.check_output(
-            ['git', 'describe', '--tags', '--abbrev=%d' % abbrev]).strip()
+            ['git', 'describe', '--tags', '--abbrev=%d' %
+             abbrev]).strip().decode()
     except:
         return None
 

@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 
-def git_describe(abbrev=4):
+def git_describe(abbrev=0):
     try:
         return subprocess.check_output(
             ['git', 'describe', '--tags', '--abbrev=%d' %

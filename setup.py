@@ -111,8 +111,14 @@ if __name__ == "__main__":
         scripts = [scriptdir + scriptfile]
 
         # Append an install-script to bdist_msi options
+        mdir = (os.path.join(os.environ.get('ALLUSERSPROFILE','C:\\ProgramData'), 'Machination'))
         scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
-        data_files = [(os.path.join(os.environ.get('ALLUSERSPROFILE','C:\\ProgramData'), 'Machination', 'conf'), ['packaging/desired-status.xml'])]
+        data_files = [(os.path.join(mdir,'conf'),[]),
+                      (os.path.join(mdir, 'status'),
+                       ['packaging/desired-status.xml']),
+                      (os.path.join(mdir,'cache'),[]),
+                      (os.path.join(mdir,'bin'),[]),
+                      (os.path.join(mdir,'log'),[])]
     else:
         scripts = []
         scriptargs = []

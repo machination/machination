@@ -23,8 +23,8 @@ from machination.logger import Logger
 
 desired_status = None
 
-
 def win_machination_path():
+    default = os.path.join(os.environ.get('ALLUSERSPROFILE', 'C:\\ProgramData'), 'Machination')
     try:
         # look at the registry key HKLM\Software\Machination
         import wmi
@@ -38,50 +38,45 @@ def win_machination_path():
         if result:
             # Registry read failed - use default path
             # FIXME: Add syslog warning
-            return 'c:\Program Files\Machination'
+            return default
+        else:
+            return path
     except:
         # Something went wrong with the registry setup
-        return 'c:\Program Files\Machination'
+        return default
 
 
 def conf_dir():
     """returns path to conf dir
 
-    usually /etc/machination or C:\Program Files\Machination"""
+    usually /etc/machination or C:\ProgramData\Machination\conf"""
     return _get_dir("conf")
 
 def status_dir():
     """returns path to status dir
 
-    usually /var/lib/machination or C:\Program Files\Machination\status"""
+    usually /var/lib/machination or C:\ProgramData\Machination\status"""
     return _get_dir("status")
 
 
 def cache_dir():
     """returns path to cache dir
 
-    usually /var/cache/machination or C:\Program Files\Machination\cache"""
+    usually /var/cache/machination or C:\ProgramData\Machination\cache"""
     return _get_dir("cache")
 
 
 def bin_dir():
     """returns path to bin dir
 
-    usually /usr/bin or C:\Program Files\Machination\bin"""
+    usually /usr/bin or C:\ProgramData\Machination\bin"""
     return _get_dir("bin")
-
-
-def python_lib_dir():
-    """returns path to python_lib dir
-
-    usually /usr/lib/python or C:\Program Files\Machination"""
-    return _get_dir("python_lib")
 
 
 def log_dir():
     """returns path to log dir
 
-    usually /var/log/machination or C:\Program Files\machination\log
+    usually /var/log/machination or C:\ProgramData\Machination\log
     """
     return _get_dir("log")
 
@@ -123,8 +118,6 @@ def _get_dir(name):
         return os.path.join(win_machination_path(), "cache") if platname == "Win" else '/var/cache/machination'
     elif name == "bin":
         return os.path.join(win_machination_path(), "bin") if platname == "Win" else '/usr/bin'
-    elif name == "python_lib":
-        return win_machination_path() if platname == "Win" else '/usr/lib/python'
     elif name == 'log':
         return os.path.join(win_machination_path(), "log") if platname == "Win" else '/var/log/machination'
 

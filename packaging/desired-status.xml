@@ -1,1 +1,17 @@
-default-desired-status.xml
+<status>
+  <worker id='__machination__'>
+    <directories
+        cache='{dsdir}'
+        />
+    <logging>
+      <stream id='stderr' loglevel='6'/>
+      <file id="log.txt" loglevel="6"/>
+    </logging>
+    <daemon address="" port="1313" sleeptime="10000" />
+    <services>
+      <service id="localhost">
+        <hierarchy id="http://localhost/machination/hierarchy"/>
+      </service>
+    </services>
+  </worker>
+</status>

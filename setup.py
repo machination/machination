@@ -69,7 +69,7 @@ def clean_all():
 
 
 def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
-              scriptargs=sys.argv[1:]):
+              scriptargs=sys.argv[1:], data_files=[]):
 
     #Cleanup at end of successful setup
     clean_all()
@@ -99,6 +99,7 @@ def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
             "Topic :: Utilities",
             "License :: OSI Approved :: GPL License",
             ],
+        data_files=data_files,
         )
 
 
@@ -111,9 +112,11 @@ if __name__ == "__main__":
 
         # Append an install-script to bdist_msi options
         scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
+        data_files = [(os.path.join(os.environ.get('ALLUSERSPROFILE','C:\\ProgramData'), 'Machination', 'conf'), ['packaging/desired-status.xml'])]
     else:
         scripts = []
         scriptargs = []
+        data_files = []
 
     # Build machination core (without workers or tests)
     run_setup("machination",
@@ -124,7 +127,8 @@ if __name__ == "__main__":
                                       "workers"]),
               ["desired-status.xml"],
               scripts,
-              scriptargs)
+              scriptargs,
+              data_files)
 
     # Build each worker package
     basedir = "machination/workers"

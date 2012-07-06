@@ -6,6 +6,37 @@ import http.client
 import http.cookiejar
 import getpass
 
+class CosignPasswordMgr(object):
+
+    def newcred(self):
+        return {'username': input('username: '),
+                'password': getpass.getpass()}
+
+    def __init__(self, cred=None, max_tries=5, callback=newcred):
+        self.set_cred(cred)
+        self.try_count = 1
+        self.max_tries = max_tries
+        self.callback = callback
+
+    def set_cred(self, cred):
+        self.cred = cred
+        self.dirty = False
+
+    def get_cred(self):
+        if not self.dirty and self.cred is not None:
+            self.try_count = self.try_count + 1
+            self.dirty = True
+            return self.cred
+
+        if self.try_count > self.max_tries:
+            raise IndexError("Exceeded max_tries ({})".format(self.max_tries))
+
+        self.cred = self.newcred()
+        self.try_count = self.try_count + 1
+
+        self.dirty = True
+        return self.cred
+
 class CosignHandler(urllib.request.BaseHandler):
     """urllib.request style handler for Cosign protected URLs.
 
@@ -18,7 +49,7 @@ class CosignHandler(urllib.request.BaseHandler):
 
     # If you've got one big program you'll probably want to keep the
     # cookies in memory, but for lots of little programs we get single
-    # sign on behaviour by saving and looading to/from a file.
+    # sign on behaviour by saving and loading to/from a file.
     try:
         # If this is the first script invocation there might not be a cookie
         # file yet.
@@ -106,6 +137,12 @@ class CosignHandler(urllib.request.BaseHandler):
 
 
 if __name__ == '__main__':
+
+    pwm = CosignPasswordMgr(max_tries=2)
+    for i in range(3):
+        print(pwm.get_cred())
+
+    exit()
 
     cj = http.cookiejar.MozillaCookieJar('cookies.txt')
     try:

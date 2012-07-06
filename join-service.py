@@ -92,12 +92,12 @@ class CosignHandler(urllib.request.BaseHandler):
                 )
             # We need a different opener that doesn't have a CosignHandler.
             opener = urllib.request.build_opener(
-                urllib.request.HTTPCookieProcessor(cj)
+                urllib.request.HTTPCookieProcessor(self.cj)
                 )
             # Try the login
             res2 = opener.open(req2)
             # Cookies, cookies, cookies
-            cj.extract_cookies(res2, req2)
+            self.cj.extract_cookies(res2, req2)
 
             # We should be logged in, go back and get what was asked for
             res = opener.open(req)

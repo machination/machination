@@ -88,6 +88,11 @@
       <type id="basic"/>
       <type id="cosign" entityNamePattern="^(.*?)@"/>
       <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
+      <certs C="UK"
+             ST="someState"
+             L="someLocation"
+             O="someOrg"
+             OU="someUnit"/>
     </authentication>
     <dir xml:id="dir.SHM">
       <component value="/dev/shm/machination"/>

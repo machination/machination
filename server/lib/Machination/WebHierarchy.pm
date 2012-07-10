@@ -62,6 +62,7 @@ my %calls =
    # Getting information
    ########################################
    Help => undef,
+   CertInfo => undef,
 
    # types
    TypeInfo => undef,
@@ -287,6 +288,14 @@ sub hierarchy_channel {
 
 sub call_HierarchyChannel {
   return hierarchy_channel();
+}
+
+=item B<CertInfo>
+
+=cut
+
+sub call_CertInfo {
+  my $certs_elt = ($ha->conf->doc->findnodes('//subconfig[@id="subconfig.haccess"]/authentication/certs'))[0];
 }
 
 =item B<Help>

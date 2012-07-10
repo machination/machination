@@ -295,7 +295,17 @@ sub call_HierarchyChannel {
 =cut
 
 sub call_CertInfo {
-  my $certs_elt = ($ha->conf->doc->findnodes('//subconfig[@id="subconfig.haccess"]/authentication/certs'))[0];
+  my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
+  my @nodes = $haccess_node->findnodes("authentication/certs");
+  unless(@nodes) {
+    error("No certificate information found");
+    return Apache2::Const::OK;
+  }
+  my $info = {};
+  foreach my $att ($nodes[0]->attributes()) {
+    $info->{$att->nodeName} = $att->value;
+  }
+  return $info;
 }
 
 =item B<Help>

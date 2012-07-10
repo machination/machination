@@ -8,6 +8,10 @@
       <file id="log.txt" loglevel="6"/>
     </logging>
     <daemon address="" port="1313" sleeptime="10000" />
+    <openssl>
+      <binary>C:\OpenSSL-Win64\bin\openssl.exe</binary>
+      <config>C:\OpenSSL-Win64\bin\openssl.cfg</config>
+    </openssl>
     <services>
       <service id="localhost">
         <hierarchy id="http://localhost/machination/hierarchy"/>

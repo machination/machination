@@ -4,7 +4,6 @@ import urllib.request
 import http.cookiejar
 from machination.cosign import CosignPasswordMgr, CosignHandler
 
-
 if __name__ == '__main__':
 
     cj = http.cookiejar.MozillaCookieJar('cookies.txt')

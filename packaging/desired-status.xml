@@ -15,6 +15,9 @@
     <services>
       <service id="localhost">
         <hierarchy id="http://localhost/machination/hierarchy"/>
+        <authentication id="person"
+                        type="cosign"
+                        cosignLoginPage="https://www.ease.ed.ac.uk/"/>
       </service>
     </services>
   </worker>

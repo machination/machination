@@ -8,10 +8,6 @@ from machination.webclient import WebClient
 if __name__ == '__main__':
 
     cj = http.cookiejar.MozillaCookieJar('cookies.txt')
-    try:
-        cj.load(ignore_discard=True)
-    except IOError:
-        pass
     opener = urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(cj),
         CosignHandler('https://www.ease.ed.ac.uk/',

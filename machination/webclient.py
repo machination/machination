@@ -32,10 +32,12 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, url, authen_type):
+    def __init__(self, service_id, url, obj_type):
         self.service_id
         self.url = url
-        self.authen_type = authen_type
+        self.obj_type = obj_type
+        self.authen_elt = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service[@id="{}"]/authentication[@id="{}"]'.format(self.service_id, self.obj_type))[0]
+        self.authen_type = self.authen_elt.get("type")
         self.encoding = 'utf-8'
         self.l = context.logger
         self.cookie_file = os.path.join(context.status_dir(), 'cookies.txt')
@@ -45,18 +47,15 @@ class WebClient(object):
             self.cookie_jar = http.cookiejar.MozillaCookieJar(
                 self.cookie_file
                 )
-            try:
-                self.cookie_jar.load(ignore_discard=True)
-            except IOError:
-                pass
             handlers.append(
                 self.cookie_jar
                 )
             handlers.append(
                 CosignHandler(
-                    'https://www.ease.ed.ac.uk/',
+                    self.authen_elt.get('cosignLoginPage'),
                     self.cookie_jar,
-                    CosignPasswordMgr()
+                    CosignPasswordMgr(),
+                    save_cookies = True
                     )
                 )
         elif self.authen_type == 'cert':

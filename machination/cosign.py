@@ -74,20 +74,12 @@ class CosignHandler(urllib.request.BaseHandler):
     # Cosign relies on cookies.
     cj = http.cookiejar.MozillaCookieJar('cookies.txt')
 
-    try:
-        # If this is the first script invocation there might not be a cookie
-        # file yet.
-        cj.load(ignore_discard=True)
-    except IOError:
-        pass
-
     # We need an opener that handles cookies and any cosign redirects and
     # logins.
     opener = urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(cj),
-        # Here's the CosignHandler. Note that the login page for our
-        # cosign server is https://www.ease.ed.ac.uk/
-        CosignHandler('https://www.ease.ed.ac.uk/',
+        # Here's the CosignHandler.
+        CosignHandler('https://cosign.login/page',
                       cj,
                       CosignPasswordMgr()
                       # If you've got one big program you'll probably
@@ -101,12 +93,13 @@ class CosignHandler(urllib.request.BaseHandler):
 
     # Construct a request for the page we actually want
     req = urllib.request.Request(
-        url='https://www.see.ed.ac.uk/~wwwuser2/bin/auth/licusers.cgi',
+        url='https://some.cosign.protected/url',
         )
 
+    # make the request
+    res = opener.open(req)
     # If all went well, res encapsulates the desired result, use res.read()
     # to get at the data and so on.
-    res = opener.open(req)
     """
 
     def __init__(self, login_url, cj, pw_mgr, save_cookies=True):

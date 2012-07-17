@@ -103,7 +103,7 @@ class Update(object):
                                    service_id,
                                    'mid.txt')) as fd:
                 mid = rf.readline().rstrip("\r\n")
-            wc = WebClient(service_id, hurl . '/cert')
+            wc = WebClient(service_id, hurl, '/cert')
             data = wc.call('GetAssertionList',
                            'os_instance',
                            mid)

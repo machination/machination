@@ -74,9 +74,6 @@ class CosignHandler(urllib.request.BaseHandler):
     # Cosign relies on cookies.
     cj = http.cookiejar.MozillaCookieJar('cookies.txt')
 
-    # If you've got one big program you'll probably want to keep the
-    # cookies in memory, but for lots of little programs we get single
-    # sign on behaviour by saving and loading to/from a file.
     try:
         # If this is the first script invocation there might not be a cookie
         # file yet.
@@ -93,6 +90,12 @@ class CosignHandler(urllib.request.BaseHandler):
         CosignHandler('https://www.ease.ed.ac.uk/',
                       cj,
                       CosignPasswordMgr()
+                      # If you've got one big program you'll probably
+                      # want to keep the cookies in memory, but for
+                      # lots of little programs we get single sign on
+                      # behaviour by saving and loading to/from a
+                      # file.
+                      save_cookies=True
                       )
         )
 
@@ -104,14 +107,9 @@ class CosignHandler(urllib.request.BaseHandler):
     # If all went well, res encapsulates the desired result, use res.read()
     # to get at the data and so on.
     res = opener.open(req)
-
-    # Save the cookies for future programs (single sign on until they
-    # expire)
-    cj.extract_cookies(res,req)
-    cj.save(ignore_discard=True)
     """
 
-    def __init__(self, login_url, cj, pw_mgr):
+    def __init__(self, login_url, cj, pw_mgr, save_cookies=True):
         """Construct new CosignHandler.
 
         Args:
@@ -126,11 +124,21 @@ class CosignHandler(urllib.request.BaseHandler):
           pw_mgr: A CosignPasswordMgr object or equivalent. This
             object will provide (and if necessary prompt for) the
             username and password.
+
+          save_cookies: Whether or not to save cookies to a file after
+            each request. Required for single sign on between
+            different scripts.
         """
         super().__init__()
         self.login_url = login_url
         self.cj = cj
         self.pw_mgr = pw_mgr
+        self.save_cookies = save_cookies
+        # try to load cookies from file (specified when constructing cj)
+        try:
+            self.cj.load(ignore_discard=True)
+        except IOError:
+            pass
 
     def https_response(self, req, res):
         """Handle https_response.
@@ -168,5 +176,9 @@ class CosignHandler(urllib.request.BaseHandler):
             # If we end up back at the login page then login failed
             if res.geturl().startswith(self.login_url + '?'):
                 raise Exception('Login failed.')
+
+            if self.save_cookies:
+                self.cj.extract_cookies(res,req)
+                self.cj.save(ignore_discard=True)
 
         return res

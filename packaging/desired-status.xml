@@ -8,13 +8,18 @@
       <file id="log.txt" loglevel="6"/>
     </logging>
     <daemon address="" port="1313" sleeptime="10000" />
-    <openssl>
-      <binary>C:\OpenSSL-Win64\bin\openssl.exe</binary>
-      <config>C:\OpenSSL-Win64\bin\openssl.cfg</config>
+    <openssl binary="C:\OpenSSL-Win64\bin\openssl.exe"
+             config="C:\OpenSSL-Win64\bin\openssl.cfg">
     </openssl>
     <services>
+      <service id="eng.ed.ac.uk">
+        <hierarchy id="https://machination2.see.ed.ac.uk/machination/hierarchy"/>
+        <authentication id="person"
+                        type="cosign"
+                        cosignLoginPage="https://www.ease.ed.ac.uk/"/>
+      </service>
       <service id="localhost">
-        <hierarchy id="http://localhost/machination/hierarchy"/>
+        <hierarchy id="https://localhost/machination/hierarchy"/>
         <authentication id="person"
                         type="cosign"
                         cosignLoginPage="https://www.ease.ed.ac.uk/"/>

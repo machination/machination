@@ -32,12 +32,21 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, url, obj_type):
-        self.service_id
-        self.url = url
+    def __init__(self, service_id, obj_type):
+        self.service_id = service_id
         self.obj_type = obj_type
-        self.authen_elt = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service[@id="{}"]/authentication[@id="{}"]'.format(self.service_id, self.obj_type))[0]
+        try:
+            service_elt = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service[@id="{}"]'.format(service_id))[0]
+        except IndexError:
+            raise Exception("service id '{}' not found in desired_status".format(service_id))
+        self.authen_elt = service_elt.xpath(
+            'authentication[@id="{}"]'.format(self.obj_type)
+            )[0]
         self.authen_type = self.authen_elt.get("type")
+        self.url = '{}/{}'.format(
+            service_elt.xpath('hierarchy/@id')[0],
+            self.authen_type
+            )
         self.encoding = 'utf-8'
         self.l = context.logger
         self.cookie_file = os.path.join(context.status_dir(), 'cookies.txt')
@@ -74,11 +83,8 @@ class WebClient(object):
 
         self.opener = urllib_request.build_opener(*handlers)
 
-    def full_url(self):
-        return '{}/{}'.format(self.url, self.authen_type)
-
     def call(self, name, *args):
-        print("calling " + name + " on " + self.full_url())
+        print("calling " + name + " on " + self.url)
         call_elt = etree.Element("r", call=name)
         for arg in args:
             call_elt.append(to_xml(arg))
@@ -86,7 +92,7 @@ class WebClient(object):
 
         # construct and send a request
         r = urllib_request.Request(
-            self.full_url(),
+            self.url,
             etree.tostring(call_elt, encoding=self.encoding),
             {'Content-Type':
                  'application/x-www-form-urlencoded;charset=%s' % self.encoding})

@@ -121,13 +121,29 @@ def _get_dir(name):
     elif name == 'log':
         return os.path.join(win_machination_path(), "log") if platname == "Win" else '/var/log/machination'
 
+def get_id(service_id):
+    """Find the os_instance id to use with service 'service'"""
+    with open(os.path.join(conf_dir(),
+                           'services',
+                           service_id,
+                           'mid.txt')) as fd:
+        mid = fd.readline().rstrip("\r\n")
+    return mid
+
+
 desired_status_file = os.path.join(status_dir(), "desired-status.xml")
 try:
     desired_status = etree.parse(desired_status_file)
 except IOError:
     raise IOError("could not find file '%s'" % desired_status_file)
 
-logging_elts = desired_status.xpath('/status/worker[@id="__machination__"]/logging')
+machination_worker_elt = desired_status.xpath(
+    '/status/worker[@id="__machination__"]'
+    )[0]
+
+logging_elts = machination_worker_elt.xpath(
+    'logging'
+    )
 if not logging_elts:
     # defaults
     logging_elts = [etree.fromstring('<logging>' +

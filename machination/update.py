@@ -98,11 +98,7 @@ class Update(object):
             hurl = services[0].xpath('hierarchy/@id')
             service_id = services[0]['id']
             # find the machination id for this service
-            with open(os.path.join(context.conf_dir(),
-                                   'services',
-                                   service_id,
-                                   'mid.txt')) as fd:
-                mid = rf.readline().rstrip("\r\n")
+            mid = context.get_id(service_id)
             wc = WebClient(service_id, hurl, '/cert')
             data = wc.call('GetAssertionList',
                            'os_instance',

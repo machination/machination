@@ -1893,7 +1893,7 @@ sub action_allowed {
     # the mpath must be of the form /$branch or /$branch/type[id]
 
     my ($branch, $type_name, $obj_id) =
-      $req->{mpath} =~ /^\/(contents|attachments)(?:\/(\w+)(?:\[(\d+)\])?)?/;
+      $req->{mpath} =~ /^\/(contents|attachments)(?:\/(\w+:?\w*)(?:\[(\d+)\])?)?/;
     croak "don't know how to authorise branch " .
       "in hierarchy channel when processing mpath " . $req->{mpath}
         unless(defined $branch);

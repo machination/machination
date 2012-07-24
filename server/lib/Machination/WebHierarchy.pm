@@ -808,7 +808,7 @@ sub call_EntityId {
     throw("could not get exists permission for $type_name:$id in " .
           "/system/special/authz/objects")
       unless $ha->action_allowed
-        ($req, Machination::HPath->new("/system/special/authz/objects")->id);
+        ($req, Machination::HPath->new($ha, "/system/special/authz/objects")->id);
 
   return $id
 }
@@ -837,53 +837,29 @@ sub call_ChannelInfo {
 }
 
 
-=item * call_Create($ent,$path,$fields)
+=item B<call_Create($caller, $approval ,$path,$fields)>
 
 =cut
 
 sub call_Create {
-  my ($ent,$path,$fields) = @_;
+  my ($caller, $approval, $path, $fields) = @_;
 
-  if($path eq "machination:root") {
-    $ha->create_root_hc;
-    return;
-  }
+  my $hp;
+  $hp = Machination::HPath->new($ha,$path);
+  my $type = $hp->type;
+  $type = "machination:hc" unless defined $type;
+  my $mpath = "/contents/$type/fields[name]/" . $hp->name;
 
-    my $parent = $1 if($path=~s/^(.*)\///);
-    my ($type,$name) = split(/:/,$path);
-    if(!defined $name) {
-        $name = $type;
-        $type = "machination:hc";
-    }
-    $parent = undef if($parent eq "");
-    $name = undef if($name eq "");
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"create",
+             mpath=>$mpath,
+             owner=>$caller,
+             approval=>$approval};
+  AuthzDeniedException->
+    throw("Could not get create permission for $mpath on " . $hp->parent->to_string)
+      unless $ha->action_allowed($req,$hp->parent_id);
 
-    die "create requires a type\n" unless $type;
-
-    if($type eq "machination:hc" && ! exists($fields->{is_mp})){
-	$fields->{is_mp}=0;
-    }
-    $fields->{owner} = $ent;
-
-    $parent = "/" if(!defined $parent && $type eq "machination:hc");
-    $parent = "/sys/orphaned" if(!defined $parent);
-    my $id;
-    my $hp = Machination::HPath->new($ha,$parent);
-
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>"machination:hc",id=>$hp->id},
-	    owner=>$ent,
-	    op=>"add_elt",
-	    elt_path=>"/hc/contents",
-	},
-	$hp->id
-	);
-
-    $id = $ha->hobject->create_in($type,$name,$fields,$hp->id);
-
-    return $id;
+  return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent_id, $fields);
 }
 
 =item * call_LinkCount($ent,$item)

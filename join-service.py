@@ -75,18 +75,18 @@ if __name__ == '__main__':
     print('os_id: {}, service_id: {}'.format(os_id, service_id))
     print('openssl: {}, opensslcfg: {}'.format(openssl, opensslcfg))
 
+    certdir = os.path.join(
+        context.conf_dir(),
+        'services',
+        service_id
+        )
     # generate the key
     cmd = []
     cmd.extend([openssl,'genpkey'])
     cmd.extend(['-algorithm','RSA'])
     cmd.extend(['-pkeyopt', 'rsa_keygen_bits:4096'])
     print('genkey: {}'.format(cmd))
-    pending_keyfile = os.path.join(
-        context.conf_dir(),
-        'services',
-        service_id,
-        'pending.key'
-        )
+    pending_keyfile = os.path.join(certdir, 'pending.key')
     print('Generating new key')
     key = subprocess.check_output(cmd)
 #    key = b'splat'
@@ -125,13 +125,44 @@ if __name__ == '__main__':
     cmd.extend(['-subj', subject])
     print('Generating certificate request')
     csr = subprocess.check_output(cmd)
-    pending_csrfile = os.path.join(
-        context.conf_dir(),
-        'services',
-        service_id,
-        'pending.csr'
-        )
+    pending_csrfile = os.path.join(certdir, 'pending.csr')
     with machination.create_secret_file(pending_csrfile,'wb') as f:
         f.write(csr)
 
-    wc.call("JoinService", csr.decode('utf8'), None)
+    answer = wc.call("JoinService", csr.decode('utf8'), None, False)
+    if isinstance(answer, dict):
+        # Didn't get all the way to a cert for some reason
+
+        # currently the only allowed reason is "id exists: are you sure?"
+        ans = ''
+        while ans.lower() not in ['y', 'n']:
+            ans = input('id exists, are you sure [y/N]? ')
+        if ans.lower() == 'n':
+            print('Aborting service join')
+            exit()
+        # Try again with force = True
+        cert = wc.call("JoinService", csr.decode('utf8'), None, True)
+    else:
+        cert = answer
+
+    keyfile = os.path.join(certdir, 'myself.key')
+    certfile = os.path.join(certdir, 'myself.crt')
+
+    # Remove existing key file.
+    try:
+        os.remove(keyfile)
+    except OSError as e:
+        if e.errno == 2:
+            pass
+    # Replace with new one.
+    os.rename(pending_keyfile, keyfile)
+
+    # Remove existing cert file.
+    try:
+        os.remove(certfile)
+    except OSError as e:
+        if e.errno == 2:
+            pass
+    # Create new one.
+    with open(certfile'wb') as f:
+        f.write(cert)

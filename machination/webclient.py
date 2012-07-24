@@ -32,11 +32,14 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, obj_type, user=None):
+    def __init__(self, service_id, obj_type, cred=None):
         self.service_id = service_id
         self.obj_type = obj_type
+        self.cred = cred
         try:
-            service_elt = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service[@id="{}"]'.format(service_id))[0]
+            service_elt = context.machination_worker_elt.xpath(
+                'services/service[@id="{}"]'.format(service_id)
+                )[0]
         except IndexError:
             raise Exception("service id '{}' not found in desired_status".format(service_id))
         self.authen_elt = service_elt.xpath(
@@ -81,7 +84,14 @@ class WebClient(object):
                     )
                 )
         elif self.authen_type == 'debug':
-            self.url = '{}/{}'.format(self.url, user)
+            if not self.cred:
+                username = self.authen_elt.get('username')
+                if username is None:
+                    username = input('username: ')
+                self.cred = {'username': username}
+            self.url = '{}/{}:{}'.format(self.url,
+                                         self.obj_type,
+                                         self.cred.get('username'))
 
         self.opener = urllib_request.build_opener(*handlers)
 

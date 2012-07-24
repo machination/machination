@@ -4,8 +4,12 @@ import argparse
 #import urllib.request
 #import http.cookiejar
 #from machination.cosign import CosignPasswordMgr, CosignHandler
+import machination
 from machination import context
 from machination.webclient import WebClient
+import os
+import subprocess
+from lxml import etree
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -19,27 +23,115 @@ if __name__ == '__main__':
                         help='openssl config file')
     args = parser.parse_args()
 
+    # prefer service_id from args, then first service element from
+    # desired_status
     if args.service_id:
         service_id = args.service_id
     else:
-        service_id = context.desired_status.xpath(
-            '/status/worker[@id="__machination__"]/services/service/@id'
+        service_id = context.machination_worker_elt.xpath(
+            'services/service/@id'
             )[0]
+
+    # Now we have an id, get the appropriate service element
+    try:
+        service_elt = context.machination_worker_elt.xpath(
+            'services/service[@id="{}"]'.format(service_id)
+            )[0]
+    except IndexError:
+        # create an empty one so that the rest of the program will work
+        service_elt = etree.Element('service')
+
+    # prefer os_id from args, then use context.get_id()
     if args.os_id:
         os_id = args.os_id
     else:
         os_id = context.get_id(service_id)
 
+    # defaults for openssl binary and config file
     openssl = 'openssl'
     opensslcfg = None
-    try:
-        openssl = context.machination_worker_elt.xpath(
-            'openssl/@binary'
-            )[0]
-    except IndexError:
-        pass
+
+    # openssl: from args, then from desired_status, then default
+    if args.openssl:
+        openssl = args.openssl
+    else:
+        try:
+            openssl = context.machination_worker_elt.xpath(
+                'openssl/@binary'
+                )[0]
+        except IndexError:
+            pass
+    # opensslcfg: from args, then from desired_status, then default
+    if args.opensslcfg:
+        opensslcfg = args.opensslcfg
+    else:
+        try:
+            opensslcfg = context.machination_worker_elt.xpath(
+                'openssl/@config'
+                )[0]
+        except IndexError:
+            pass
 
     print('os_id: {}, service_id: {}'.format(os_id, service_id))
-    exit()
+    print('openssl: {}, opensslcfg: {}'.format(openssl, opensslcfg))
+
+    # generate the key
+    cmd = []
+    cmd.extend([openssl,'genpkey'])
+    cmd.extend(['-algorithm','RSA'])
+    cmd.extend(['-pkeyopt', 'rsa_keygen_bits:4096'])
+    print('genkey: {}'.format(cmd))
+    pending_keyfile = os.path.join(
+        context.conf_dir(),
+        'services',
+        service_id,
+        'pending.key'
+        )
+    print('Generating new key')
+    key = subprocess.check_output(cmd)
+#    key = b'splat'
+    with machination.create_secret_file(pending_keyfile,'wb') as f:
+        f.write(key)
+
+    # generate the csr
+    cmd = []
+    cmd.extend([openssl,'req','-new'])
+    if opensslcfg is not None:
+        cmd.extend(['-config',opensslcfg])
+    cmd.extend(['-key', pending_keyfile])
+    # Find the base DN for certs for this service.
     wc = WebClient(service_id, 'person')
-    wc.call("JoinService", csr, location)
+    certinfo = wc.call('CertInfo')
+    # Fill in any blanks.
+    required = ['C','ST','L','O','OU','CN']
+    try:
+        # Anything not from server comes from desired_status
+        defaults = service_elt.xpath('certInfo')[0]
+    except IndexError:
+        # If there is no element then we need to call get() on something
+        defaults = {}
+    subject = ''
+    for field in required:
+        value = certinfo.get(field)
+        if value is None:
+            value = defaults.get(field)
+        while value is None:
+            value = input('##{} required: '.format(field))
+            if value == '':
+                value = None
+        print('{}: {}'.format(field, value))
+        subject = '{}/{}={}'.format(subject, field, value)
+    # now continue building the command
+    cmd.extend(['-subj', subject])
+    print('Generating certificate request')
+    csr = subprocess.check_output(cmd)
+    pending_csrfile = os.path.join(
+        context.conf_dir(),
+        'services',
+        service_id,
+        'pending.csr'
+        )
+    with machination.create_secret_file(pending_csrfile,'wb') as f:
+        f.write(csr)
+
+    wc.call("JoinService", csr.decode('utf8'), None)

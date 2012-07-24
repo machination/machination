@@ -32,7 +32,7 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, obj_type):
+    def __init__(self, service_id, obj_type, user=None):
         self.service_id = service_id
         self.obj_type = obj_type
         try:
@@ -80,6 +80,8 @@ class WebClient(object):
                                  'client.crt')
                     )
                 )
+        elif self.authen_type == 'debug':
+            self.url = '{}/{}'.format(self.url, user)
 
         self.opener = urllib_request.build_opener(*handlers)
 
@@ -95,8 +97,9 @@ class WebClient(object):
             self.url,
             etree.tostring(call_elt, encoding=self.encoding),
             {'Content-Type':
-                 'application/x-www-form-urlencoded;charset=%s' % self.encoding})
-        urllib_request.install_opener(opener)
+                 'application/x-www-form-urlencoded;charset=%s' % self.encoding}
+            )
+        urllib_request.install_opener(self.opener)
         f = urllib_request.urlopen(r)
         s = f.read().decode(self.encoding)
 #        print("got:\n" + s)

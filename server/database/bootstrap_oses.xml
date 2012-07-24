@@ -9,6 +9,14 @@
       bitness="64"/>
   <os name="Windows"
       major_version="7"
+      minor_version="SP1"
+      bitness="32"/>
+  <os name="Windows"
+      major_version="7"
+      minor_version="SP1"
+      bitness="64"/>
+  <os name="Windows"
+      major_version="7"
       minor_version="0"
       bitness="32"/>
 
@@ -20,5 +28,5 @@
       major_version="10.04"
       minor_version="Desktop"
       bitness="64"/>
-      
+
 </validOses>

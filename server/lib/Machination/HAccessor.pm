@@ -4007,14 +4007,14 @@ sub op_create_obj {
       HierarchyException->
         throw("Can't create an hc with no parent.");
     }
-    if ($self->fetch_id($type_id,$name,$parent)) {
-      my $type = $self->type_name($type_id);
-      my $ppath = $self->fetch_hc_path_string($parent);
-      HierarchyNameExistsException->
-        throw("Cannot create $type $name in $ppath because " .
-              "a $type called $name already exists there.");
-    }
 	}
+  if ($self->fetch_id($type_id,$name,$parent)) {
+    my $type = $self->type_name($type_id);
+    my $ppath = $self->fetch_hc_path_string($parent);
+    HierarchyNameExistsException->
+      throw("Cannot create $type $name in $ppath because " .
+            "a $type called $name already exists there.");
+  }
 
 	# don't allow $fields to set certain columns
 	delete $fields->{name};				# from args

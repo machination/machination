@@ -63,6 +63,7 @@ my %calls =
    ########################################
    Help => undef,
    CertInfo => undef,
+   OsId => undef,
 
    # types
    TypeInfo => undef,
@@ -307,6 +308,17 @@ sub call_CertInfo {
   }
   return $info;
 }
+
+=item B<OsId>
+
+=cut
+
+sub call_OsId {
+  shift;
+  shift;
+  return $ha->os_id(@_)
+}
+
 
 =item B<Help>
 

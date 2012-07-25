@@ -727,39 +727,43 @@ sub call_GetLibraryItem {
   return {found=>$hp->to_string(), assertions=>\@ass};
 }
 
-=item B<RegisterIdentity>
+=item B<SignIdentityCert>
 
-$signed_cert = RegisterIdentity($obj_type,$csr,$fields)
+$signed_cert = SignIdentityCert($obj_type,$obj_name,$csr,$force)
 
 permissions required:
 
-- create /system/$obj_type/$obj_type:$obj_name (if the object doesn't exist)
-- settext /system/$obj_type/$obj_type:$obj_name/@pubkey
+- settext /system/special/authz/objects
+  /contents/$obj_type[$obj_id]/field[reset_trust]
 
 =cut
 
-sub call_RegisterIdentity {
-  my ($caller,$approval,$obj_type,$csr,$fields) = @_;
+sub call_SignIdentityCert {
+  my ($caller,$approval,$obj_type,$obj_name,$csr,$force) = @_;
 
-  # get name from csr
-  my $obj_name;
+  my $obj_id = $ha->obj_id($obj_type, $obj_name);
+  my $mpath_obj_id="";
+  if($obj_id) {
+    $mpath_obj_id = "[$obj_id]"
+  }
+  req = {
+         channel_id => hierarchy_channel(),
+         op=>'settext',
+         mpath => "/contents/${obj_type}${mpath_obj_id}/fields[reset_trust]",
+         owner => $caller,
+         approval => $approval
+        };
+  AuthzDeniedException->
+    throw("Could not get permission to reset trust for $obj_type $obj_name")
+      unless $ha->action_allowed
+        (
+         $req,
+         Machination::HPath->new($ha,'/system/special/authz/objects')->id
+        );
 
-  # Try to sign the csr
-  my $signed_csr = $ha->sign_csr($csr);
+  die "Object ${obj_type}:${obj_name} does not exist" unless($obj_id);
 
-  my $hp_str = "/system/$obj_type/$obj_type:$obj_name";
-
-  # create the object under /system unless it already exists.
-  # This will also check we have the correct permission.
-  my $obj_id;
-  $obj_id = call_Create($caller,$approval,$hp_str,$fields)
-    unless($obj_id = call_Exists($caller,$approval,$hp_str));
-
-  # store the signed csr
-  call_ModifyObject($caller,$approval,$hp_str,{pubkey=>$signed_csr});
-
-  # hand the signed csr back
-  return $signed_csr;
+  return $ha->sign_csr($csr, $obj_type, $obj_name);
 }
 
 =item B<RevokeIdentity>

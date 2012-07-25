@@ -88,11 +88,23 @@
       <type id="basic"/>
       <type id="cosign" entityNamePattern="^(.*?)@"/>
       <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
-      <certs C="UK"
-             ST="someState"
-             L="someLocation"
-             O="someOrg"
-             OU="someUnit"/>
+      <certSign lifetime="157788000">
+        <ca certfile="server.crt"
+            keyfile="secrets/server.key"/>
+        <clientDNForm>
+          <node id="C" check="equal"
+                value="UK"/>
+          <node id="ST" check="equal"
+                value="someState"/>
+          <node id="L" check="equal"
+                value="someLocation"/>
+          <node id="O" check="equal"
+                value="someOrg"/>
+          <node id="OU" check="equal"
+                value="someUnit"/>
+          <node id='CN' check='re' value='^\w+:\w+$'/>
+        </clientDNForm>
+      </certSign>
     </authentication>
     <dir xml:id="dir.SHM">
       <component value="/dev/shm/machination"/>

@@ -496,6 +496,17 @@ sub imun {
   return ++$self->{imun};
 }
 
+=item B<sign_csr>
+
+$signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name)
+
+=cut
+
+sub sign_csr {
+  my $self = shift;
+  my ($csr, $obj_type, $obj_name) = @_;
+}
+
 =item B<fetcher>
 
 $fetcher = $ha->fetcher(@fetcher_args)

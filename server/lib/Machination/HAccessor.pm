@@ -390,11 +390,17 @@ sub do_op {
 	my $method = "op_$op";
 	my @ret;
 	my $ret;
-	if (wantarray) {
-		@ret = $self->$method($actor,$rev,@args);
-	} else {
-		$ret = $self->$method($actor,$rev,@args);
-	}
+  eval {
+    if (wantarray) {
+      @ret = $self->$method($actor,$rev,@args);
+    } else {
+      $ret = $self->$method($actor,$rev,@args);
+    }
+  };
+  if(my $e = $@) {
+    $dbh->rollback;
+    die $e;
+  }
 
 	# commit if at end of parent op
 	$dbh->commit unless(defined $parent);
@@ -4110,7 +4116,7 @@ sub op_create_obj {
   my $sql = "insert into $table (" .
     join(",",@fieldnames) . ") " .
       "values (" . join(",",@q) . ")";
-  print "create_obj: $sql (" . join(",",@values) . ")\n";
+#  print "create_obj: $sql (" . join(",",@values) . ")\n";
 	my $sth = $dbh->
 		prepare_cached($sql,
                    {dbi_dummy=>"HAccessor.create_obj"});

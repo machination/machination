@@ -25,6 +25,7 @@ __status__ = "Development"
 import sys
 import os
 import pkgutil
+import platform
 from machination import context
 
 __all__ = ['machination_id', 'machination_path']
@@ -75,5 +76,25 @@ def worker_dir(name=None):
 # this has to be a package global to avoid something that looks like a
 # circular reference error
 workers_dir = os.path.dirname(pkgutil.get_loader('machination.workers').get_filename())
+
+def os_info():
+    sysname = platform.system()
+    if sysname == 'Windows':
+        if 'PROGRAMFILES(X86)' in os.environ:
+            bitness = 64
+        else:
+            bitness = 32
+        major = platform.win32_ver()[0]
+        minor = platform.win32_ver()[2]
+    elif sysname == 'Linux':
+        major = platform.dist()[0]
+        minor = platform.dist()[1]
+        mtype = platform.machine()
+        if mtype.lower() in ('x86_64', 'amd64'):
+            bitness = 64
+        else:
+            bitness = 32
+
+    return (sysname, major, minor, bitness)
 
 del sys, context

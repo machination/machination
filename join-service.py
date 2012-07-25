@@ -5,11 +5,13 @@ import argparse
 #import http.cookiejar
 #from machination.cosign import CosignPasswordMgr, CosignHandler
 import machination
+import machination.utils
 from machination import context
 from machination.webclient import WebClient
 import os
 import subprocess
 from lxml import etree
+import re
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -23,6 +25,8 @@ if __name__ == '__main__':
                         help='openssl command')
     parser.add_argument('--opensslcfg', nargs='?',
                         help='openssl config file')
+    parser.add_argument('--certbits', nargs='?',
+                        help='No of bits for certificate cipher')
     args = parser.parse_args()
 
     # prefer service_id from args, then first service element from
@@ -79,6 +83,10 @@ if __name__ == '__main__':
         except IndexError:
             pass
 
+    certbits = 4096
+    if args.certbits:
+        certbits = args.certbits
+
     print('inst_id: {}, service_id: {}'.format(inst_id, service_id))
     print('openssl: {}, opensslcfg: {}'.format(openssl, opensslcfg))
 
@@ -91,15 +99,15 @@ if __name__ == '__main__':
     cmd = []
     cmd.extend([openssl,'genpkey'])
     cmd.extend(['-algorithm','RSA'])
-    cmd.extend(['-pkeyopt', 'rsa_keygen_bits:4096'])
+    cmd.extend(['-pkeyopt', 'rsa_keygen_bits:{}'.format(certbits)])
     print('genkey: {}'.format(cmd))
     pending_keyfile = os.path.join(certdir, 'pending.key')
     print('Generating new key')
-#    key = subprocess.check_output(cmd)
-#    with machination.create_secret_file(pending_keyfile,'wb') as f:
-#        f.write(key)
-    with open(pending_keyfile) as f:
-        key = f.read()
+    key = subprocess.check_output(cmd)
+    with machination.create_secret_file(pending_keyfile,'wb') as f:
+        f.write(key)
+#    with open(pending_keyfile) as f:
+#        key = f.read()
 
     # generate the csr
     cmd = []
@@ -138,37 +146,35 @@ if __name__ == '__main__':
         f.write(csr)
 
     path = '{}/os_instance:{}'.format(location, inst_id)
-    sysname = platform.system()
-    if sysname == 'Windows':
-        if 'PROGRAMFILES(X86)' in os.environ:
-            bitness = 64
-        else:
-            bitness = 32
-        major = platform.win32_ver()[0]
-        minor = platform.win32_ver()[2]
-    elif sysname == 'Linux':
-        pass
-    os_id = wc.call('OsId', sysname, major, minor, bitness)
+    os_id = wc.call('OsId', *machination.utils.os_info())
     # try to create the object
-    wc.call('Create', path, {'os_id': os_id})
+    try:
+        wc.call('Create', path, {'os_id': os_id})
+    except Exception as e:
+        if(re.search(r'ERROR:\s+ duplicate key value', e.args[0])):
+            print('Object os_instance:{} already exists'.format(inst_id))
+        else:
+            raise(e)
 
-    exit()
-
-    answer = wc.call("JoinService", csr.decode('utf8'), None, False)
-    if isinstance(answer, dict):
+    # try to create a new cert
+    try:
+        cert = wc.call("SignIdentityCert", 'os_instance', inst_id,
+                         csr.decode('utf8'), False)
+    except Exception as e:
         # Didn't get all the way to a cert for some reason
-
-        # currently the only allowed reason is "id exists: are you sure?"
-        ans = ''
-        while ans.lower() not in ['y', 'n']:
-            ans = input('id exists, are you sure [y/N]? ')
-        if ans.lower() == 'n':
-            print('Aborting service join')
-            exit()
-        # Try again with force = True
-        cert = wc.call("JoinService", csr.decode('utf8'), None, True)
-    else:
-        cert = answer
+        if(re.search(r'ERROR: valid certificate exists', e.args[0])):
+            # Currently the only allowed reason is cert exists.
+            ans = ''
+            while ans.lower() not in ['y', 'n']:
+                ans = input('certificate for {} exists, are you sure [y/N]? '.format(inst_id))
+                if ans.lower() == 'n':
+                    print('Aborting service join')
+                    exit()
+            # Try again with force = True
+            cert = wc.call("SignIdentityCert", 'os_instance', inst_id,
+                           csr.decode('utf8'), True)
+        else:
+            raise(e)
 
     keyfile = os.path.join(certdir, 'myself.key')
     certfile = os.path.join(certdir, 'myself.crt')

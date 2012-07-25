@@ -167,6 +167,8 @@ if __name__ == '__main__':
             ans = ''
             while ans.lower() not in ['y', 'n']:
                 ans = input('certificate for {} exists, are you sure [y/N]? '.format(inst_id))
+                if ans == '':
+                    ans = 'n'
                 if ans.lower() == 'n':
                     print('Aborting service join')
                     exit()

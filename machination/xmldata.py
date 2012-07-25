@@ -42,7 +42,7 @@ def to_xml(thing):
             elt.append(to_xml(item))
     elif isinstance(thing, dict):
         elt.tag = "h"
-        for k, v in thing.iteritems():
+        for k, v in thing.items():
             etree.SubElement(elt, "k", id=k).append(to_xml(v))
     else:
         raise Exception(

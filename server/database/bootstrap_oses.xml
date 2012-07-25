@@ -20,13 +20,13 @@
       minor_version="0"
       bitness="32"/>
 
-  <os name="Ubuntu"
-      major_version="10.04"
-      minor_version="Desktop"
+  <os name="Linux"
+      major_version="Ubuntu"
+      minor_version="12.04"
       bitness="32"/>
-  <os name="Ubuntu"
-      major_version="10.04"
-      minor_version="Desktop"
+  <os name="Linux"
+      major_version="Ubuntu"
+      minor_version="12.04"
       bitness="64"/>
 
 </validOses>

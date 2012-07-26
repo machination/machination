@@ -505,6 +505,7 @@ $signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name)
 sub sign_csr {
   my $self = shift;
   my ($csr, $obj_type, $obj_name) = @_;
+  my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
 }
 
 =item B<fetcher>

@@ -297,12 +297,22 @@ sub call_HierarchyChannel {
 
 sub call_CertInfo {
   my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
-  my @nodes = $haccess_node->findnodes("authentication/certs");
+  my @nodes = $haccess_node->findnodes("authentication/certSign/clientDNForm/node");
   unless(@nodes) {
     error("No certificate information found");
     return Apache2::Const::OK;
   }
-  my $info = {};
+  my $info = [];
+  foreach my $node (@nodes) {
+    my $default;
+    if($node->getAttribute("check") eq "equal") {
+      $default = $node->getAttribute("value");
+    }
+    $default = $node->getAttribute("default")
+      if($node->hasAttribute("default"));
+    next unless(defined $default);
+    $info
+  }
   foreach my $att ($nodes[0]->attributes()) {
     $info->{$att->nodeName} = $att->value;
   }

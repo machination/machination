@@ -752,9 +752,9 @@ sub call_SignIdentityCert {
   my $obj_id = $ha->obj_id($obj_type, $obj_name);
   my $mpath_obj_id="";
   if($obj_id) {
-    $mpath_obj_id = "[$obj_id]"
+    $mpath_obj_id = "[$obj_id]";
   }
-  req = {
+  my $req = {
          channel_id => hierarchy_channel(),
          op=>'settext',
          mpath => "/contents/${obj_type}${mpath_obj_id}/fields[reset_trust]",

@@ -19,6 +19,7 @@ package Machination::HAccessor;
 # along with Machination.  If not, see <http://www.gnu.org/licenses/>.
 
 use Carp;
+use File::Temp;
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -498,14 +499,76 @@ sub imun {
 
 =item B<sign_csr>
 
-$signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name)
+$signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name, $force)
 
 =cut
 
 sub sign_csr {
   my $self = shift;
-  my ($csr, $obj_type, $obj_name) = @_;
+  my ($csr, $obj_type, $obj_name, $force) = @_;
+
+  # TODO(colin): check db for existing certs and abort unless $force is true
+
+  # get various parameters from config file
   my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
+  my $cs_elt = ($haccess_node->findnodes("authentication/certSign"))[0];
+  my $lifetime = $cs_elt->findvalue('@lifetime');
+  my $cafile = $cs_elt->findvalue('ca/@certfile');
+  my $keyfile = $cs_elt->findvalue('ca/@keyfile');
+
+  # put the csr into a temporary file so that openssl can find it
+  my ($csrfh, $csrfile) = tempfile();
+  print $csrfh $csr;
+
+  # parse out the various fields from the subject
+  my @fields = quotewords
+    (",", 0,
+     qx"openssl req -in $csrfile -noout -subject -nameopt RFC2253");
+  # store the fields and values in $dn
+  my $dn = {};
+  foreach my $field (@fields) {
+    my ($name, $value) = quotewords("=",0,$field);
+    $dn->{$name} = $value;
+  }
+
+  # check object type and name from cert match args and that obj exists
+  my ($csr_type, $csr_name) = split(":", $dn->{CN});
+  die "Could not sign csr: object type from request does not match '$obj_type'"
+    if(defined $obj_type && $obj_type ne $csr_type);
+  die "Could not sign csr: object name from request does not match '$obj_name'"
+    if(defined $obj_name && $obj_name ne $csr_name);
+  die "Could not sign csr: object $obj_type:$obj_name does not exist"
+    unless($self->entity_id($self->type_id($obj_type), $obj_name));
+
+  # check conformance for various fields of $dn
+  foreach my $node ($cs_elt->findnodes("clientDNForm/node")) {
+    my $name = $node->findvalue('@id');
+    my $check = $node->findvalue('@check');
+    my $cfg_val = $node->findvalue('@value');
+    my $dn_val = $dn->{$name};
+    if($check eq "equal") {
+      die "Could not sign csr: failed equality check on $name"
+        unless($cfg_val eq $dn_val);
+    } elsif($check eq "re") {
+      die "Could not sign csr: failed regex check on $name"
+        unless($cfg_val =~ /$dn_val/);
+    } else {
+      die "Could not sign csr: invalid check ($check) specified";
+    }
+  }
+
+  # TODO(colin): start transaction
+  # TODO(colin): get the next serial number
+  # TODO(colin): sign the csr
+  my $cert = qx"";
+  # should delete the temporary file
+  close $csrfh;
+  # TODO(colin): revoke the old row/cert in db
+  # TODO(colin): add new row/cert to db
+  # TODO(colin): commit
+
+  # return the signed certificate
+  return $cert;
 }
 
 =item B<fetcher>

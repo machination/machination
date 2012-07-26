@@ -98,9 +98,9 @@ my %calls =
    ########################################
    # signing up...
    ########################################
-   RegisterIdentity => undef,
-   RevokeIdentity => undef,
-   RemoveIdentity => undef,
+   SignIdentityCert => undef,
+#   RevokeIdentity => undef,
+#   RemoveIdentity => undef,
 
    ########################################
    # Manipulating the hierarchy and objects
@@ -771,7 +771,7 @@ sub call_SignIdentityCert {
 
   die "Object ${obj_type}:${obj_name} does not exist" unless($obj_id);
 
-  return $ha->sign_csr($csr, $obj_type, $obj_name);
+  return $ha->sign_csr($csr, $obj_type, $obj_name, $force);
 }
 
 =item B<RevokeIdentity>

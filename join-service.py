@@ -117,7 +117,7 @@ if __name__ == '__main__':
     cmd.extend(['-key', pending_keyfile])
     # Find the base DN for certs for this service.
     wc = WebClient(service_id, 'person')
-    certinfo = wc.call('CertInfo')
+    dnform = wc.call('CertInfo').get('dnform', {})
     # Fill in any blanks.
     required = ['C','ST','L','O','OU','CN']
     try:
@@ -128,7 +128,7 @@ if __name__ == '__main__':
         defaults = {}
     subject = ''
     for field in required:
-        value = certinfo.get(field)
+        value = dnform.get(field)
         if value is None:
             value = defaults.get(field)
         while value is None:

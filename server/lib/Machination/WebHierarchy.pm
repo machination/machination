@@ -302,7 +302,7 @@ sub call_CertInfo {
     error("No certificate information found");
     return Apache2::Const::OK;
   }
-  my $info = [];
+  my $info = {dnform=>{}};
   foreach my $node (@nodes) {
     my $default;
     if($node->getAttribute("check") eq "equal") {
@@ -311,11 +311,9 @@ sub call_CertInfo {
     $default = $node->getAttribute("default")
       if($node->hasAttribute("default"));
     next unless(defined $default);
-    $info
+    $info->{dnform}->{$node->getAttribute("id")} = $default;
   }
-  foreach my $att ($nodes[0]->attributes()) {
-    $info->{$att->nodeName} = $att->value;
-  }
+
   return $info;
 }
 

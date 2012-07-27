@@ -88,7 +88,7 @@
       <type id="basic"/>
       <type id="cosign" entityNamePattern="^(.*?)@"/>
       <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
-      <certSign lifetime="157788000">
+      <certSign lifetime="3650">
         <ca certfile="server.crt"
             keyfile="secrets/server.key"/>
         <clientDNForm>

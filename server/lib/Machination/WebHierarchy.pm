@@ -771,7 +771,7 @@ sub call_SignIdentityCert {
 
   die "Object ${obj_type}:${obj_name} does not exist" unless($obj_id);
 
-  return $ha->sign_csr($csr, $obj_type, $obj_name, $force);
+  return $ha->sign_csr($csr, $force);
 }
 
 =item B<RevokeIdentity>

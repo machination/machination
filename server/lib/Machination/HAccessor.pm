@@ -236,6 +236,7 @@ sub new {
 	bless $self,$class;
 
 	$self->dbc(Machination::DBConstructor->new($conf)) if($conf);
+  $self->dbc->dbh->{RaiseError} = 1;
 	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
   $self->{type_info} = {};
@@ -505,9 +506,7 @@ $signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name, $force)
 
 sub sign_csr {
   my $self = shift;
-  my ($csr, $obj_type, $obj_name, $force) = @_;
-
-  # TODO(colin): check db for existing certs and abort unless $force is true
+  my ($csr, $force) = @_;
 
   # get various parameters from config file
   my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
@@ -521,9 +520,8 @@ sub sign_csr {
   print $csrfh $csr;
 
   # parse out the various fields from the subject
-  my @fields = quotewords
-    (",", 0,
-     qx"openssl req -in $csrfile -noout -subject -nameopt RFC2253");
+  my $fulldn = qx"openssl req -in $csrfile -noout -subject -nameopt RFC2253";
+  my @fields = quotewords(",", 0,$fulldn);
   # store the fields and values in $dn
   my $dn = {};
   foreach my $field (@fields) {
@@ -531,14 +529,21 @@ sub sign_csr {
     $dn->{$name} = $value;
   }
 
-  # check object type and name from cert match args and that obj exists
-  my ($csr_type, $csr_name) = split(":", $dn->{CN});
-  die "Could not sign csr: object type from request does not match '$obj_type'"
-    if(defined $obj_type && $obj_type ne $csr_type);
-  die "Could not sign csr: object name from request does not match '$obj_name'"
-    if(defined $obj_name && $obj_name ne $csr_name);
+  # check that obj exists
+  my ($obj_type, $obj_name) = split(":", $dn->{CN});
   die "Could not sign csr: object $obj_type:$obj_name does not exist"
     unless($self->entity_id($self->type_id($obj_type), $obj_name));
+
+  # Check if there is already a signed cert for object
+  my $dbh = $self->write_dbh;
+  my $existing_rows = $dbh->selectall_arrayref
+    ("select * from certs where " .
+     "type='V' and " .
+     "rev_date is null and " .
+     "current_timestamp < expiry_date and " .
+     "name like ?", {Slice=>{}}, "CN=${obj_type}:${$obj_name}/%");
+  die "A valid certificate for $obj_typ:$obj_name exists and force not set"
+    if(@$existing_rows and not $force);
 
   # check conformance for various fields of $dn
   foreach my $node ($cs_elt->findnodes("clientDNForm/node")) {
@@ -557,15 +562,23 @@ sub sign_csr {
     }
   }
 
-  # TODO(colin): start transaction
-  # TODO(colin): get the next serial number
-  # TODO(colin): sign the csr
-  my $cert = qx"";
+  # Get the next serial number
+  my ($serial) = $dbh->
+    selectrow_array("select nextval(?)", {}, 'certs_serial_seq');
+  # sign the csr
+  my $cert = qx"openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial";
+
   # should delete the temporary file
   close $csrfh;
-  # TODO(colin): revoke the old row/cert in db
-  # TODO(colin): add new row/cert to db
-  # TODO(colin): commit
+  # revoke the old rows/certs in db
+  foreach my $row (@$existing_rows) {
+    $dbh->do("update certs set type='R', rev_date=current_timestamp where serial=?", {} , $serial);
+  }
+  # add new row/cert to db
+  $dbh->do("insert into certs (serial, name, type, expiry_date) " .
+           "values (?,?,'V',current_timestamp + ? days)",
+           $serial, $fulldn, $lifetime);
+  $dbh->commit;
 
   # return the signed certificate
   return $cert;

@@ -158,11 +158,10 @@ if __name__ == '__main__':
 
     # try to create a new cert
     try:
-        cert = wc.call("SignIdentityCert", 'os_instance', inst_id,
-                         csr.decode('utf8'), False)
+        cert = wc.call("SignIdentityCert", csr.decode('utf8'), 0)
     except Exception as e:
         # Didn't get all the way to a cert for some reason
-        if(re.search(r'ERROR: valid certificate exists', e.args[0])):
+        if(re.search(r'A valid certificate for', e.args[0])):
             # Currently the only allowed reason is cert exists.
             ans = ''
             while ans.lower() not in ['y', 'n']:
@@ -173,10 +172,11 @@ if __name__ == '__main__':
                     print('Aborting service join')
                     exit()
             # Try again with force = True
-            cert = wc.call("SignIdentityCert", 'os_instance', inst_id,
-                           csr.decode('utf8'), True)
+            cert = wc.call("SignIdentityCert", csr.decode('utf8'), 1)
         else:
             raise(e)
+
+    print(cert)
 
     keyfile = os.path.join(certdir, 'myself.key')
     certfile = os.path.join(certdir, 'myself.crt')

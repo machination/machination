@@ -102,7 +102,7 @@
                 value="someOrg"/>
           <node id="OU" check="equal"
                 value="someUnit"/>
-          <node id='CN' check='re' value='^\w+:\w+$'/>
+          <node id='CN' check='re' value='^.+?:.+$'/>
         </clientDNForm>
       </certSign>
     </authentication>

@@ -747,9 +747,11 @@ permissions required:
 =cut
 
 sub call_SignIdentityCert {
-  my ($caller,$approval,$obj_type,$obj_name,$csr,$force) = @_;
+  my ($caller,$approval,$csr,$force) = @_;
 
-  my $obj_id = $ha->obj_id($obj_type, $obj_name);
+  my $dn = $ha->ssl_get_dn($csr, "req");
+  my ($obj_type, $obj_name) = $ha->ssl_entity_from_cn($dn->{CN});
+  my $obj_id = $ha->entity_id($ha->type_id($obj_type), $obj_name);
   my $mpath_obj_id="";
   if($obj_id) {
     $mpath_obj_id = "[$obj_id]";

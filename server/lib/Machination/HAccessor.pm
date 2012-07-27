@@ -19,7 +19,7 @@ package Machination::HAccessor;
 # along with Machination.  If not, see <http://www.gnu.org/licenses/>.
 
 use Carp;
-use File::Temp;
+use File::Temp qw(tempfile);
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -498,9 +498,72 @@ sub imun {
   return ++$self->{imun};
 }
 
+=item B<ssl_get_dn>
+
+$dn = $ha->ssl_get_dn($thing, $type_of_thing)
+
+$thing is an x509 cert or a certificate signing request (csr)
+
+$dn in form:
+ {
+  fulldn => 'CN=splat,OU=something,..',
+  CN => 'splat',
+  OU => 'something',
+  ...
+ }
+
+=cut
+
+sub ssl_get_dn {
+  my $self = shift;
+  my ($thing, $type) = @_;
+
+  croak "type_of_thing must be either 'x509' or 'req'"
+    unless($type eq "x509" or $type eq "req");
+
+  # put the thing into a temporary file so that openssl can find it
+  my ($thingfh, $thingfile) = tempfile();
+  print $thingfh $thing;
+
+  # parse out the various fields from the subject
+  my $fulldn =
+    qx"openssl $type -in $thingfile -noout -subject -nameopt RFC2253";
+  chomp $fulldn;
+  $fulldn =~ s/^subject=//;
+
+  $self->log->dmsg('ssl_get_dn', $fulldn, 10);
+
+  # we are now finished with the file
+  close $thingfh;
+
+  my @fields = quotewords(",", 0,$fulldn);
+  # store the fields and values in $dn
+  my $dn = {fulldn => $fulldn};
+  foreach my $field (@fields) {
+    my ($name, $value) = quotewords("=",0,$field);
+    $dn->{$name} = $value;
+  }
+  return $dn;
+}
+
+=item B<ssl_entity_from_cn>
+
+($type, $name) = $ha->ssl_entity_from_cn($cn)
+
+=cut
+
+sub ssl_entity_from_cn {
+  my $self = shift;
+  my $cn = shift;
+
+  $self->log->dmsg("ssl_entity_from_cn", "splitting $cn", 10);
+  # TODO(colin) be more sophisticated parsing escaped ":" and so on
+  return split(":", $cn);
+}
+
 =item B<sign_csr>
 
-$signed_cert = $ha->sign_csr($csr, $obj_type, $obj_name, $force)
+$signed_cert = $ha->sign_csr($csr, $force)
 
 =cut
 
@@ -512,25 +575,24 @@ sub sign_csr {
   my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
   my $cs_elt = ($haccess_node->findnodes("authentication/certSign"))[0];
   my $lifetime = $cs_elt->findvalue('@lifetime');
+  croak "certificate lifetime should be a whole number (of days), " .
+    "not '$lifetime'"
+      unless($lifetime =~ /^\d+$/);
   my $cafile = $cs_elt->findvalue('ca/@certfile');
+  if(substr($cafile,0,1) ne "/") {
+    $cafile = $self->conf->get_dir("dir.CONFIG") . "/" . $cafile;
+  }
   my $keyfile = $cs_elt->findvalue('ca/@keyfile');
-
-  # put the csr into a temporary file so that openssl can find it
-  my ($csrfh, $csrfile) = tempfile();
-  print $csrfh $csr;
-
-  # parse out the various fields from the subject
-  my $fulldn = qx"openssl req -in $csrfile -noout -subject -nameopt RFC2253";
-  my @fields = quotewords(",", 0,$fulldn);
-  # store the fields and values in $dn
-  my $dn = {};
-  foreach my $field (@fields) {
-    my ($name, $value) = quotewords("=",0,$field);
-    $dn->{$name} = $value;
+  if(substr($keyfile,0,1) ne "/") {
+    $keyfile = $self->conf->get_dir("dir.CONFIG") . "/" . $keyfile;
   }
 
+  # store the fields and values in $dn
+  my $dn = $self->ssl_get_dn($csr, "req");
+  my $fulldn = $dn->{fulldn};
+
   # check that obj exists
-  my ($obj_type, $obj_name) = split(":", $dn->{CN});
+  my ($obj_type, $obj_name) = $self->ssl_entity_from_cn($dn->{CN});
   die "Could not sign csr: object $obj_type:$obj_name does not exist"
     unless($self->entity_id($self->type_id($obj_type), $obj_name));
 
@@ -541,8 +603,9 @@ sub sign_csr {
      "type='V' and " .
      "rev_date is null and " .
      "current_timestamp < expiry_date and " .
-     "name like ?", {Slice=>{}}, "CN=${obj_type}:${$obj_name}/%");
-  die "A valid certificate for $obj_typ:$obj_name exists and force not set"
+     "name like ?", {Slice=>{}}, "CN=$obj_type:$obj_name,%");
+#  $self->log->dmsg("sign_csr", Dumper($existing_rows),10);
+  die "A valid certificate for $obj_type:$obj_name exists and force not set"
     if(@$existing_rows and not $force);
 
   # check conformance for various fields of $dn
@@ -552,11 +615,13 @@ sub sign_csr {
     my $cfg_val = $node->findvalue('@value');
     my $dn_val = $dn->{$name};
     if($check eq "equal") {
-      die "Could not sign csr: failed equality check on $name"
-        unless($cfg_val eq $dn_val);
+      die "Could not sign csr: failed equality check on $name " .
+        "('$dn_val' cf '$cfg_val')"
+          unless($cfg_val eq $dn_val);
     } elsif($check eq "re") {
-      die "Could not sign csr: failed regex check on $name"
-        unless($cfg_val =~ /$dn_val/);
+      die "Could not sign csr: failed regex check on $name " .
+        "('$dn_val' matches '$cfg_val')"
+          unless($dn_val =~ /$cfg_val/);
     } else {
       die "Could not sign csr: invalid check ($check) specified";
     }
@@ -565,19 +630,27 @@ sub sign_csr {
   # Get the next serial number
   my ($serial) = $dbh->
     selectrow_array("select nextval(?)", {}, 'certs_serial_seq');
+
+  # put the csr into a temporary file so that openssl can find it
+  my ($csrfh, $csrfile) = tempfile();
+  print $csrfh $csr;
+
   # sign the csr
   my $cert = qx"openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial";
 
+  $self->log->dmsg("sign_csr",$cert,10);
+
   # should delete the temporary file
   close $csrfh;
+
   # revoke the old rows/certs in db
   foreach my $row (@$existing_rows) {
-    $dbh->do("update certs set type='R', rev_date=current_timestamp where serial=?", {} , $serial);
+    $dbh->do("update certs set type='R', rev_date=current_timestamp where serial=?", {} , $row->{serial});
   }
   # add new row/cert to db
   $dbh->do("insert into certs (serial, name, type, expiry_date) " .
-           "values (?,?,'V',current_timestamp + ? days)",
-           $serial, $fulldn, $lifetime);
+           "values (?,?,'V',current_timestamp + '$lifetime days')", {},
+           $serial, $fulldn);
   $dbh->commit;
 
   # return the signed certificate

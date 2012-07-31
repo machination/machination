@@ -1,0 +1,9 @@
+create key:
+
+openssl genpkey -out splat.key -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+
+create req:
+
+openssl req -new -out splat.csr -key splat.key -subj
+"/C=UK/ST=Lothian/L=Edinburgh/O=University of
+Edinburgh/OU=Engineering/CN=splat" -config openssl.cfg

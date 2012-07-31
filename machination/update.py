@@ -92,18 +92,23 @@ class Update(object):
     def desired_status(self):
         """Get the desired status. Will download and compile status if necessary."""
         if self._desired_status is None:
-            services = context.desired_status.xpath('/status/worker[@id="__machination__"]/services/service')
+            services = context.machination_worker_elt.xpath(
+                'services/service'
+                )
             # TODO download from all services and merge. For now just
             # do the first one.
-            hurl = services[0].xpath('hierarchy/@id')
-            service_id = services[0]['id']
+#            hurl = services[0].xpath('hierarchy/@id')
+            service_id = services[0].get('id')
             # find the machination id for this service
             mid = context.get_id(service_id)
-            wc = WebClient(service_id, hurl, '/cert')
+            wc = WebClient(service_id, 'os_instance', 'cert')
+            channel = wc.call("ProfChannel", 'os_instance')
             data = wc.call('GetAssertionList',
                            'os_instance',
-                           mid)
-            ac = xmltools.AssertionCompiler(wc)
+                           mid,
+                           channel)
+            pprint.pprint(data)
+            ac = AssertionCompiler(wc)
             self._desired_status, res = ac.compile(data)
 #            self._desired_status = etree.parse(os.path.join(
 #                    context.status_dir(), 'desired-status.xml')).getroot()

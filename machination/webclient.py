@@ -42,9 +42,18 @@ class WebClient(object):
                 )[0]
         except IndexError:
             raise Exception("service id '{}' not found in desired_status".format(service_id))
-        self.authen_elt = service_elt.xpath(
+        tmp_auth = service_elt.xpath(
             'authentication[@id="{}"]'.format(self.obj_type)
-            )[0]
+            )
+        if not tmp_auth:
+            tmp_elt = etree.Element('authentication')
+            tmp_elt.set('id', self.obj_type)
+            if self.obj_type == 'person':
+                tmp_elt.set("type", "basic")
+            elif self.obj_type == 'os_instance':
+                tmp_elt.set("type", "cert")
+            tmp_auth=[tmp_elt]
+        self.authen_elt = tmp_auth[0]
         self.authen_type = self.authen_elt.get("type")
         self.url = '{}/{}'.format(
             service_elt.xpath('hierarchy/@id')[0],
@@ -76,11 +85,11 @@ class WebClient(object):
                     os.path.join(context.conf_dir(),
                                  'services',
                                  self.service_id,
-                                 'client.key'),
+                                 'myself.key'),
                     os.path.join(context.conf_dir(),
                                  'services',
                                  self.service_id,
-                                 'client.crt')
+                                 'myself.crt')
                     )
                 )
         elif self.authen_type == 'debug':

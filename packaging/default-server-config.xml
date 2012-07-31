@@ -83,14 +83,16 @@
   </subconfig>
 -->
 
-  <subconfig xml:id="subconfig.haccess" uriBase="/machination/hierarchy">
+  <subconfig xml:id="subconfig.haccess"
+             serviceId="your.service.id"
+             uriBase="/machination/hierarchy">
     <authentication>
       <type id="basic"/>
       <type id="cosign" entityNamePattern="^(.*?)@"/>
       <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
       <certSign lifetime="3650">
-        <ca certfile="server.crt"
-            keyfile="secrets/server.key"/>
+        <ca certfile="ca.crt"
+            keyfile="secrets/ca.key"/>
         <clientDNForm>
           <node id="C" check="equal"
                 value="UK"/>

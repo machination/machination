@@ -20,6 +20,7 @@ package Machination::HAccessor;
 
 use Carp;
 use File::Temp qw(tempfile);
+use File::Slurp qw(slurp);
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -522,19 +523,33 @@ sub ssl_get_dn {
     unless($type eq "x509" or $type eq "req");
 
   # put the thing into a temporary file so that openssl can find it
-  my ($thingfh, $thingfile) = tempfile();
+  my $thingfh = File::Temp->new;
+  $thingfh->unlink_on_destroy(1);
+  my $thingfile = $thingfh->filename;
   print $thingfh $thing;
+
+  # A place to put stderr from the openssl cmd
+  my $errfh = File::Temp->new;
+  $errfh->unlink_on_destroy(1);
+  my $errfile = $errfh->filename;
 
   # parse out the various fields from the subject
   my $fulldn =
-    qx"openssl $type -in $thingfile -noout -subject -nameopt RFC2253";
+    qx"openssl $type -in $thingfile -noout -subject -nameopt RFC2253 2>$thingfile";
+  if($?) {
+    $thingfh->DESTROY;
+    my $msg = slurp($errfh);
+    $errfh->DESTROY;
+    $die msg;
+  }
+  $errfh->DESTROY;
   chomp $fulldn;
   $fulldn =~ s/^subject=//;
 
   $self->log->dmsg('ssl_get_dn', $fulldn, 10);
 
   # we are now finished with the file
-  close $thingfh;
+  $thingfh->DESTROY;
 
   my @fields = quotewords(",", 0,$fulldn);
   # store the fields and values in $dn
@@ -632,16 +647,30 @@ sub sign_csr {
     selectrow_array("select nextval(?)", {}, 'certs_serial_seq');
 
   # put the csr into a temporary file so that openssl can find it
-  my ($csrfh, $csrfile) = tempfile();
+  my $csrfh = File::Temp->new();
+  $csrfh->unlink_on_destroy(1);
+  my $csrfile = $csrfh->filename;
   print $csrfh $csr;
 
+  # A place to put stderr from the openssl cmd
+  my $errfh = File::Temp->new;
+  $errfh->unlink_on_destroy(1);
+  my $errfile = $errfh->filename;
+
   # sign the csr
-  my $cert = qx"openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial";
+  my $cert = qx"openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial 2>$errfile";
+  if($?) {
+    $csrfh->DESTROY;
+    my $msg = slurp($errfh);
+    $errfh->DESTROY;
+    die $msg;
+  }
 
   $self->log->dmsg("sign_csr",$cert,10);
 
   # should delete the temporary file
-  close $csrfh;
+  $csrfh->DESTROY;
+  $errfh->DESTROY;
 
   # revoke the old rows/certs in db
   foreach my $row (@$existing_rows) {

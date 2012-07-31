@@ -7,3 +7,11 @@ create req:
 openssl req -new -out splat.csr -key splat.key -subj
 "/C=UK/ST=Lothian/L=Edinburgh/O=University of
 Edinburgh/OU=Engineering/CN=splat" -config openssl.cfg
+
+create ca:
+
+openssl req -new -x509 -days 3650 -key ca.key -out ca.crt -subj $subject
+
+sign csr:
+
+openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial

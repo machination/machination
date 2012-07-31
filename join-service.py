@@ -198,4 +198,4 @@ if __name__ == '__main__':
             pass
     # Create new one.
     with open(certfile, 'wb') as f:
-        f.write(cert)
+        f.write(cert.encode('utf8'))

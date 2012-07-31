@@ -20,7 +20,6 @@ package Machination::HAccessor;
 
 use Carp;
 use File::Temp qw(tempfile);
-use File::Slurp qw(slurp);
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -535,12 +534,16 @@ sub ssl_get_dn {
 
   # parse out the various fields from the subject
   my $fulldn =
-    qx"openssl $type -in $thingfile -noout -subject -nameopt RFC2253 2>$thingfile";
+    qx"openssl $type -in $thingfile -noout -subject -nameopt RFC2253 2>$errfile";
   if($?) {
     $thingfh->DESTROY;
-    my $msg = slurp($errfh);
+    my $msg;
+    {
+      local($/);
+      $msg = <$errfh>;
+    }
     $errfh->DESTROY;
-    $die msg;
+    die $msg;
   }
   $errfh->DESTROY;
   chomp $fulldn;
@@ -661,11 +664,16 @@ sub sign_csr {
   my $cert = qx"openssl x509 -req -days $lifetime -in $csrfile -CA $cafile -CAkey $keyfile -set_serial $serial 2>$errfile";
   if($?) {
     $csrfh->DESTROY;
-    my $msg = slurp($errfh);
+    my $msg;
+    {
+      local($/);
+      $msg = <$errfh>;
+    }
     $errfh->DESTROY;
     die $msg;
   }
 
+  $cert =~ s/^.*(?=-----BEGIN CERTIFICATE-----)//;
   $self->log->dmsg("sign_csr",$cert,10);
 
   # should delete the temporary file

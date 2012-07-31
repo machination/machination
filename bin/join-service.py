@@ -176,8 +176,6 @@ if __name__ == '__main__':
         else:
             raise(e)
 
-    print(cert)
-
     keyfile = os.path.join(certdir, 'myself.key')
     certfile = os.path.join(certdir, 'myself.crt')
 

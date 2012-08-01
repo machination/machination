@@ -138,15 +138,19 @@ class Update(object):
         for welt in status.xpath('/status/worker'):
             # the following should create a worker object and store it
             # in self.workers
-            wstatus = self.worker(welt.get("id")).generate_status()
-            stelt.remove(welt)
-            stelt.append(wstatus)
+            worker = self.worker(welt.get("id"))
+            if worker is not None:
+                wstatus = worker.generate_status()
+                stelt.remove(welt)
+                stelt.append(wstatus)
             done.add(welt.get('id'))
         for welt in self.desired_status().xpath('/status/worker'):
             if welt.get("id") in done:
                 continue
-            wstatus = self.worker(welt.get("id")).generate_status()
-            stelt.append(wstatus)
+            worker = self.worker(welt.get("id"))
+            if worker is not None:
+                wstatus = worker.generate_status()
+                stelt.append(wstatus)
         return status
 
     def worker(self, name):
@@ -163,8 +167,11 @@ class Update(object):
                 try:
                     w = OLWorker(name)
                 except Exception as eol:
-                    l.emsg("No worker %s, giving up!" % name)
-                    raise WorkerError(name, e, eol)
+                    l.wmsg("No worker '%s', storing 'None'!" % name)
+                    w = None
+        except:
+            l.wmsg("Failed to start worker '{}', storing 'None'".format(name))
+            w = None
         self.workers[name] = w
         return w
 

@@ -43,6 +43,31 @@ class Update(object):
         except IndexError:
             deps = etree.fromstring('<status><deps/></status>')[0]
         wudeps = comp.wudeps(deps.iterchildren(tag=etree.Element))
+        # Track success/failure of work units.
+        #
+        # Before a work unit is attempted work_status[wu] should not
+        # exist.
+        #
+        # Afterward, work_status[wu] should contain an array with a
+        # status (True = succeeded, False = failed) and an error
+        # message if appropriate:
+        #
+        # {
+        #  wu1: [True],
+        #  wu2: [False, "Worker 'splat' not available"]
+        #  wu3: [False, "Dependency 'wu2' failed"]
+        # }
+        work_status = {}
+        # set up a dictionary:
+        # { work_unit: [list, of, units, work_unit, depends, on] }
+        work_depends = {}
+        for dep in wudeps:
+            if work_depends.get(dep[1]):
+                # entry for dep[1] already exists, add to it
+                work_depends.get(dep[1]).append(dep[0])
+            else:
+                # entry for dep[1] does not exist, create it
+                work_depends.set(dep[1], [dep[0]])
         # we need to make all workunits depend on something for
         # topsort to work
         wudeps.extend([['', x] for x in comp.find_work()])
@@ -58,6 +83,15 @@ class Update(object):
             # collect workunits by worker
             byworker = {}
             for wu in wus:
+                # check to make sure any dependencies have been done
+                check = self.check_deps(wu, work_depends, work_status)
+                if not check[0]:
+                    work.status.set(
+                        wu.get('id'),
+                        [False, "Dependency '{}' failed".format(check[1])]
+                        )
+                    # don't include this wu in work to be done
+                    break
                 workername = MRXpath(wu.get('id')).workername(prefix='/status')
                 if workername not in byworker:
                     byworker[workername] = E.wus(worker=workername)
@@ -66,22 +100,49 @@ class Update(object):
             # TODO(colin): parallelise downloads and other work
 
             # start the downloads
-            if 'fetcher' in byworker:
-                workelt = byworker['fetcher']
-                del byworker['fetcher']
-                l.lmsg('invoking fetcher')
-                l.dmsg('fetching:\n' + pstring(workelt))
-                self.process_results(self.worker('fetcher').do_work(workelt),
-                                     workelt)
+#            if 'fetcher' in byworker:
+#                workelt = byworker['fetcher']
+#                del byworker['fetcher']
+#                l.lmsg('invoking fetcher')
+#                l.dmsg('fetching:\n' + pstring(workelt))
+#                self.process_results(self.worker('fetcher').do_work(workelt),
+#                                     workelt, work_depends, work_status)
 
             # do the work
             for wname, workelt in byworker.items():
                 l.lmsg('dispatching to ' + wname)
                 l.dmsg('work:\n' + pstring(workelt))
-                self.process_results(self.worker(wname).do_work(workelt),
-                                     workelt)
+                worker = self.worker(wname)
+                if worker:
+                    self.process_results(
+                        self.worker(wname).do_work(workelt),
+                        workelt,
+                        work_status
+                        )
+                else:
+                    # No worker: fail this work unit
+                    work_status.set(
+                        wu.get('id'),
+                        [False, "No worker '{}'".format(wname)]
+                        )
 
         new_status = self.gather_status()
+
+    def check_deps(self, wu, work_depends, work_status):
+        """Check status of dependencies of a work unit (wu)
+
+        Returns:
+          [True] if all dependencies have been done
+          [False, dep_id] is any have failed (dep_id is first discovered failure)
+          """
+        if work_depends.get(wu.get('id')):
+            # this work depends on some other work check to
+            # see if any have failed
+            for dep_id in work_depends.get(wu.get('id')):
+                if work_status.get(dep_id) and not work_status.get(dep_id)[0]:
+                    return [False, dep_id]
+        return [True]
+
 
     def initial_status(self):
         """Get the initial status. Will call gather_status() if necessary."""
@@ -175,7 +236,7 @@ class Update(object):
         self.workers[name] = w
         return w
 
-    def process_results(self, res, workelt):
+    def process_results(self, res, workelt, work_status):
         pass
 
 

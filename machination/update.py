@@ -114,8 +114,19 @@ class Update(object):
                 l.dmsg('work:\n' + pstring(workelt))
                 worker = self.worker(wname)
                 if worker:
+                    try:
+                        results = self.worker(wname).do_work(workelt)
+                    except as e:
+                        for wu in workelt:
+                            work_status.set(
+                                wu.get('id'),
+                                [False, "Exception in worker {}\n{}".format(
+                                        wname, str(e)
+                                        )]
+                                )
+                        l.emsg("Exception from worker {} - failing its work".format(wname))
                     self.process_results(
-                        self.worker(wname).do_work(workelt),
+                        results,
                         workelt,
                         work_status
                         )
@@ -237,8 +248,11 @@ class Update(object):
         return w
 
     def process_results(self, res, workelt, work_status):
-        pass
-
+        for ru in res:
+            if ru.get("status") == "success":
+                work_status.set(ru.get('id'), [True])
+            else:
+                work_status.set(ru.get('id'), [False, ru.get('message')])
 
 class WorkerError(Exception):
     def __init__(self, wname, epy, eol):

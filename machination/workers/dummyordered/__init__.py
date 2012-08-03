@@ -145,12 +145,31 @@ class Worker(object):
 #            print()
 #            print("dispatching:\n" +
 #                  xmltools.pstring(wu))
-            self.dispatch.get(wmrx.to_noid_path(), self.handle_default)(wu)
+            handler =  self.dispatch.get(
+                wmrx.to_noid_path(), self.handle_default
+                )
+
+            # Make sure exceptions don't make it back to update.py,
+            # otherwise all work units will be marked as failures.
+            try:
+                results.append(handler(wu))
+            except as e:
+                # Of course the work unit in which an exception occurs
+                # should be an error.
+                results.append(
+                    etree.Element(
+                        'wu',
+                        id=wu.get('id'),
+                        status='error',
+                        message=str(e)
+                        )
+                    )
 
     def handle_default(self, wu):
         if xmltools.MRXpath(wu.get('id')).name() == 'worker':
             return
-        raise Exception(wu.get('id') + " is not a valid work unit for worker 'dummyordered'")
+        raise Exception(wu.get('id') +
+                        " is not a valid work unit for worker 'dummyordered'")
 
     def handle_ordered(self, wu):
         op = wu.get('op')
@@ -170,11 +189,14 @@ class Worker(object):
         else:
             raise Exception('op "%s" not supported for sysitem' % op)
 
+        return etree.Element('wu',id=wu.get('id'),status='success')
+
     def handle_file(self, wu):
         if wu.get('op') == 'remove':
             pass
         else:
             self.pc.from_xml(wu[0])
+        return etree.Element('wu',id=wu.get('id'),status='success')
 
     def handle_notordered(self, wu):
         op = wu.get('op')
@@ -186,6 +208,8 @@ class Worker(object):
             os.unlink(os.path.join(self.datadir, 'files', fname))
         else:
             raise Exception('op %s no supported for notordered' % op)
+
+        return etree.Element('wu',id=wu.get('id'),status='success')
 
     # methods to manipulate the status outside of do_work for testing
     # purposes

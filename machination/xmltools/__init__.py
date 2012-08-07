@@ -384,6 +384,64 @@ def closest_shared_previous(working, template, xp):
         prevte = prevte.getprevious()
     return None
 
+def strip_prefix(string, prefix = None):
+    """Strip a prefix from a string.
+
+    Arguments:
+      string: string from which to strip prefix
+      strip: prefix to remove
+    Returns: stripped string
+    Exceptions:
+      - ValueError if string doesn't start with prefix
+    """
+    if prefix:
+        # Remove prefix
+        if string.startswith(prefix):
+            return string[len(xpath):]
+        else:
+            raise ValueError(
+                'Prefix "{}" not found in {}'.format(prefix, string)
+                )
+    else:
+        return string
+
+def apply_wu(wu, stelt, strip = None):
+    """Apply a work unit to a status element."""
+    xpath = strip_prefix(wu.get('id'), strip)
+    tgt_elt = stelt.xpath(xpath)[0]
+    parent_elt = tgt_elt.getparent()
+    op = wu.get('op')
+    if op == 'add':
+        # The element to add is in wu[0]
+        pos = wu.get('pos')
+        if pos == '<first>':
+            # Insert as first element
+            parent_elt.insert(0, copy.deepcopy(wu[0]))
+        else:
+            # find the element corresponding to pos
+            prev = stdoc.xpath(pos)[0]
+            # insert after prev
+            parent_elt.insert(
+                parent_elt.index(prev) + 1,
+                copy.deepcopy(wu[0])
+                )
+    elif op == 'remove':
+        parent_elt.remove(tgt_elt)
+    elif op == 'datamod':
+        tgt_elt.text = wu[0].text
+    elif op == 'move':
+        pos = wu.get('pos')
+        if pos == '<first>':
+            parent_elt.insert(0, tgt_elt)
+        else:
+            prev = stdoc.xpath(strip_prefix(pos, strip))[0]
+            parent_elt.insert(
+                parent_elt.index(prev) + 1,
+                tgt_elt
+                )
+    elif op == 'deepmod':
+        pass
+
 
 class MRXpath(object):
     """Manipulate Machination restricted xpaths.

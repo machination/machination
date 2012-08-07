@@ -53,7 +53,7 @@ class Update(object):
         # message if appropriate:
         #
         # {
-        #  wu1: [True],
+        #  wu1: [True, wu_elt],
         #  wu2: [False, "Worker 'splat' not available"]
         #  wu3: [False, "Dependency 'wu2' failed"]
         # }
@@ -86,7 +86,7 @@ class Update(object):
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
                 if not check[0]:
-                    work.status.set(
+                    work_status.set(
                         wu.get('id'),
                         [False, "Dependency '{}' failed".format(check[1])]
                         )
@@ -137,7 +137,33 @@ class Update(object):
                         [False, "No worker '{}'".format(wname)]
                         )
 
+        wu_updated_status = copy.deepcopy(self.initial_status())
+        # Gather sucesses and failures
+        failures = []
+        for wid, completed in work_status.items():
+            if completed[0]:
+                # Apply successes to wu_updated_status
+                comp.apply_wu(completed[1], wu_updated_status)
+            else:
+                failures.append([wid, completed[1]])
+        # Report failures.
+        l.lmsg(
+            'The following work units reported failure:\n{}'.format(
+                pprint.pformat(failures)
+                )
+            )
+        # write calculated status to file
+        fname = os.path.join(context.status_dir(), 'previous-status.xml')
+        with open(fname, 'w') as prev:
+            prev.write(etree.tostring(wu_updated_status))
+
+        # see how the status has changed including calls to generate_status()
         new_status = self.gather_status()
+
+        # write this status out as previous_status.xml
+        with open(fname, 'w') as prev:
+            prev.write(etree.tostring(new_status))
+
 
     def check_deps(self, wu, work_depends, work_status):
         """Check status of dependencies of a work unit (wu)
@@ -186,24 +212,29 @@ class Update(object):
 #                    context.status_dir(), 'desired-status.xml')).getroot()
         return self._desired_status
 
+    def load_previous_status(self):
+        """Load previous_status.xml"""
+        fname = os.path.join(context.status_dir(), 'previous-status.xml')
+        try:
+            self._previous_status = etree.parse(fname).getroot()
+        except IOError:
+            # couldn't read file may be lack of permission or not exists
+            # if not exists (first run?) we should make a new status
+            if not os.path.isfile(fname):
+                self._previous_status = E.status()
+            else:
+                raise
+        return self._previous_status
+
     def previous_status(self):
         """Get the status from the previous run."""
         if self._previous_status is None:
-            fname = os.path.join(context.status_dir(), 'previous-status.xml')
-            try:
-                self._previous_status = etree.parse(fname).getroot()
-            except IOError:
-                # couldn't read file may be lack of permission or not exists
-                # if not exists (first run?) we should make a new status
-                if not os.path.isfile(fname):
-                    self._previous_status = E.status()
-                else:
-                    raise
+            return self.load_previous_status()
         return self._previous_status
 
     def gather_status(self):
         """Invoke all workers' generate_status() and gather into one."""
-        status = copy.deepcopy(self.previous_status())
+        status = copy.deepcopy(self.load_previous_status())
         # find all workers
         stelt = status.xpath('/status')[0]
         done = set()
@@ -212,17 +243,32 @@ class Update(object):
             # in self.workers
             worker = self.worker(welt.get("id"))
             if worker is not None:
-                wstatus = worker.generate_status()
-                stelt.remove(welt)
-                stelt.append(wstatus)
+                try:
+                    wstatus = worker.generate_status()
+                except AttributeError:
+                    # No generate_status method: leave the previous
+                    # status element intact. This will, in effect,
+                    # cause the status to be tracked by do_update()
+                    # when it writes sucessful changes to
+                    # previous_status.xml
+                    pass
+                else:
+                    stelt.remove(welt)
+                    stelt.append(wstatus)
             done.add(welt.get('id'))
         for welt in self.desired_status().xpath('/status/worker'):
             if welt.get("id") in done:
                 continue
             worker = self.worker(welt.get("id"))
             if worker is not None:
-                wstatus = worker.generate_status()
-                stelt.append(wstatus)
+                try:
+                    wstatus = worker.generate_status()
+                except AttributeError:
+                    # No generate_status method: leave previous status
+                    # undefined.
+                    pass
+                else:
+                    stelt.append(wstatus)
         return status
 
     def worker(self, name):
@@ -250,7 +296,8 @@ class Update(object):
     def process_results(self, res, workelt, work_status):
         for ru in res:
             if ru.get("status") == "success":
-                work_status.set(ru.get('id'), [True])
+                wu = workelt.xpath('wu[@id="{}"]'.format(ru.get('id')))[0]
+                work_status.set(ru.get('id'), [True, wu])
             else:
                 work_status.set(ru.get('id'), [False, ru.get('message')])
 

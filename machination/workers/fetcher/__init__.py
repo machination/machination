@@ -3,9 +3,12 @@
 from lxml import etree
 from machination import context
 from machination import xmltools
+import urllib.request
+import urllib.error
 import os
 import errno
 import sys
+import hashlib
 
 
 class Worker(object):
@@ -18,6 +21,7 @@ class Worker(object):
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.config_elt = self.read_config()
+        self.pad_elt = etree.Element("status")
 
     def read_config(self):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
@@ -63,8 +67,87 @@ class Worker(object):
     def __add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
-        res.attrib["status"] = success
-        return res
+        # Where are we getting it from?
+        for source in self.config_elt.xpath('config/sources/*'):
+            transport = "__download_{}".format(source.attrib["mechanism"])
+            out = getattr(self, transport)(source, work)
+            if out == None:
+                continue
+            elif out.startswith("Failed"):
+                res.attrib["status"] = "error"
+                res.attrib["message"] = out
+            else:
+                res.attrib["status"] = success
+            return res
+
+        # no suitable source
+        context.emsg("No suitable source defined")
+        res.attrib["status"] = "error"
+        res.attrib["message"] = "No suitable source defined"
+
+    def __download_urllib(self, source, work):
+        # Construct URL
+        baseurl = source.attrib["URL"] + '/' + work[0].attrib["id"]
+        manifest = baseurl + '/manifest'
+        context.dmsg("Downloading manifest: " + manifest)
+        try:
+            m = urllib.request.urlopen(manifest)
+        except urllib.error.HTTPError as e:
+            reason = "HTTP Error: " + e.code
+        except urllib.error.URLError as e:
+            reason = "URL Error: " + e.reason
+        if reason:
+            context.emsg(reason)
+            return "Failed: " + reason
+
+        # Set destination
+        c = config_elt.xpath('config/cache[@location]'):
+        if c:
+            cache_loc = c[0].attrib["location"]
+        else:
+            cache_loc = "files"
+
+        dest = os.path.join(context.cache_dir(),
+                            cache_loc,
+                            '.' + work[0].attrib["id"])
+        f_dest = os.path.join(context.cache_dir(),
+                              cache_loc,
+                              work[0].attrib["id"])
+        # Assume a sensible umask for now...
+        os.mkdir(dest)
+
+        context.dmsg("Downloading files")
+        # Set up hash
+        sha = hashlib.sha512()
+        for file in m:
+            f = baseurl + '/' + file.strip
+            context.dmsg("Downloading file: " + f, 8)
+
+            target = os.path.join(dest, f)
+            if not os.path.exists(os.path.dirname(target):
+                os.mkdir(os.path.dirname(target)
+
+            # FIXME: Retry for missing files
+
+            a = urllib.request.urlopen(f)
+
+            with open(target, 'wb') as b:
+                tmp = a.read()
+                sha.update(tmp)
+                b.write(tmp)
+
+        if not work[0].attrib["id"].endswith('nohash')
+            hash = work[0].attrib["id"].split('-',1)[1]
+            if hash != sha.hexdigest():
+                context.emsg("Hash failure")
+                return "Failed: Hash failure"
+
+        os.rename(dest, f_dest)
+        context.dmsg('Download Successful')
+        return "Download Successful"
+
+    def __download_torrent(self, source, work):
+        pass
 
     def __remove(self, work):
         res = etree.Element("wu",

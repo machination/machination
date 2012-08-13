@@ -405,9 +405,43 @@ def strip_prefix(string, prefix = None):
     else:
         return string
 
-def apply_wu(wu, stelt, strip = None):
-    """Apply a work unit to a status element."""
-    xpath = strip_prefix(wu.get('id'), strip)
+def add_prefix_elts(wrapelt, prefix = None):
+    if prefix:
+        pre_mrx = MRXpath(prefix)
+        parent = None
+        for item in pre_mrx.rep:
+            if item[0] == '':
+                continue
+            elt = etree.Element(item[0])
+            if len(item) > 1:
+                elt.set('id', item[1])
+            if parent is not None:
+                parent.append(elt)
+            else:
+                top = elt
+                parent = elt
+        parent.append(wrapelt)
+        return top
+    return wrapelt
+
+
+def apply_wu(wu, stelt, prefix = None):
+    """Apply a work unit to a status element.
+
+    Arguments:
+      wu: work unit element
+      stelt: status element
+    Returns:
+      copy of status element with wu applied
+    """
+    if prefix:
+        prefix = MRXpath(prefix)
+    stelt = add_prefix_elts(copy.deepcopy(stelt), prefix)
+    xpath = wu.get('id')
+#    print('In:')
+#    print(etree.tostring(stelt).decode('utf8'))
+#    print(xpath)
+#    print()
     tgt_elt = stelt.xpath(xpath)[0]
     parent_elt = tgt_elt.getparent()
     op = wu.get('op')
@@ -440,8 +474,29 @@ def apply_wu(wu, stelt, strip = None):
                 tgt_elt
                 )
     elif op == 'deepmod':
-        pass
+        mrx = MRXpath(xpath)
+        orig_elt = stelt.xpath(xpath)[0]
+        new_top = add_prefix_elts(copy.deepcopy(wu[0]), mrx.parent())
+        new_elt = new_top.xpath(xpath)[0]
+        wd = WorkerDescription(mrx.workername('/status'), '/status')
 
+        for elt in orig_elt.iter(tag = etree.Element):
+            elt_mrx = MRXpath(elt)
+            # All workunit elements in orig_elt but not in new_elt
+            # should be added back in (they were stripped when the
+            # deepmod was created).
+            #
+            # TODO(colin): preserve the original order
+            print(elt_mrx.to_xpath())
+            if wd.is_workunit(elt_mrx) and not new_top.xpath(elt_mrx.to_xpath()):
+                new_elt.append(copy.deepcopy(elt))
+        # now the deepmod element should represent the new state
+        parent_elt.replace(orig_elt, new_elt)
+
+    if prefix:
+        return stelt.xpath(prefix.to_xpath())[0][0]
+    else :
+        return stelt
 
 class MRXpath(object):
     """Manipulate Machination restricted xpaths.

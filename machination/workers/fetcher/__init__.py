@@ -41,10 +41,13 @@ class Worker(object):
 
     def do_work(self, work_list):
         "Process the work units and return their status."
+
+        # Setup
         result = []
         flag = False
         pref = "/status/worker[@id='fetcher']"
         confcheck = ''.join(pref, "/config")
+
         for wu in work_list:
             if wu.attrib["id"].startswith(confcheck):
                 xmltools.apply_wu(wu,
@@ -166,7 +169,7 @@ class Worker(object):
         return "Download Successful"
 
     def __download_torrent(self, source, work):
-        pass
+        return "Failed: Torrent download not supported."
 
     def __remove(self, work):
         res = etree.Element("wu",

@@ -3,6 +3,7 @@
 from lxml import etree
 from machination import context
 from machination import xmltools
+from time import sleep
 import urllib.request
 import urllib.error
 import os
@@ -127,9 +128,27 @@ class Worker(object):
             if not os.path.exists(os.path.dirname(target):
                 os.mkdir(os.path.dirname(target)
 
-            # FIXME: Retry for missing files
+            if config_elt.xpath('config/retry'):
+                num = config_elt.xpath('config/retry')[0].attrib["number"]
+                ttw = config_elt.xpath('config/retry')[0].attrib["time_to_wait"]
+            else:
+                num = 1
+                ttw = 30
 
-            a = urllib.request.urlopen(f)
+            while True:
+                try:
+                    a = urllib.request.urlopen(f)
+                    break
+                except urllib.error.HTTPError as e:
+                    if num == 0:
+                        wmsg("HTTP Error " + e.code + " Retrying in " + ttw + " seconds")
+                        num -= 1
+                        sleep(ttw)
+                    else:
+                        msg = "Failed: HTTP Error: " + e.code
+                        emsg(msg)
+                        return msg
+
 
             with open(target, 'wb') as b:
                 tmp = a.read()

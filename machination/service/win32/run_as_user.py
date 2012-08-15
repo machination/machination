@@ -25,7 +25,7 @@ win32security.ImpersonateLoggedOnUser(token)
 
 # Setup appropriate desktop and window stuff
 si = win32process.STARTUPINFO()
-si.lpDesktop = u'Winsta0\\default'
+si.lpDesktop = 'Winsta0\\default'
 
 #Launch the user script
 win32process.CreateProcessAsUser(

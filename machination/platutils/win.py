@@ -112,7 +112,7 @@ def run_as_current_user(cmd):
 
     # Setup appropriate desktop and window stuff
     si = win32process.STARTUPINFO()
-    si.lpDesktop = u'Winsta0\\default'
+    si.lpDesktop = 'Winsta0\\default'
 
     #Launch the user script
 

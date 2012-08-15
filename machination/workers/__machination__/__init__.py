@@ -76,14 +76,12 @@ class Worker(object):
         elt = etree.Element("installedVersion")
         import wmi
         con = wmi.WMI()
-        prods = con.Win32_Product(Name="machination-core")
-        prods.extend(
-            con.query(
-                "select * from Win32_Product where Name like 'machination-worker%'"
-                )
+        prods = con.query(
+            "select * from Win32_Product where Name like 'Python machination-core%' or Name like 'Python machination-worker%'"
             )
         for prod in prods:
-            name = '{}-{}'
+            elt.append(etree.Element("bundle", id=prod.Name[7:]))
+        return elt
         
 
     def do_work(self, wus):

@@ -125,7 +125,7 @@ if __name__ == "__main__":
         data_files = []
 
     # Build machination core (without workers or tests)
-    run_setup("machination",
+    run_setup("machination-core",
               find_packages(exclude=["tests",
                                       "*.workers",
                                       "*.workers.*",
@@ -140,5 +140,5 @@ if __name__ == "__main__":
     basedir = "machination/workers"
     for item in os.listdir(basedir):
         if os.path.isdir(os.path.join(basedir, item)):
-            run_setup("machination-" + item,
+            run_setup("machination-worker-" + item,
                       ["machination.workers." + item])

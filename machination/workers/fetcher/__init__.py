@@ -7,22 +7,128 @@ from time import sleep
 import urllib.request
 import urllib.error
 import os
+import stat
+import shutil
 import errno
 import sys
 import hashlib
+import platform
+import glob
 
 
 class Worker(object):
-    """Fetch tagged bundles from sources defined in config
+    """Fetch tagged bundles from sources defined in config"""
 
-    """
+    # set up size maps as log(1024)
+    s_maps = {'B': 0,
+              'K': 1,
+              'M': 2,
+              'G': 3,
+              'T': 4}
 
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.config_elt = self.read_config()
-        self.pad_elt = etree.Element("status")
+        self.cache_maint()
+
+    def cache_maint(self):
+        context.lmsg("Cleaning fetcher cache.")
+
+        cache_elt = self.config_elt.xpath('config/cache[@size]')
+        if not cache_elt:
+            return None
+        else:
+            size = cache_elt[0].attrib["size"]
+
+        cache_loc = self.get_cache_dir()
+
+        # List all the bundle directories in order of mtime
+        bundles = filter(os.path.isdir, os.path.listdir(cache_loc))
+        bundles = [os.path.join(cache_loc, f) for f in bundles]
+        bundles.sort(key=lambda x: os.path.getmtime(x))
+
+        while self.cache_over_limit():
+            try:
+                a = bundles.pop(0)
+            except IndexError as e:
+                msg = "Cache cannot be brought below limit"
+                context.wmsg(msg)
+                break
+            # Ignore files that are kept, that have already been cleaned,
+            # or that aren't yet done.
+            if os.path.exists(os.path.join(a, '.keep')):
+                continue
+            if not os.path.exists(os.path.join(a, 'files')):
+                continue
+            if not os.path.exists(os.path.join(a, '.done')):
+                continue
+            shutil.rmtree(os.path.join(a, 'files')
+                          ignore_errors=false,
+                          onerror=self.handleRemoveReadonly)
+        return None
+
+    def handleRemoveReadOnly(self, func, path, exc):
+        excvalue = exc[1]
+        if func in (os.rmdir, os.remove) and excvalue.errno == errno.EACCESS:
+            os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.IRWXO)
+            func(path)
+        else:
+            raise
+
+    def cache_over_limit(self, cache_loc, size):
+        cache_size = size(self.get_cache_dir())
+        if size[-1] == '%':
+            op = 'space_' + platform.system()
+            disk_size = getattr(self, op)(cache_loc, 'total')
+            percent = int(size[:-1])
+            left = (cache_size / disk_size) * 100
+            right = percent
+        else:
+            # Size in bytes has either B/K/M/G/T as final character indicating
+            # bytes, kb, mb, gb, etc.
+            size_in_bytes = int(size[:-1]) * 1024^s_maps[size[-1]]
+            left = cache_size
+            right = size_in_bytes
+        return left > right
+
+    def space_Windows(self, disk='C', type='total'):
+        import wmi
+        w = wmi.WMI()
+        for drive in w.Win32_LogicalDisk():
+            if drive.Caption[0] == disk[0]:
+                if type=='total':
+                    return drive.Size
+                else:
+                    return drive.FreeSpace
+        else:
+            raise ValueError("specified disk " + disk + "does not exist")
+
+    def space_Linux(self, disk='/', type='total'):
+        if type not in ['total', 'free']:
+            raise ValueError("type must be either 'total' or 'free'")
+
+        s = os.statvfs(dir)
+        if type=='total':
+            return (s.f_bavail * s.f_frsize)
+        else:
+            return (s.f_blocks * s.f_frsize)
+
+    def get_cache_dir(self):
+        c = self.config_elt.xpath('config/cache[@location]'):
+        if c:
+            cache_loc = c[0].attrib["location"]
+        else:
+            cache_loc = ""
+        return os.path.join(context.cache_dir(), cache_loc)
+
+    def size(self, start_path='.'):
+        total = 0
+        for root, dirs, files in os.walk(start_path):
+            for f in files:
+                total += os.path.getsize(os.path.join(root, f))
+        return total
 
     def read_config(self):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
@@ -90,9 +196,27 @@ class Worker(object):
         res.attrib["message"] = "No suitable source defined"
 
     def __download_urllib(self, source, work):
-        # Construct URL
+        # Construct URL & retry parameters
         baseurl = source.attrib["URL"] + '/' + work[0].attrib["id"]
         manifest = baseurl + '/manifest'
+        if config_elt.xpath('config/retry'):
+            retry = config_elt.xpath('config/retry')[0].attrib["number"]
+            ttw = config_elt.xpath('config/retry')[0].attrib["time_to_wait"]
+        else:
+            retry = 1
+            ttw = 30
+
+        # Set destination
+        dest = os.path.join(self.get_cache_dir(), '.' + work[0].attrib["id"])
+        file_dir = os.path.join(dest, 'files')
+        spec_dir = os.path.join(dest, 'special')
+
+        # Set up directory structure
+        os.mkdir(dest)
+        os.mkdir(file_dir)
+        os.mkdir(spec_dir)
+
+        # Get the manifest and put into specials
         context.dmsg("Downloading manifest: " + manifest)
         try:
             m = urllib.request.urlopen(manifest)
@@ -104,47 +228,49 @@ class Worker(object):
             context.emsg(reason)
             return "Failed: " + reason
 
-        # Set destination
-        c = config_elt.xpath('config/cache[@location]'):
-        if c:
-            cache_loc = c[0].attrib["location"]
-        else:
-            cache_loc = "files"
+        mani_path = os.path.join(spec_dir, 'manifest')
+        with open(mani_path, 'w') as f:
+            f.write(m.read())
 
-        dest = os.path.join(context.cache_dir(),
-                            cache_loc,
-                            '.' + work[0].attrib["id"])
-        f_dest = os.path.join(context.cache_dir(),
-                              cache_loc,
-                              work[0].attrib["id"])
-        # Assume a sensible umask for now...
-        os.mkdir(dest)
+        # Parse the manifest
+        with open(mani_path, 'r') as f:
+            pkg_size = int(f.readline())
+            pkg = [x.strip() for x in f.readlines()]
+
+        # Check free space
+        context.dmsg(str(pkg_size) + " bytes to download.")
+        op = 'space_' + platform.system()
+        if pkg_size > getattr(self, op)(cache_loc, 'free'):
+            self.cache_maint()
+            if pkg_size > getattr(self, op)(cache_loc,'free'):
+                msg = "Not enough free space in package cache."
+                context.emsg(msg)
+                return "Failed: " + msg
 
         context.dmsg("Downloading files")
+
         # Set up hash
         sha = hashlib.sha512()
-        for file in m:
-            f = baseurl + '/' + file.strip
-            context.dmsg("Downloading file: " + f, 8)
 
-            target = os.path.join(dest, f)
+        # Main download loop
+        for file in pkg:
+            fileurl = baseurl + '/' + file
+            context.dmsg("Downloading file: " + fileurl, 8)
+
+            target = os.path.join(file_dir, file)
             if not os.path.exists(os.path.dirname(target):
                 os.mkdir(os.path.dirname(target)
 
-            if config_elt.xpath('config/retry'):
-                num = config_elt.xpath('config/retry')[0].attrib["number"]
-                ttw = config_elt.xpath('config/retry')[0].attrib["time_to_wait"]
-            else:
-                num = 1
-                ttw = 30
-
+            # Download the file. Retry and ttw are for resiliancy
+            num = retry
             while True:
                 try:
-                    a = urllib.request.urlopen(f)
+                    a = urllib.request.urlopen(fileurl)
                     break
                 except urllib.error.HTTPError as e:
                     if num == 0:
-                        wmsg("HTTP Error " + e.code + " Retrying in " + ttw + " seconds")
+                        wmsg("HTTP Error " + e.code +
+                             " Retrying in " + ttw + " seconds")
                         num -= 1
                         sleep(ttw)
                     else:
@@ -152,19 +278,27 @@ class Worker(object):
                         emsg(msg)
                         return msg
 
-
+            # Hash and write the file.
             with open(target, 'wb') as b:
                 tmp = a.read()
                 sha.update(tmp)
                 b.write(tmp)
 
+        # Check the package hash
         if not work[0].attrib["id"].endswith('nohash')
-            hash = work[0].attrib["id"].split('-',1)[1]
+            hash = work[0].attrib["id"].rsplit('-',1)[1]
             if hash != sha.hexdigest():
                 context.emsg("Hash failure")
                 return "Failed: Hash failure"
 
+        # Move to the 'real' bundle directory
+        (dir, id) = os.path.split(dest)
+        f_dest = os.path.join(dir, id[1:])
         os.rename(dest, f_dest)
+
+        if work[0].attrib["keep"] == 1:
+            open(os.path.join(dest, '.keep'), 'a').close()
+
         context.dmsg('Download Successful')
         return "Download Successful"
 
@@ -202,6 +336,3 @@ class Worker(object):
         w_elt.set("id", self.name)
 
         return w_elt
-
-    def do_work(self, wus):
-        results = []

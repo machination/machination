@@ -130,6 +130,11 @@ def get_id(service_id):
         mid = fd.readline().rstrip("\r\n")
     return mid
 
+def get_worker_elt(name):
+    """Return worker element from desired_status."""
+    return desired_status.xpath(
+        '/status/worker[@id="{}"]'.format(name)
+        )[0]
 
 desired_status_file = os.path.join(status_dir(), "desired-status.xml")
 try:
@@ -137,9 +142,7 @@ try:
 except IOError:
     raise IOError("could not find file '%s'" % desired_status_file)
 
-machination_worker_elt = desired_status.xpath(
-    '/status/worker[@id="__machination__"]'
-    )[0]
+machination_worker_elt = get_worker_elt('__machination__')
 
 logging_elts = machination_worker_elt.xpath(
     'logging'

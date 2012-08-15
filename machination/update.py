@@ -49,8 +49,8 @@ class Update(object):
         # exist.
         #
         # Afterward, work_status[wu] should contain an array with a
-        # status (True = succeeded, False = failed) and an error
-        # message if appropriate:
+        # status (True = succeeded, False = failed) and either the wu
+        # element or an error message as appropriate:
         #
         # {
         #  wu1: [True, wu_elt],
@@ -91,7 +91,7 @@ class Update(object):
                         [False, "Dependency '{}' failed".format(check[1])]
                         )
                     # don't include this wu in work to be done
-                    break
+                    continue
                 workername = MRXpath(wu.get('id')).workername(prefix='/status')
                 if workername not in byworker:
                     byworker[workername] = E.wus(worker=workername)
@@ -131,11 +131,12 @@ class Update(object):
                         work_status
                         )
                 else:
-                    # No worker: fail this work unit
-                    work_status.set(
-                        wu.get('id'),
-                        [False, "No worker '{}'".format(wname)]
-                        )
+                    # No worker: fail this set of work
+                    for wu in workelt:
+                        work_status.set(
+                            wu.get('id'),
+                            [False, "No worker '{}'".format(wname)]
+                            )
 
         wu_updated_status = copy.deepcopy(self.initial_status())
         # Gather sucesses and failures

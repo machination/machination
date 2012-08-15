@@ -65,15 +65,26 @@ class Worker(object):
         return etree.fromstring(
             '''
 <installedVersion>
-  <machinationFetcherBundle id="machination-2.0.0-hash"/>
-  <machinationFetcherBundle id="machination_worker1-2.0.0-hash"/>
-  <machinationFetcherBundle id="machination_worker2-2.0.0-hash"/>
+  <machinationFetcherBundle id="machination-core-2.0.0-hash"/>
+  <machinationFetcherBundle id="machination-worker-w1-2.0.0-hash"/>
+  <machinationFetcherBundle id="machination-worker-w2-2.0.0-hash"/>
 </installedVersion>
 '''
             )
 
     def _gen_installed_win7(self):
-        pass
+        elt = etree.Element("installedVersion")
+        import wmi
+        con = wmi.WMI()
+        prods = con.Win32_Product(Name="machination-core")
+        prods.extend(
+            con.query(
+                "select * from Win32_Product where Name like 'machination-worker%'"
+                )
+            )
+        for prod in prods:
+            name = '{}-{}'
+        
 
     def do_work(self, wus):
         results = []

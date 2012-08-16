@@ -150,5 +150,6 @@ if __name__ == "__main__":
                 license = "GPL",
                 keywords = "configuration management machination",
                 url="http://www.github.com/machination/machination",
-                packages = ['machination.workers.' + item]
+#                packages = ['machination.workers.' + item]
+                packages = find_packages('machination/workers/' + item)
                 )

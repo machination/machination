@@ -1,4 +1,5 @@
 import win32serviceutil
+import sys
 from machination.service.win32 import ServiceLauncher
 
 #Try to install the machination service

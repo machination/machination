@@ -42,11 +42,9 @@ class Worker(object):
         else:
             size = cache_elt[0].attrib["size"]
 
-        cache_loc = self.get_cache_dir()
-
         # List all the bundle directories in order of mtime
-        bundles = filter(os.path.isdir, os.path.listdir(cache_loc))
-        bundles = [os.path.join(cache_loc, f) for f in bundles]
+        bundles = filter(os.path.isdir, os.path.listdir(self.cache_dir))
+        bundles = [os.path.join(self.cache_dir, f) for f in bundles]
         bundles.sort(key=lambda x: os.path.getmtime(x))
 
         while self.cache_over_limit():
@@ -78,7 +76,7 @@ class Worker(object):
             raise
 
     def cache_over_limit(self, cache_loc, size):
-        cache_size = size(self.get_cache_dir())
+        cache_size = size(self.cache_dir)
         if size[-1] == '%':
             op = 'space_' + platform.system()
             disk_size = getattr(self, op)(cache_loc, 'total')
@@ -115,14 +113,6 @@ class Worker(object):
         else:
             return (s.f_blocks * s.f_frsize)
 
-    def get_cache_dir(self):
-        c = self.config_elt.xpath('config/cache[@location]'):
-        if c:
-            cache_loc = c[0].attrib["location"]
-        else:
-            cache_loc = ""
-        return os.path.join(context.cache_dir(), cache_loc)
-
     def size(self, start_path='.'):
         total = 0
         for root, dirs, files in os.walk(start_path):
@@ -136,6 +126,14 @@ class Worker(object):
             c_elt = etree.Parse(config_file)
         except IOError as e:
             c_elt = etree.Element("config")
+
+        c = self.config_elt.xpath('config/cache[@location]'):
+        if c:
+            cache_loc = c[0].attrib["location"]
+        else:
+            cache_loc = ""
+        self.cache_dir = os.path.join(context.cache_dir(), cache_loc)
+
         return c_elt
 
     def write_config(self):
@@ -207,7 +205,7 @@ class Worker(object):
             ttw = 30
 
         # Set destination
-        dest = os.path.join(self.get_cache_dir(), '.' + work[0].attrib["id"])
+        dest = os.path.join(self.cache_dir, '.' + work[0].attrib["id"])
         file_dir = os.path.join(dest, 'files')
         spec_dir = os.path.join(dest, 'special')
 
@@ -234,7 +232,7 @@ class Worker(object):
 
         # Parse the manifest
         with open(mani_path, 'r') as f:
-            pkg_size = int(f.readline())
+            pkg_size = int(strip(f.readline()))
             pkg = [x.strip() for x in f.readlines()]
 
         # Check free space
@@ -258,8 +256,8 @@ class Worker(object):
             context.dmsg("Downloading file: " + fileurl, 8)
 
             target = os.path.join(file_dir, file)
-            if not os.path.exists(os.path.dirname(target):
-                os.mkdir(os.path.dirname(target)
+            if not os.path.exists(os.path.dirname(target)):
+                os.mkdir(os.path.dirname(target))
 
             # Download the file. Retry and ttw are for resiliancy
             num = retry
@@ -285,18 +283,21 @@ class Worker(object):
                 b.write(tmp)
 
         # Check the package hash
-        if not work[0].attrib["id"].endswith('nohash')
-            hash = work[0].attrib["id"].rsplit('-',1)[1]
+        if not work[0].attrib["hash"] == 'nohash'
+            hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
                 context.emsg("Hash failure")
                 return "Failed: Hash failure"
+            else:
+                with open(os.path.join(spec_dir, 'hash'), 'w') as f:
+                    f.write(hash)
 
         # Move to the 'real' bundle directory
         (dir, id) = os.path.split(dest)
         f_dest = os.path.join(dir, id[1:])
         os.rename(dest, f_dest)
 
-        if work[0].attrib["keep"] == 1:
+        if work[0].attrib["keep"] == "1":
             open(os.path.join(dest, '.keep'), 'a').close()
 
         context.dmsg('Download Successful')
@@ -308,14 +309,32 @@ class Worker(object):
     def __remove(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
-        res.attrib["status"] = success
+        # Identify package directory
+        dest = os.path.join(self.cache_dir, work[0].attrib["id"])
+
+        # Fail if not exist
+        if not os.path.isdir(dest):
+            msg = "Package directory does not exist"
+            context.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
+        # Nuke the directory
+        try:
+            shutil.rmtree(dest,
+                          ignore_errors=false,
+                          onerror=self.handleRemoveReadonly)
+            res.attrib["status"] = success
+        except:
+            msg = "Could not remove package directory."
+            context.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
         return res
 
     def __move(self, work):
-        res = etree.Element("wu",
-                            id=work.attrib["id"])
-        res.attrib["status"] = success
-        return res
+        pass
 
     def __datamod(self, work):
         res = etree.Element("wu",
@@ -325,14 +344,99 @@ class Worker(object):
 
     def __deepmod(self, work):
         res = etree.Element("wu",
-                            id=work.attrib["id"])
-        res.attrib["status"] = success
+                            id=work.attrib["id"],
+                            status="success")
+
+        bundle = work[0].attrib["id"]
+        bundle_dir = os.path.join(self.cache_dir, bundle)
+        if not os.path.isdir(bundle_dir):
+            msg = "Error: Bundle not found: " + bundle_dir
+            context.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
+        hashfile = os.path.join(bundle_dir, 'special','hash')
+        if not os.path.exists(hashfile):
+            msg = "Hash file for bundle " + bundle + " not found."
+            context.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
+        with open(hashfile, 'r') as f:
+            oldhash = f.read()
+
+        newhash = work[0].attrib["hash"]
+
+        if oldhash != newhash:
+            msg = "Hash for bundle " + bundle + " has changed.\n"
+            msg += "This should not happen. Please contact the server admin."
+            context.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
+        old = os.path.exists(os.path.join(bundle_dir, '.keep'))
+        new = work[0].attrib["keep"] == '1':
+
+        if old ^ new:
+            # Keep has changed
+            if old:
+                # Keep is now 0
+                os.remove(os.path.join(bundle_dir, '.keep'))
+            if new:
+                # Keep is now 1
+                if os.path.isdir(os.path.join(bundle_dir, 'files')):
+                    #Cache not cleaned
+                    open(os.path.join(bundle_dir, '.keep'), 'a').close()
+                else:
+                    #Cache cleaned
+                    msg = "Keep attribute set for cleaned bundle."
+                    context.wmsg(msg)
+                    specials = os.path.join(bundle_dir, 'special')
+                    if os.path.exists(os.path.join(bundle_dir, '.done')):
+                        done = True
+                    shutil.move(specials, os.path.join(self.cache_loc, '_tmp'))
+                    d = self.__remove(work)
+                    if d.attrib["status"] != "success":
+                        context.emsg("Bundle remove failed.")
+                        return d
+                    d = self.__add(work)
+                    if d.attrib["status"] != "success":
+                        context.emsg("Bundle re-download failed.")
+                        return d
+                    shutil.move(os.path.join(self.cache_loc, '_tmp'), specials)
+                    if done:
+                        open(os.path.join(bundle_dir, '.done'), 'a').close()
+
         return res
-
-
 
     def generate_status(self):
         w_elt = etree.Element("worker")
         w_elt.set("id", self.name)
+
+        # First subelement is config
+        w_elt.append(self.config_elt)
+
+        # Loop through bundle elements.
+        bundles = filter(os.path.isdir, os.path.listdir(self.cache_dir))
+
+        for bundle in bundles
+            b_elt = etree.SubElement(w_elt, "bundle", id=bundle)
+
+            if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
+                b_elt.attrib["keep"] = 1
+            else:
+                b_elt.attrib["keep"] = 0
+
+            hashfile = os.path.join(self.cache_dir,
+                                    bundle,
+                                    'special',
+                                    'hash')
+            if os.path.exists(hashfile):
+                with open(hashfile, 'r') as f:
+                    hash = f.read()
+            else
+                hash = 'nohash'
+
+            b_elt.attrib["hash"] = hash
 
         return w_elt

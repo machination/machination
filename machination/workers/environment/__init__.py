@@ -119,57 +119,7 @@ class worker(object):
         return res
 
     def generate_status(self):
-        "Generate a status XML for this worker."
-        # Get the environment variables
-        env_dict = self.__parse_env()
-        w_elt = etree.Element("environment")
-
-        # Build status xml
-        for key in env_dict:
-            if key.upper() in self.multi_vars:
-                line = self.__parse_multi(key, env_dict[key], self.multi_vars[key])
-            else:
-                line = etree.Element("var")
-                line.attrib["id"] = key
-                line.text = env_dict[key][1]
-            w_elt.append(line)
+        w_elt = etree.Element("Return")
+        w_elt.attrib["method"] = "generate_status"
+        w_elt.attrib["implemented"] = 0
         return w_elt
-
-    def __parse_env(self):
-        "Generate a dictionary of environment variables"
-        env = {}
-
-        [result, names, types] = r.EnumValues(hDefKey=self.__HKLM,
-                                              sSubKeyName=self.envloc)
-        if result:
-            context.emsg("Could not parse environment vars: {0}".format(result))
-
-        for key, type in zip(names, types):
-            method = "Get{0}Value".format(self.methods[type])
-            result, value = getattr(r, method)(hDefKey=self.__HKLM,
-                                               sSubKeyName=self.envloc,
-                                               sValueName=key)
-            if result:
-                context.emsg("Could not get {0} value: {1}".format(key, result))
-            else:
-                env[key] = [self.methods[type], value]
-        return env
-
-    def __parse_multi(self, keyname, value, sep):
-        "Creates the XML output for multi-value environment variables."
-        # Each id needs to be unique, so use count as an incrementing index
-        count = 0
-
-        # Set up the <var> element
-        out = etree.Element("var",
-                            id=keyname,
-                            type="multiple",
-                            separator=sep)
-
-        # Split value on sep and transform into <items>
-        for val in value[1].split(sep):
-            line = etree.Element("item", id=count)
-            line.text = val
-            out.append(line)
-            count += 1
-        return out

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8:
 
-"""A worker to add and remove Machination packages Windows."""
+"""A worker to add and remove Machination packages in Windows."""
 
 
 from lxml import etree
@@ -12,6 +12,7 @@ import os
 import sys
 import subprocess
 import wmi
+import shutil
 
 
 class worker(object):
@@ -25,8 +26,6 @@ class worker(object):
         "Process the work units and return their status."
         result = []
 
-        s_elt = etree.parse(self.status_file).getroot()
-
         for wu in work_list:
             operator = "__{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu, s_elt)
@@ -36,7 +35,7 @@ class worker(object):
     def __add(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        back = self.__install(work)
+        back = self.__process(work, "install")
 
         if back:
             context.emsg(back)
@@ -49,7 +48,7 @@ class worker(object):
     def __remove(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        back = self.__uninstall(work)
+        back = self.__process(work, "uninstall")
 
         if back:
             context.emsg(back)
@@ -76,18 +75,11 @@ class worker(object):
     def __move(self, work):
         pass
 
-    def __install(self, work):
-        return self.__process(work, "install")
-
-    def __uninstall(self, work):
-        return self.__process(work, "uninstall")
-
     def __process(self, work, operation):
         # Prep necessary variables
         type = work.find("pkginfo").attrib["type"]
         bundle = work.find("bundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
-                                   "files",
                                    bundle)
         if "interactive" in work.keys:
             inter = work.attrib["interactive"]
@@ -118,6 +110,11 @@ class worker(object):
 
         back = getattr(self, op)(bundle_path, pkginfo, check, inter)
 
+        if not back:
+            open(os.path.join(bundle_path,'.done'), 'a').close()
+
+        return back
+
     def __install_msi(self, bundle, pkginfo, check, inter=False):
         paramlist = {"REBOOT": "ReallySuppress",
                      "ALLUSERS": "1",
@@ -131,12 +128,14 @@ class worker(object):
             name = arg.attrib["name"].upper()
             val = arg.text
             if name == "TRANSFORM":
-                tr_file = os.path.join(bundle, val)
+                tr_file = os.path.join(bundle, 'files', val)
                 if not os.path.exists(tr_path):
                     return "Transform file not found: " + tr_path
             paramlist[name] = val
 
-        msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
+        msipath = os.path.join(bundle,
+                               'files',
+                               pkginfo.find('startpoint').text)
 
         log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
         opts = " ".join(["%s=%s" % (k.upper(), v) for k, v in paramlist.items()])
@@ -144,11 +143,16 @@ class worker(object):
                                                           log,
                                                           opts)
 
+        guid = platutils.win.get_installed_guid(msipath)
+        with open(os.path.join(bundle, 'special', 'guid'), 'w') as f:
+            f.write(guid)
+
         if inter:
             platutils.win.run_as_current_user(cmd)
-            guid = platutils.win.get_installed_guid(msipath)
-            out = self.__check_reg(msi_guid, True)
-            if out:
+            inscheck = self.__check_reg(msi_guid)
+            if inscheck:
+                out = None
+            else:
                 out = "Installation failed."
         else:
             out = subprocess.call(cmd, stdout=subprocess.PIPE)
@@ -158,7 +162,7 @@ class worker(object):
     def __install_simple(self, bundle, pkginfo, check, inter=False):
         # Simple apps are handled by calling install.py from the bundle
         # directory
-        install_file = os.path.join(bundle, "install.py")
+        install_file = os.path.join(bundle, 'files', "install.py")
 
         if not os.path.exists(install_file):
             return "Install.py not found: " + install_file
@@ -168,18 +172,26 @@ class worker(object):
         if inter:
             platutils.win.run_as_current_user(cmd)
             operator = "__check_{0}".format(check[0])
-            out = getattr(self, operator)(check[1], True)
-            if out:
-                out = "Installation failed."
+            inscheck = getattr(self, operator)(check[1])
+            if inscheck:
+                out = None
+            else:
+                out = "Installation Failed."
         else:
             out = subprocess.call(cmd)
+
+        # Cache install/uninstall info
+        uninstall_file = os.path.join(bundle, 'files', "uninstall.py")
+        dest = os.path.join(bundle, 'special')
+        shutil.copy(install_file, dest)
+        shutil.copy(uninstall_file, dest)
 
         return out
 
     def __uninstall_simple(self, bundle, pkginfo, check, inter=False):
         # Simple apps are handled by calling install.py from the bundle
         # directory
-        install_file = os.path.join(bundle, "uninstall.py")
+        install_file = os.path.join(bundle, 'special', "uninstall.py")
 
         if not os.path.exists(install_file):
             return "Uninstall.py not found: " + install_file
@@ -189,9 +201,11 @@ class worker(object):
         if inter:
             platutils.win.run_as_current_user(cmd)
             operator = "__check_{0}".format(check[0])
-            out = getattr(self, operator)(check[1])
-            if out:
+            inscheck = getattr(self, operator)(check[1])
+            if inscheck:
                 out = "Uninstallation failed."
+            else:
+                out = None
         else:
             out = subprocess.call(cmd)
 
@@ -215,8 +229,8 @@ class worker(object):
                     return "Transform file not found: " + tr_path
             paramlist[name] = val
 
-        msipath = os.path.join(bundle, pkginfo.find('startpoint').text)
-        guid = platutils.win.get_installed_guid(msipath)
+        with open (os.path.join(bundle, 'special', 'guid'), 'r') as f:
+            guid = f.read()
 
         log = os.path.dirname(bundle) + os.path.basename(bundle) + ".log"
         opts = " ".join(["%s=%s" % (k.upper(), v) for k, v in paramlist.items()])
@@ -226,21 +240,20 @@ class worker(object):
 
         if inter:
             platutils.win.run_as_current_user(cmd)
-            out = self.__check_reg(guid)
-            if out:
+            inscheck = self.__check_reg(guid)
+            if inscheck:
                 out = "Uninstallation failed."
+            else:
+                out = None
         else:
             out = subprocess.call(cmd, stdout=subprocess.PIPE)
 
         return out
 
-    def __check_file(self, filename, invert=False):
-        back = os.path.exists(filename)
-        if invert:
-            back = not back
-        return back
+    def __check_file(self, filename):
+        return os.path.exists(filename)
 
-    def __check_reg(self, key, invert=False):
+    def __check_reg(self, key):
         r = wmi.Registry()
         __HLKM = 2147483650
         uloc = "software\microsoft\windows\currentversion\uninstall"
@@ -248,24 +261,16 @@ class worker(object):
         result, names = r.EnumKey(__HKLM, uloc)
 
         if key in names:
-            back = True
-        else:
-            uloc = "software\wow6432node\microsoft\windows\currentversion\uninstall"
-            result, names = r.EnumKey(__HKLM, uloc)
+            return True
 
-            if result:
-                # Reg key not found--running on 32bit system
-                back = False
+        # 32 bit program so check that registry node
+        uloc = "software\wow6432node\microsoft\windows\currentversion\uninstall"
+        result, names = r.EnumKey(__HKLM, uloc)
 
-            if key in names:
-                back = True
-            else:
-                back = False
+        if result:
+            return False
 
-        if invert:
-            return not back
-        else:
-            return back
+        return key in names
 
     def generate_status(self):
         # Update can keep track of packages.

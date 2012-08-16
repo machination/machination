@@ -139,17 +139,12 @@ if __name__ == "__main__":
     # Build each worker package
     basedir = "machination/workers"
     for item in os.listdir(basedir):
+        # exceptions
+        if item in ('__pycache__'):
+            continue
         if os.path.isdir(os.path.join(basedir, item)):
-#            run_setup("machination-worker-" + item,
-#                      ["machination.workers." + item])
-            setup(
-                name = 'machination-worker-' + item,
-                version = get_git_version(),
-                author = "Someone",
-                description = "Machination Worker {}".format(item),
-                license = "GPL",
-                keywords = "configuration management machination",
-                url="http://www.github.com/machination/machination",
-#                packages = ['machination.workers.' + item]
-                packages = find_packages('machination/workers/' + item)
+            run_setup(
+                "machination-worker-" + item,
+                ["machination.workers." + item],
+                ["description.xml"],
                 )

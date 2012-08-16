@@ -1,0 +1,102 @@
+<element name="worker"
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:info="https://github.com/machination/ns/info"
+    xmlns:wu="https://github.com/machination/ns/workunit"
+
+    info:ordered="1"
+    >
+  <attribute name="id">
+    <value>__machination__</value>
+  </attribute>
+
+  <interleave>
+
+    <optional>
+      <element name="directories" wu:wu="1">
+        <optional>
+          <attribute name="conf"/>
+        </optional>
+        <optional>
+          <attribute name="status"/>
+        </optional>
+        <optional>
+          <attribute name="cache"/>
+        </optional>
+        <optional>
+          <attribute name="bin"/>
+        </optional>
+        <optional>
+          <attribute name="log"/>
+        </optional>
+      </element>
+    </optional>
+
+    <element name='logging' wu:wu="1">
+      <interleave>
+        <zeroOrMore>
+          <element name="stream">
+            <attribute name="id"/>
+            <attribute name="loglevel"/>
+          </element>
+        </zeroOrMore>
+        <zeroOrMore>
+          <element name="file">
+            <attribute name="id"/>
+            <attribute name="loglevel"/>
+          </element>
+        </zeroOrMore>
+      </interleave>
+    </element>
+
+    <element name='daemon' wu:wu="1">
+      <attribute name='address'/>
+      <attribute name='port'/>
+      <attribute name='sleeptime'/>
+    </element>
+
+    <optional>
+      <element name="openssl" wu:wu='1'>
+        <optional>
+          <attribute name='binary'/>
+        </optional>
+        <optional>
+          <attribute name='config'/>
+        </optional>
+      </element>
+    </optional>
+
+    <element name='services' wu:wu='1'>
+      <oneOrMore>
+        <element name='service'>
+          <attribute name='id'/>
+          <element name='hierarchy'>
+            <attribute name='id'/>
+          </element>
+          <zeroOrMore>
+            <element name='authentication'>
+              <attribute name='id'>
+                <choice>
+                  <value>person</value>
+                  <value>os_instance</value>
+                </choice>
+              </attribute>
+              <attribute name='type'/>
+              <optional>
+                <attribute name='cosignLoginPage'/>
+              </optional>
+            </element>
+          </zeroOrMore>
+        </element>
+      </oneOrMore>
+    </element>
+
+    <element name='installedVersion'>
+      <oneOrMore>
+        <element name='machinationFetcherBundle' wu:wu='1'>
+          <attribute name='id'/>
+        </element>
+      </oneOrMore>
+    </element>
+
+  </interleave>
+</element>

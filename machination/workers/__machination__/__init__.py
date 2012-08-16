@@ -80,9 +80,9 @@ class Worker(object):
             "select * from Win32_Product where Name like 'Python machination-core%' or Name like 'Python machination-worker%'"
             )
         for prod in prods:
-            elt.append(etree.Element("bundle", id=prod.Name[7:]))
+            elt.append(etree.Element("machinationFetcherBundle", id=prod.Name[7:]))
         return elt
-        
+
 
     def do_work(self, wus):
         results = []

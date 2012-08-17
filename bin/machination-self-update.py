@@ -2,6 +2,7 @@
 
 from lxml import etree
 import sys
+import re
 
 if len(sys.argv) > 1:
     ivtree = etree.parse(sys.argv[1])
@@ -53,21 +54,32 @@ for pkgid in remove:
     if pkgname(pkgid) == 'machination-client-worker-__machination__':
         mw_remove = pkgid
         continue
-    # Remove the package
-    remove_package(pkgid)
+    # Uninstall the package
+    uninstall_package(pkgid)
 
 # Remove __machination__
 if mw_remove:
-    remove_package(pkgid)
+    uninstall_package(pkgid)
 
 # Remove core
 if core_remove:
-    remove_package(pkgid)
+    uninstall_package(pkgid)
 
-# Add core
-
+# Add core, __machination__
+add_mw = None
+for pkgid in add:
+    if pkgname(pkgid) == 'machination-client-core':
+        add.remove(pkgid)
+        install_package(pkgid)
+    if pkgname(pkgid) == 'machination-client-worker-__machination__':
+        add.remove(pkgid)
+        add_mw = pkgid
+if add_mw:
+    install_package(pkgid)
 
 # Add others
+for pkgid in add:
+    install_package(pkgid)
 
 def pkgname(pkgid):
     """Get package name from bundle id"""
@@ -78,3 +90,62 @@ def pkgname(pkgid):
 def abort_update(reason):
     """Uh oh"""
     sys.exit(1)
+
+def pkg_extension():
+    if platform.system() == 'Windows':
+        return 'msi'
+    elif platform.system() == 'Linux':
+        dist = platform.dist()[0]
+        if dist == 'Ubuntu':
+            return 'deb'
+        elif dist == 'redhat':
+            return 'rpm'
+        else:
+            abort_update(
+                'pkg_extension: unknown Linux distro "{}"'.format(dist)
+                )
+    else:
+        abort_update(
+            'pkg_extension: unknown system "{}"'.format(platform.system())
+            )
+
+def install_package(pkgid):
+    """Install package with id pkgid"""
+    pkg_regex = '^{}.*\\.{}$'.format(pkgid, pkg_extension())
+    directory = os.path.join(
+        bundle_dir,
+        pkgid,
+        'files'
+        )
+    
+    funcname = 'install_{}'.format(pkg_extension())
+    getattr(sys.modules[__name__], funcname)(filename)
+
+def uninstall_package(pkgid):
+    """Uninstall package with id pkgid"""
+    funcname = 'uninstall_{}'.format(pkg_extension())
+    getattr(sys.modules[__name__], funcname)(pkgid)
+
+def install_msi(fname):
+    """Install an msi from file"""
+    abort_update('install_msi not yet implemented')
+
+def install_deb(fname):
+    """Install a deb from file"""
+    abort_update('install_deb not yet implemented')
+
+def install_rpm(fname):
+    """Install an rpm from file"""
+    abort_update('install_rpm not yet implemented')
+
+def uninstall_msi(pkgid):
+    """Uninstall an msi"""
+    abort_update('uninstall_msi not yet implemented')
+
+def uninstall_deb(pkgid):
+    """Uninstall a deb"""
+    abort_update('uninstall_deb not yet implemented')
+
+def uninstall_rpm(pkgid):
+    """Uninstall an rpm"""
+    abort_update('uninstall_rpm not yet implemented')

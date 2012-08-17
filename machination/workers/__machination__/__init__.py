@@ -65,9 +65,9 @@ class Worker(object):
         return etree.fromstring(
             '''
 <installedVersion>
-  <machinationFetcherBundle id="machination-core-2.0.0-hash"/>
-  <machinationFetcherBundle id="machination-worker-w1-2.0.0-hash"/>
-  <machinationFetcherBundle id="machination-worker-w2-2.0.0-hash"/>
+  <machinationFetcherBundle id="machination-client-core-2.0.0"/>
+  <machinationFetcherBundle id="machination-client-worker-w1-2.0.0"/>
+  <machinationFetcherBundle id="machination-client-worker-w2-2.0.0"/>
 </installedVersion>
 '''
             )
@@ -77,7 +77,7 @@ class Worker(object):
         import wmi
         con = wmi.WMI()
         prods = con.query(
-            "select * from Win32_Product where Name like 'Python machination-core%' or Name like 'Python machination-worker%'"
+            "select * from Win32_Product where Name like 'Python machination-client%'"
             )
         for prod in prods:
             elt.append(etree.Element("machinationFetcherBundle", id=prod.Name[7:]))

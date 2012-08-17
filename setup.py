@@ -126,7 +126,7 @@ if __name__ == "__main__":
     p = Process(
         target = run_setup, 
         args = (
-            "machination-core",
+            "machination-client-core",
             find_packages(exclude=["tests",
                                    "*.workers",
                                    "*.workers.*",
@@ -151,7 +151,7 @@ if __name__ == "__main__":
             p = Process(
                 target = run_setup,
                 args = (
-                    "machination-worker-" + item,
+                    "machination-client-worker-" + item,
                     ["machination.workers." + item],
                     ["description.xml"],
                     )

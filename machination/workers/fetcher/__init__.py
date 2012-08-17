@@ -1,4 +1,4 @@
-"Wraps the fetcher in a worker"
+"A worker to fetch Machination bundles"
 
 from lxml import etree
 from machination import context

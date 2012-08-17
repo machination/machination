@@ -2,6 +2,7 @@
 
 from setuptools import setup, find_packages
 from distutils.command.clean import clean
+from multiprocessing import Process
 import os
 import errno
 import subprocess
@@ -125,16 +126,23 @@ if __name__ == "__main__":
         data_files = []
 
     # Build machination core (without workers or tests)
-    run_setup("machination-core",
-              find_packages(exclude=["tests",
-                                      "*.workers",
-                                      "*.workers.*",
-                                      "workers.*",
-                                      "workers"]),
-              ["desired-status.xml"],
-              scripts,
-              scriptargs,
-              data_files)
+    p = Process(
+        target = run_setup, 
+        args = (
+            "machination-core",
+            find_packages(exclude=["tests",
+                                   "*.workers",
+                                   "*.workers.*",
+                                   "workers.*",
+                                   "workers"]),
+            ["desired-status.xml"],
+            scripts,
+            scriptargs,
+            data_files
+            )
+        )
+    p.start()
+    p.join()
 
     # Build each worker package
     basedir = "machination/workers"
@@ -143,8 +151,13 @@ if __name__ == "__main__":
         if item in ('__pycache__'):
             continue
         if os.path.isdir(os.path.join(basedir, item)):
-            run_setup(
-                "machination-worker-" + item,
-                ["machination.workers." + item],
-                ["description.xml"],
+            p = Process(
+                target = run_setup,
+                args = (
+                    "machination-worker-" + item,
+                    ["machination.workers." + item],
+                    ["description.xml"],
+                    )
                 )
+            p.start()
+            p.join()

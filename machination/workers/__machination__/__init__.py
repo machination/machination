@@ -124,9 +124,21 @@ class Worker(object):
             - add core package (if changed)
             - add worker packages
         '''
+        # Create a directory in which to store self update material
+        sudir = os.path.join(context.cache_dir(), 'selfupdate')
+        try:
+            os.mkdir(sudir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
         # Copy the self update script
-        su_script = os.path.join(context.bin_dir(), 'machination-self-update')
-        shutil.copy(su_script, context.cache_dir())
+        su_script_name = 'machination-self-update.py'
+        shutil.copy(
+            os.path.join(context.bin_dir(), suscript_name),
+            sudir
+            )
+        su_script = os.path.join(sudir, su_script_name)
 
         # Write installedVersion elements (current and desired)
         iv = etree.Element('iv')
@@ -134,9 +146,12 @@ class Worker(object):
         self.generated_iv.set('version', 'current')
         iv.append(self.generated_iv)
         iv.append(wu[0])
-        iv_file = os.path.join(context.cache_dir(), 'installed_version.xml')
+        iv_file = os.path.join(sudir, 'installed_version.xml')
         with open(iv_file, 'w') as ivf:
             ivf.write(etree.tostring(iv))
+
+        # TODO(colin): Write the location of bundles into iv
+        # (at /iv/@bundleDir)
 
         # Hand over to the self update script
         os.execl(sys.executable, su_script, iv_file)

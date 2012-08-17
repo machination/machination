@@ -90,9 +90,9 @@
       </oneOrMore>
     </element>
 
-    <element name='installedVersion'>
+    <element name='installedVersion' wu:wu="1">
       <oneOrMore>
-        <element name='machinationFetcherBundle' wu:wu='1'>
+        <element name='machinationFetcherBundle'>
           <attribute name='id'/>
         </element>
       </oneOrMore>

@@ -9,14 +9,11 @@ import subprocess
 import sys
 
 
-def git_describe(abbrev=0):
-    try:
-        return subprocess.check_output(
-            ['git', 'describe', '--tags', '--abbrev=%d' %
-             abbrev]).strip().decode()
-    except:
-        return None
-
+def git_describe():
+    return subprocess.check_output(
+        ['git', 'describe', '--tags', '--long' ],
+        shell=True
+        ).strip().decode()
 
 def read_release_version():
 
@@ -38,24 +35,24 @@ def get_git_version():
     # First try to get the current version using "git describe".
 
     version = git_describe()
-
-    # If that doesn't work, fall back on the value that's in
-    # RELEASE-VERSION.
-
-    # Read in the version that's currently in RELEASE-VERSION.
     release_version = read_release_version()
-
-    if version is None:
+    if version:
+        vlist = version.split('-')
+        # Not interested in sha-1.
+        vlist.pop()
+        commits = vlist.pop()
+        version = '{}.{}'.format('-'.join(vlist), commits)
+    else:
+        # If that doesn't work, fall back on the value that's in
+        # RELEASE-VERSION.
         version = release_version
 
     # If we still don't have anything, that's an error.
-
     if version is None:
         raise ValueError("Cannot find the version number!")
 
     # If the current version is different from what's in the
     # RELEASE-VERSION file, update the file to be current.
-
     if version != release_version:
         write_release_version(version)
 

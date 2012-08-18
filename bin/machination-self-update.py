@@ -3,6 +3,11 @@
 from lxml import etree
 import sys
 import re
+import platform
+
+if platform.sys() == 'Windows':
+    import wmi
+    wmic = wmi.WMI()
 
 if len(sys.argv) > 1:
     ivtree = etree.parse(sys.argv[1])
@@ -128,7 +133,11 @@ def uninstall_package(pkgid):
 
 def install_msi(fname):
     """Install an msi from file"""
-    abort_update('install_msi not yet implemented')
+    wmic.Win32_Product.Install(
+        True,
+        '',
+        fname,
+        )
 
 def install_deb(fname):
     """Install a deb from file"""
@@ -140,7 +149,7 @@ def install_rpm(fname):
 
 def uninstall_msi(pkgid):
     """Uninstall an msi"""
-    abort_update('uninstall_msi not yet implemented')
+    
 
 def uninstall_deb(pkgid):
     """Uninstall a deb"""

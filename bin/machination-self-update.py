@@ -4,8 +4,103 @@ from lxml import etree
 import sys
 import re
 import platform
+import logging
+import os
 
-if platform.sys() == 'Windows':
+def pkgname(pkgid):
+    """Get package name from bundle id"""
+    l = pkgid.split('-')
+    l.pop()
+    return '-'.join(l)
+
+def pkg_extension():
+    if platform.system() == 'Windows':
+        return 'msi'
+    elif platform.system() == 'Linux':
+        dist = platform.dist()[0]
+        if dist == 'Ubuntu':
+            return 'deb'
+        elif dist == 'redhat':
+            return 'rpm'
+        else:
+            abort_update(
+                'pkg_extension: unknown Linux distro "{}"'.format(dist)
+                )
+    else:
+        abort_update(
+            'pkg_extension: unknown system "{}"'.format(platform.system())
+            )
+
+def install_package(pkgid):
+    """Install package with id pkgid"""
+    pkg_re = re.compile('^{}.*\\.{}$'.format(pkgid, pkg_extension()))
+    directory = os.path.join(
+        bundle_dir,
+        pkgid,
+        'files'
+        )
+    # Find the package file
+    for f in os.listdir():
+        if os.path.isdir(f):
+            continue
+        if pkg_re.search(f):
+            filename = os.path.join(directory, f)
+            break
+    
+    funcname = 'install_{}'.format(pkg_extension())
+    getattr(sys.modules[__name__], funcname)(filename)
+
+def uninstall_package(pkgid):
+    """Uninstall package with id pkgid"""
+    funcname = 'uninstall_{}'.format(pkg_extension())
+    getattr(sys.modules[__name__], funcname)(pkgid)
+
+def install_msi(fname):
+    """Install an msi from file"""
+    results = wmic.Win32_Product.Install(
+        True,
+        '',
+        fname,
+        )
+    if results[0] != 0:
+        # Dont' abort - we want to continue and try to install as much
+        # as possible.
+        #
+        # Do warn though
+        logging.warning('MSI install of {} reported {}'.format(fname, results))
+
+def install_deb(fname):
+    """Install a deb from file"""
+    abort_update('install_deb not yet implemented')
+
+def install_rpm(fname):
+    """Install an rpm from file"""
+    abort_update('install_rpm not yet implemented')
+
+def uninstall_msi(pkgid):
+    """Uninstall an msi"""
+    for prod in wmic.Win32_Product(name='Python {}'.format(pkgid)):
+        try:
+            results = prod.Uninstall()
+        except Exception as e:
+            abort_update('Error uninstalling {}:\n{}'.format(pkgid, e))
+        if results[0] != 0:
+            abort_update('Error uninstalling {}, error no. {}'.format(pkgid, results[0]))
+
+def uninstall_deb(pkgid):
+    """Uninstall a deb"""
+    abort_update('uninstall_deb not yet implemented')
+
+def uninstall_rpm(pkgid):
+    """Uninstall an rpm"""
+    abort_update('uninstall_rpm not yet implemented')
+
+def abort_update(msg):
+    """Uh oh"""
+    logging.warning(msg)
+    sys.exit(1)
+
+if platform.system() == 'Windows':
     import wmi
     wmic = wmi.WMI()
 
@@ -18,7 +113,7 @@ current = ivtree.xpath('//installedVersion[@version="current"]')[0]
 desired = ivtree.xpath('//installedVersion[@version="desired"]')[0]
 bundle_dir = ivtree.xpath('/iv/@bundleDir')[0]
 
-# Find adds and removes and nochange.
+# Find adds, removes and nochanges.
 add = set()
 add_names = set()
 remove = set()
@@ -33,7 +128,7 @@ for bundle in current:
         # If a package with the same name (different version) is being
         # added or removed we're in trouble
         if name in add_names | remove_names:
-            abort_update('{} with nochange in add or remove'.format(name))
+            abort_update('{} with nochange already in add or remove'.format(name))
     else:
         remove.add(bundle.get('id'))
         name = pkgname(bundle.get('id'))
@@ -86,75 +181,3 @@ if add_mw:
 for pkgid in add:
     install_package(pkgid)
 
-def pkgname(pkgid):
-    """Get package name from bundle id"""
-    l = pkgid.split('-')
-    l.pop()
-    return '-'.join(l)
-
-def abort_update(reason):
-    """Uh oh"""
-    sys.exit(1)
-
-def pkg_extension():
-    if platform.system() == 'Windows':
-        return 'msi'
-    elif platform.system() == 'Linux':
-        dist = platform.dist()[0]
-        if dist == 'Ubuntu':
-            return 'deb'
-        elif dist == 'redhat':
-            return 'rpm'
-        else:
-            abort_update(
-                'pkg_extension: unknown Linux distro "{}"'.format(dist)
-                )
-    else:
-        abort_update(
-            'pkg_extension: unknown system "{}"'.format(platform.system())
-            )
-
-def install_package(pkgid):
-    """Install package with id pkgid"""
-    pkg_regex = '^{}.*\\.{}$'.format(pkgid, pkg_extension())
-    directory = os.path.join(
-        bundle_dir,
-        pkgid,
-        'files'
-        )
-    
-    funcname = 'install_{}'.format(pkg_extension())
-    getattr(sys.modules[__name__], funcname)(filename)
-
-def uninstall_package(pkgid):
-    """Uninstall package with id pkgid"""
-    funcname = 'uninstall_{}'.format(pkg_extension())
-    getattr(sys.modules[__name__], funcname)(pkgid)
-
-def install_msi(fname):
-    """Install an msi from file"""
-    wmic.Win32_Product.Install(
-        True,
-        '',
-        fname,
-        )
-
-def install_deb(fname):
-    """Install a deb from file"""
-    abort_update('install_deb not yet implemented')
-
-def install_rpm(fname):
-    """Install an rpm from file"""
-    abort_update('install_rpm not yet implemented')
-
-def uninstall_msi(pkgid):
-    """Uninstall an msi"""
-    
-
-def uninstall_deb(pkgid):
-    """Uninstall a deb"""
-    abort_update('uninstall_deb not yet implemented')
-
-def uninstall_rpm(pkgid):
-    """Uninstall an rpm"""
-    abort_update('uninstall_rpm not yet implemented')

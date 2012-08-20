@@ -16,9 +16,6 @@ xmlns:plat="https://github.com/machination/ns/platforms"
     <element name="config" wu:wu="1">
         <optional>
             <element name="cache">
-                <attribute name="location">
-                    <text/>
-                </attribute>
                 <attribute name="max_size">
                     <text/>
                 </attribute>

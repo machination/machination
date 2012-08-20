@@ -80,6 +80,7 @@ class worker(object):
         type = work.find("pkginfo").attrib["type"]
         bundle = work.find("bundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
+                                   'bundles',
                                    bundle)
         if "interactive" in work.keys:
             inter = work.attrib["interactive"]

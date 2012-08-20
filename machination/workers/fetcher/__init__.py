@@ -62,7 +62,7 @@ class Worker(object):
                 continue
             if not os.path.exists(os.path.join(a, '.done')):
                 continue
-            shutil.rmtree(os.path.join(a, 'files')
+            shutil.rmtree(os.path.join(a, 'files'),
                           ignore_errors=false,
                           onerror=self.handleRemoveReadonly)
         return None
@@ -127,12 +127,7 @@ class Worker(object):
         except IOError as e:
             c_elt = etree.Element("config")
 
-        c = self.config_elt.xpath('config/cache[@location]'):
-        if c:
-            cache_loc = c[0].attrib["location"]
-        else:
-            cache_loc = ""
-        self.cache_dir = os.path.join(context.cache_dir(), cache_loc)
+        self.cache_dir = os.path.join(context.cache_dir(), "bundles")
 
         return c_elt
 
@@ -159,7 +154,7 @@ class Worker(object):
                                   strip=pref)
                 flag = True
                 res = etree.Element("wu",
-                                    id=work.wu.attrib["id"]
+                                    id=work.wu.attrib["id"],
                                     status="success")
             else:
                 operator = "__{}".format(wu.attrib["op"])
@@ -283,7 +278,7 @@ class Worker(object):
                 b.write(tmp)
 
         # Check the package hash
-        if not work[0].attrib["hash"] == 'nohash'
+        if not work[0].attrib["hash"] == 'nohash':
             hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
                 context.emsg("Hash failure")
@@ -375,7 +370,7 @@ class Worker(object):
             res.attrib["message"] = msg
 
         old = os.path.exists(os.path.join(bundle_dir, '.keep'))
-        new = work[0].attrib["keep"] == '1':
+        new = work[0].attrib["keep"] == '1'
 
         if old ^ new:
             # Keep has changed
@@ -419,7 +414,7 @@ class Worker(object):
         # Loop through bundle elements.
         bundles = filter(os.path.isdir, os.path.listdir(self.cache_dir))
 
-        for bundle in bundles
+        for bundle in bundles:
             b_elt = etree.SubElement(w_elt, "bundle", id=bundle)
 
             if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
@@ -434,7 +429,7 @@ class Worker(object):
             if os.path.exists(hashfile):
                 with open(hashfile, 'r') as f:
                     hash = f.read()
-            else
+            else:
                 hash = 'nohash'
 
             b_elt.attrib["hash"] = hash

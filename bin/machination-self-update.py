@@ -6,6 +6,20 @@ import re
 import platform
 import logging
 import os
+import pprint
+import copy
+import errno
+
+logging.basicConfig(level=logging.DEBUG)
+
+core = {
+    'machination-client-core',
+    }
+corew = {
+    'machination-client-worker-__machination__',
+    'machination-client-worker-fetcher'
+    }
+allcore = core | corew
 
 def pkgname(pkgid):
     """Get package name from bundle id"""
@@ -31,29 +45,66 @@ def pkg_extension():
             'pkg_extension: unknown system "{}"'.format(platform.system())
             )
 
-def install_package(pkgid):
-    """Install package with id pkgid"""
+def pkg_file(pkgid):
+    """Find the package file for pkgid"""
     pkg_re = re.compile('^{}.*\\.{}$'.format(pkgid, pkg_extension()))
     directory = os.path.join(
         bundle_dir,
         pkgid,
         'files'
         )
+    try:
+        os.listdir(directory)
+    except:
+        raise IOError(
+            errno.ENOENT,
+            'bundle dir not found for {}'.format(pkgid)
+            )
+    filename = None
     # Find the package file
-    for f in os.listdir():
+    for f in os.listdir(directory):
         if os.path.isdir(f):
             continue
         if pkg_re.search(f):
             filename = os.path.join(directory, f)
             break
+    if not filename:
+        raise IOError(
+            errno.ENOENT,
+            'package file not found for {}'.format(pkgid)
+            )
+    
+    return filename
+
+def install_package(pkgid):
+    """Install package with id pkgid"""
+    logging.info('installing {}'.format(pkgid))
     
     funcname = 'install_{}'.format(pkg_extension())
+    try:
+        filename = pkg_file(pkgid)
+    except IOError as e:
+        logging.error(e)
+        return
+    logging.info('installing {} with {}'.format(filename, funcname))
     getattr(sys.modules[__name__], funcname)(filename)
 
 def uninstall_package(pkgid):
     """Uninstall package with id pkgid"""
+    logging.info('uninstalling {}'.format(pkgid))
     funcname = 'uninstall_{}'.format(pkg_extension())
     getattr(sys.modules[__name__], funcname)(pkgid)
+
+def ug_uninstall_package(ids):
+    """Uninstall ids[0] only if package file can be found for ids[1]"""
+    try:
+        pkg_file(ids[1])
+    except IOError as e:
+        logging.error(e)
+        logging.info('skipping upgrade uninstall of {}'.format(ids[0]))
+    else:
+        logging.info('upgrade uninstall {}'.format(ids[0]))
+        uninstall_package(ids[0])
 
 def install_msi(fname):
     """Install an msi from file"""
@@ -118,6 +169,8 @@ add = set()
 add_names = set()
 remove = set()
 remove_names = set()
+update = {}
+update_names = set()
 nochange = set()
 nochange_names = set()
 for bundle in current:
@@ -132,52 +185,86 @@ for bundle in current:
     else:
         remove.add(bundle.get('id'))
         name = pkgname(bundle.get('id'))
+        logging.debug('adding name {} to remove_names'.format(name))
         remove_names.add(name)
         if name in nochange_names:
             abort_update('{} with remove also in nochange'.format(name))
 for bundle in desired:
     if not current.xpath('bundle[@id=""]'.format(bundle.get('id'))):
-        add.add(bundle.get('id'))
         name = pkgname(bundle.get('id'))
-        add_names.add(name)
         if name in nochange_names:
             abort_update('{} with add also in nochange'.format(name))
+        if name in remove_names:
+            # really an update
+            remove_names.remove(name)
+            oldid = None
+            for rpid in copy.copy(remove):
+                if(rpid.startswith(name)):
+                    oldid = rpid
+                    break
+            remove.remove(oldid)
+            update[name] = [oldid, bundle.get('id')]
+            update_names.add(name)
+        else:
+            add.add(bundle.get('id'))
+            add_names.add(name)
 
-# Remove any non core packages
-core_remove = None
-mw_remove = None
+logging.info('Things to do:')
+logging.info('Nothing:')
+logging.info(pprint.pprint(nochange))
+logging.info('Remove:')
+logging.info(pprint.pprint(remove))
+logging.info('Add:')
+logging.info(pprint.pprint(add))
+logging.info('Update:')
+logging.info(pprint.pprint(update))
+
+# Removes
 for pkgid in remove:
-    # Skip core, __machination__ worker
-    if pkgname(pkgid) == 'machination-client-core':
-        core_remove = pkgid
+    name = pkgname(pkgid)
+    if name in allcore:
+        logging.warning('Asked to remove {} in never_remove - skipping'.format(pkgid))
         continue
-    if pkgname(pkgid) == 'machination-client-worker-__machination__':
-        mw_remove = pkgid
-        continue
-    # Uninstall the package
     uninstall_package(pkgid)
 
-# Remove __machination__
-if mw_remove:
-    uninstall_package(pkgid)
+# Update removes
+ucore = set()
+ucorew = set()
+uotherw = set()
+# uninstall non core_set, remember others
+for name, ids in update.items():
+    if name in core:
+        ucore.add(name)
+    elif name in corew:
+        ucorew.add(name)
+    else:
+        uotherw.add(name)
+        ug_uninstall_package(ids)
+# uninstall core workers
+for name in ucorew:
+    logging.info(
+        'uninstalling core worker {} for upgrade'.format(update[name][0]))
+    ug_uninstall_package(update[name])
+for name in ucore:
+    logging.info(
+        'uninstalling core {} for upgrade'.format(update[name][0]))
+    ug_uninstall_package(update[name])
 
-# Remove core
-if core_remove:
-    uninstall_package(pkgid)
-
-# Add core, __machination__
-add_mw = None
-for pkgid in add:
-    if pkgname(pkgid) == 'machination-client-core':
-        add.remove(pkgid)
-        install_package(pkgid)
-    if pkgname(pkgid) == 'machination-client-worker-__machination__':
-        add.remove(pkgid)
-        add_mw = pkgid
-if add_mw:
+# Update adds
+for name in ucore:
+    pkgid = update[name][1]
+    logging.info('installing core {} as upgrade'.format(pkgid))
+    install_package(pkgid)
+for name in ucorew:
+    pkgid = update[name][1]
+    logging.info('installing core worker {} as upgrade'.format(pkgid))
+    install_package(pkgid)
+for name in uotherw:
+    pkgid = update[name][1]
+    logging.info('installing non core {} as upgrade'.format(pkgid))
     install_package(pkgid)
 
-# Add others
+# Adds
 for pkgid in add:
+    logging.info('installing non core {} as add'.format(pkgid))
     install_package(pkgid)
-

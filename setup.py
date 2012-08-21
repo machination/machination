@@ -139,7 +139,7 @@ if __name__ == "__main__":
                                    "*.workers",
                                    "*.workers.*",
                                    "workers.*",
-                                   "workers"]),
+                                   "workers"]).append('workers'),
             ["desired-status.xml"],
             scripts,
             scriptargs,

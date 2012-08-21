@@ -174,7 +174,10 @@ update_names = set()
 nochange = set()
 nochange_names = set()
 for bundle in current:
-    if desired.xpath('bundle[@id=""]'.format(bundle.get('id'))):
+    if desired.xpath(
+        'machinationFetcherBundle[@id="{}"]'.format(bundle.get('id'))
+        ):
+        logging.debug('adding {} to nochange'.format(bundle.get('id')))
         nochange.add(bundle.get('id'))
         name = pkgname(bundle.get('id'))
         nochange_names.add(name)
@@ -190,7 +193,7 @@ for bundle in current:
         if name in nochange_names:
             abort_update('{} with remove also in nochange'.format(name))
 for bundle in desired:
-    if not current.xpath('bundle[@id=""]'.format(bundle.get('id'))):
+    if not current.xpath('machinationFetcherBundle[@id="{}"]'.format(bundle.get('id'))):
         name = pkgname(bundle.get('id'))
         if name in nochange_names:
             abort_update('{} with add also in nochange'.format(name))

@@ -67,6 +67,7 @@ class WebClient(object):
         self.cookie_jar = None
         handlers = []
         if self.authen_type == 'cosign':
+            self.l.lmsg('building cosign handlers')
             self.cookie_jar = http.cookiejar.MozillaCookieJar(
                 self.cookie_file
                 )

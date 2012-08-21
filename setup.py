@@ -139,8 +139,8 @@ if __name__ == "__main__":
                                    "*.workers",
                                    "*.workers.*",
                                    "workers.*",
-                                   "workers"]).append('machination.workers'),
-            ["desired-status.xml"],
+                                   "workers"]),
+            ["desired-status.xml", 'workers/__init__.py'],
             scripts,
             scriptargs,
             data_files

@@ -52,6 +52,11 @@ if __name__ == '__main__':
         inst_id = args.inst_id
     else:
         inst_id = context.get_id(service_id)
+    # we need an inst_id
+    while inst_id is None:
+        inst_id = input('instance id required: ')
+        if inst_id == '':
+            inst_id = None
 
     # default location
     location = '/system/os_instances'
@@ -90,21 +95,21 @@ if __name__ == '__main__':
     print('inst_id: {}, service_id: {}'.format(inst_id, service_id))
     print('openssl: {}, opensslcfg: {}'.format(openssl, opensslcfg))
 
-    certdir = os.path.join(
+    service_dir = os.path.join(
         context.conf_dir(),
         'services',
         service_id
         )
-    # make sure certdir exists
-    if not os.path.exists(certdir):
-        os.mkdir(certdir)
+    # make sure service_dir exists
+    if not os.path.exists(service_dir):
+        os.mkdir(service_dir)
     # generate the key
     cmd = []
     cmd.extend([openssl,'genpkey'])
     cmd.extend(['-algorithm','RSA'])
     cmd.extend(['-pkeyopt', 'rsa_keygen_bits:{}'.format(certbits)])
     print('genkey: {}'.format(cmd))
-    pending_keyfile = os.path.join(certdir, 'pending.key')
+    pending_keyfile = os.path.join(service_dir, 'pending.key')
     print('Generating new key')
     key = subprocess.check_output(cmd)
     with machination.create_secret_file(pending_keyfile,'wb') as f:
@@ -129,8 +134,7 @@ if __name__ == '__main__':
     except IndexError:
         # If there is no element then we need to call get() on something
         defaults = {}
-    if inst_id:
-        defaults['CN'] = 'os_instance:{}'.format(inst_id)
+    defaults['CN'] = 'os_instance:{}'.format(inst_id)
     subject = ''
     for field in required:
         value = dnform.get(field)
@@ -146,7 +150,7 @@ if __name__ == '__main__':
     cmd.extend(['-subj', subject])
     print('Generating certificate request')
     csr = subprocess.check_output(cmd)
-    pending_csrfile = os.path.join(certdir, 'pending.csr')
+    pending_csrfile = os.path.join(service_dir, 'pending.csr')
     with machination.create_secret_file(pending_csrfile,'wb') as f:
         f.write(csr)
 
@@ -181,8 +185,8 @@ if __name__ == '__main__':
         else:
             raise(e)
 
-    keyfile = os.path.join(certdir, 'myself.key')
-    certfile = os.path.join(certdir, 'myself.crt')
+    keyfile = os.path.join(service_dir, 'myself.key')
+    certfile = os.path.join(service_dir, 'myself.crt')
 
     # Remove existing key file.
     try:
@@ -202,3 +206,7 @@ if __name__ == '__main__':
     # Create new one.
     with open(certfile, 'wb') as f:
         f.write(cert.encode('utf8'))
+
+    # Update mid.txt
+    with open(os.path.join(service_dir, 'mid.txt', 'w')) as f:
+        f.write(inst_id)

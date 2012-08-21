@@ -6,6 +6,8 @@ import platform
 import logging
 import sys
 import re
+from lxml import etree
+import wmi
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -41,7 +43,7 @@ for f in os.listdir(distdir):
     if os.path.isfile(fpath) and f.startswith('machination-client'):
         logging.info('cleaning pkg {}'.format(f))
 #        os.remove(fpath)
-    
+
 # Clean bundles
 for d in os.listdir(args.bundle_dir):
     dpath = os.path.join(args.bundle_dir, d)
@@ -64,6 +66,7 @@ for d in os.listdir(args.gitdir):
         shutil.rmtree(dpath)
 
 # Make bundles
+pkgids = []
 for f in os.listdir(distdir):
     fpath = os.path.join(distdir, f)
 #    logging.debug('testing {} for pkgid'.format(f))
@@ -71,6 +74,36 @@ for f in os.listdir(distdir):
     pkgname = m.group(1)
     logging.info('bundling {} version {}'.format(pkgname, version))
     pkgid = '{}-{}'.format(pkgname, version)
+    pkgids.append(pkgid)
     os.mkdir(os.path.join(args.bundle_dir, pkgid))
     os.mkdir(os.path.join(args.bundle_dir, pkgid, 'files'))
     shutil.copy(fpath, os.path.join(args.bundle_dir, pkgid, 'files'))
+
+# Construct installed_version.xml
+iv = etree.Element('iv', budleDir = args.bundle_dir)
+current = etree.Element('installedVersion', version='current')
+desired = etree.Element('installedVersion', version='desired')
+# desired from pkgids
+for pkgid in pkgids:
+    desired.append(
+        etree.Element('machinationFetcherBundle', id = pkgid)
+        )
+# current from system
+# TODO(colin): support other OSes
+con = wmi.WMI()
+for prod in con.query(
+    "select * from Win32Product where Name like 'Python machination-client%'"
+    ):
+    current.append(etree.Element('machinationFetcherBundle', id=prod.Name[7:]))
+iv.append(current)
+iv.append(desired)
+# write to file
+with open('iv.xml', "w") as ivf:
+    ivf.write(etree.tostring(iv))
+
+# invoke self update
+os.execl(
+    sys.executable,
+    os.path.join(args.gitdir, 'bin', 'machination-self-update.py'),
+    'iv.xml'
+    )

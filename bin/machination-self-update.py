@@ -73,13 +73,13 @@ def pkg_file(pkgid):
             errno.ENOENT,
             'package file not found for {}'.format(pkgid)
             )
-    
+
     return filename
 
 def install_package(pkgid):
     """Install package with id pkgid"""
     logging.info('installing {}'.format(pkgid))
-    
+
     funcname = 'install_{}'.format(pkg_extension())
     try:
         filename = pkg_file(pkgid)

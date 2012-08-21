@@ -14,6 +14,8 @@ except ImportError:
     import urllib2 as urllib_request
     import httplib as http_client
 
+import http.cookiejar
+
 class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
     def __init__(self, key, cert):
         urllib_request.HTTPSHandler.__init__(self)
@@ -69,7 +71,9 @@ class WebClient(object):
                 self.cookie_file
                 )
             handlers.append(
-                self.cookie_jar
+                urllib_request.HTTPCookieProcessor(
+                    self.cookie_jar
+                    )
                 )
             handlers.append(
                 CosignHandler(

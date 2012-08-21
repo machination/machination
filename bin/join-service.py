@@ -95,6 +95,9 @@ if __name__ == '__main__':
         'services',
         service_id
         )
+    # make sure certdir exists
+    if not os.path.exists(certdir):
+        os.mkdir(certdir)
     # generate the key
     cmd = []
     cmd.extend([openssl,'genpkey'])
@@ -126,6 +129,8 @@ if __name__ == '__main__':
     except IndexError:
         # If there is no element then we need to call get() on something
         defaults = {}
+    if inst_id:
+        defaults['CN'] = 'os_instance:{}'.format(inst_id)
     subject = ''
     for field in required:
         value = dnform.get(field)

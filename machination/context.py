@@ -20,6 +20,7 @@ import platform
 import os
 from lxml import etree
 from machination.logger import Logger
+import errno
 
 desired_status = None
 
@@ -122,12 +123,18 @@ def _get_dir(name):
         return os.path.join(win_machination_path(), "log") if platname == "Win" else '/var/log/machination'
 
 def get_id(service_id):
-    """Find the os_instance id to use with service 'service'"""
-    with open(os.path.join(conf_dir(),
-                           'services',
-                           service_id,
-                           'mid.txt')) as fd:
-        mid = fd.readline().rstrip("\r\n")
+    """Find the os_instance id to use with service 'service_id'"""
+    try:
+        with open(os.path.join(conf_dir(),
+                               'services',
+                               service_id,
+                               'mid.txt')) as fd:
+            mid = fd.readline().rstrip("\r\n")
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            mid = None
+        else:
+            raise
     return mid
 
 def get_worker_elt(name):

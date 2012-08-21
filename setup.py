@@ -124,7 +124,8 @@ if __name__ == "__main__":
                        ['bin/join-service.py',
                         'bin/machination-self-update.py',
                         'bin/update-to-latest.py']),
-                      (os.path.join(appdata_dir,'log'),[])]
+                      (os.path.join(appdata_dir,'log'),[]),
+                      (os.path.join(appdata_dir, 'services'),[])]
     else:
         scripts = []
         scriptargs = []
@@ -140,7 +141,7 @@ if __name__ == "__main__":
                                    "*.workers.*",
                                    "workers.*",
                                    "workers"]),
-            ["desired-status.xml", 'workers/__init__.py'],
+            ["desired-status.xml"],
             scripts,
             scriptargs,
             data_files

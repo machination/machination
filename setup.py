@@ -109,14 +109,22 @@ if __name__ == "__main__":
         scripts = [scriptdir + scriptfile]
 
         # Append an install-script to bdist_msi options
-        mdir = (os.path.join(os.environ.get('ALLUSERSPROFILE','C:\\ProgramData'), 'Machination'))
+        appdata_dir = os.path.join(
+            os.environ.get('ALLUSERSPROFILE','C:\\ProgramData'),
+            'Machination')
+        prog_dir = os.path.join(
+            os.environ.get('PROGRAMFILES','C:\\Program Files'),
+            'Machination')
         scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
-        data_files = [(os.path.join(mdir,'conf'),[]),
-                      (os.path.join(mdir, 'status'),
+        data_files = [(os.path.join(appdata_dir,'conf'),[]),
+                      (os.path.join(appdata_dir, 'status'),
                        ['packaging/desired-status.xml']),
-                      (os.path.join(mdir,'cache'),[]),
-                      (os.path.join(mdir,'bin'),[]),
-                      (os.path.join(mdir,'log'),[])]
+                      (os.path.join(appdata_dir,'cache'),[]),
+                      (os.path.join(prog_dir,'bin'),
+                       ['bin/join-service.py',
+                        'bin/machination-self-update.py',
+                        'bin/update-to-latest.py']),
+                      (os.path.join(appdata_dir,'log'),[])]
     else:
         scripts = []
         scriptargs = []

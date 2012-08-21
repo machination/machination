@@ -158,4 +158,4 @@ class Worker(object):
             )
 
         # Hand over to the self update script
-        os.execl(sys.executable, su_script, iv_file)
+        os.execl(sys.executable, 'machination-self-update', su_script, iv_file)

@@ -152,6 +152,10 @@ class Worker(object):
 
         # TODO(colin): Write the location of bundles into iv
         # (at /iv/@bundleDir)
+        iv.set(
+            'bundleDir',
+            os.path.join(context.cache_dir(), 'bundles')
+            )
 
         # Hand over to the self update script
         os.execl(sys.executable, su_script, iv_file)

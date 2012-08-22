@@ -697,13 +697,20 @@ sub call_GetAssertionList {
     }
   }
 
+  my $stelt = XML::LibXML::Element->new('status');
+  my $welt = $stelt->appendChild(XML::LibXML::Element->new('worker'));
+  $welt->setAttribute('id', '__machination__');
+  $welt->appendChild(call_ServiceInfo());
+  my $a2s = Machination::XML2Assertions->new(doc=>$stelt);
+  my $alist = $a2s->to_assertions;
+
   $info->{hcs} = \@hc_path;
 #  $info->{attachments} =
 #    $ha->fetch_attachment_list
   my $sth = $ha->get_attachments_handle
     ($channel,\@hc_ids,"assertion",
      {obj_fields=>["mpath","ass_op","ass_arg","action_op","action_arg"]});
-  $info->{attachments} = $sth->fetchall_arrayref({});
+  $info->{attachments} = [@$alist, @{$sth->fetchall_arrayref({})}];
 #  $info->{mps} = $ha->mps(\@hc_ids);
   $info->{mps} = \@hc_mp_path;
   $sth = $ha->get_attachments_handle

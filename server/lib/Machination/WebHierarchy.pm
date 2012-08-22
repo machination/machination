@@ -41,6 +41,7 @@ use Data::Dumper;
 $Data::Dumper::Indent=1;
 use XML::LibXML;
 use File::Path qw(make_path);
+use URI;
 
 use Machination::HAccessor;
 use Machination::XMLDumper;
@@ -64,6 +65,7 @@ my %calls =
    Help => undef,
    CertInfo => undef,
    OsId => undef,
+   ServiceInfo => undef,
 
    # types
    TypeInfo => undef,
@@ -165,7 +167,8 @@ sub handler {
   }
 
   # sort out authentication and set up remote user
-  my $uri_base = $ha->conf->get_value("subconfig.haccess", "\@uriBase");
+  my $uri = $ha->conf->get_value("subconfig.haccess", "\@URI");
+  my $uri_base = URI->new($uri)->path;
   my $ruri = substr($r->uri,length($uri_base));
   $ruri =~ s/^\///;
   my ($authen_type, $rem_user) = split(/\//, $ruri);
@@ -325,6 +328,25 @@ sub call_OsId {
   shift;
   shift;
   return $ha->os_id(@_)
+}
+
+=item B<ServiceInfo>
+
+=cut
+
+sub call_ServiceInfo {
+  my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
+  my $service_elt = XML::LibXML::Element->new('service');
+  $service_elt->setAttribute('id', $haccess_node->getAttribute('serviceId'));
+  my $helt = XML::LibXML::Element->new('hierarchy');
+  $helt->setAttribute('id', $haccess_node->getAttribute('URI'));
+  $service_elt->appendChild($helt);
+  foreach my $aelt ($haccess_node->findnodes("authentication/entityDefault")) {
+    my $newa = $aelt->cloneNode(1);
+    $newa->setNodeName('authentication');
+    $service_elt->appendChild($newa);
+  }
+  return $service_elt->toString(1);
 }
 
 

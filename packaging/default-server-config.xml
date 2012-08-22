@@ -85,8 +85,13 @@
 
   <subconfig xml:id="subconfig.haccess"
              serviceId="your.service.id"
-             uriBase="/machination/hierarchy">
+             URI="https://your.server.name/machination/hierarchy">
     <authentication>
+      <entityDefault id="person"
+                     type="cosign"
+                     cosignLoginPage="https://your.cosign.login.page/"/>
+      <entityDefault id="os_instance" type="cert"/>
+      <type id="public"/>
       <type id="basic"/>
       <type id="cosign" entityNamePattern="^(.*?)@"/>
       <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>

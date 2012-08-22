@@ -1,7 +1,9 @@
 # Machination Common
 
+%define git_version %(git describe --tags --long | sed 's/-\\([0-9]\\+\\)-.*$/\\.\\1/')
+
 Name: machination-common
-Version: 2.0alpha1
+Version: %{git_version}
 Summary: File common to client and server for Machination
 Release: 1%{?dist}
 License: GPLv3+
@@ -15,7 +17,7 @@ requires: python-lxml
 
 %description
 Machination is a configuration management system. This package
-installs the files common to the client and the server.  
+installs the files common to the client and the server.
 
 %prep
 cp -a %{SOURCE0} .

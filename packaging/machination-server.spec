@@ -1,7 +1,10 @@
 # Machination Server
 
+%define git_version %(git describe --tags --long | sed 's/-\\([0-9]\\+\\)-.*$/\\.\\1/')
+
 Name: machination-server
-Version: 2.0alpha1
+#Version: 2.0alpha1
+Version: %{git_version}
 Summary: Server side of the Machination configuration management system
 Release: 1%{?dist}
 License: GPLv3+
@@ -11,7 +14,7 @@ source: machination
 buildarch: noarch
 
 buildrequires: python-devel
-requires: config(httpd), machination-common
+requires: config(httpd)
 
 %description
 Machination is a configuration management system. This package

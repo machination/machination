@@ -36,6 +36,8 @@ class WebClient(object):
 
     def __init__(self, service_id, obj_type, cred=None, service_elt=None):
         self.service_id = service_id
+        if service_elt is None and not self.service_id:
+            self.service_id = service_elt.get('id')
         self.obj_type = obj_type
         self.cred = cred
         if service_id and not service_elt:

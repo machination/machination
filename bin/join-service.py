@@ -13,12 +13,44 @@ import subprocess
 from lxml import etree
 import re
 
+def get_authen_info():
+    '''Prompt for information in authentication type'''
+    valid_atypes = {
+        'basic': [],
+        'cosign': ['cosignLoginPage'],
+        'cert': [],
+        'debug': ['username']
+        }
+    atype = input(
+        'Athentication type ({}): '.format(tuple(valid_atypes.keys()))
+        )
+    while atype not in valid_atypes:
+        atype = input(
+            'Athentication type ({}): '.format(tuple(valid_atypes.keys()))
+            )
+    ret = {
+        'type': atype
+        }
+    for extra in valid_atypes[atype]:
+        value = input('  {}: '.format(extra))
+        ret[extra] = value
+
+    return ret
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('inst_id', nargs='?',
                         help='os_instance id')
     parser.add_argument('--service_id', '-s', nargs='?',
                         help='service id')
+    parser.add_argument(
+        '--authen_type', '-a', nargs='?',
+        help='authentication type (basic, cert, cosign, ...)'
+        )
+    parser.add_argument(
+        '--hierarchy', '-h', nargs='?',
+        help='hierarchy url'
+        )
     parser.add_argument('--location', '-l', nargs='?',
                         help='parent hc')
     parser.add_argument('--openssl', nargs='?',
@@ -45,7 +77,22 @@ if __name__ == '__main__':
             )[0]
     except IndexError:
         # create an empty one so that the rest of the program will work
-        service_elt = etree.Element('service')
+        service_elt = etree.Element('service', id=service_id)
+
+    # Prefer hiararchy from args, then service_elt, then ask
+    if args.hierarchy:
+        service_elt.append(etree.Element('hierarchy', id=args.hierarchy))
+    if not service_elt.xpath('hierarchy'):
+        service_elt.append(
+            etree.Element('hierarchy', id=input('hierarchy url: '))
+            )
+
+    # Make sure there is an authentication type for person objects
+    if not service_elt.xpath('authentication[@id="person"]'):
+        kwargs = get_authen_info()
+        service_elt.append(
+            etree.Element('authentication', **kwargs)
+            )
 
     # prefer inst_id from args, then use context.get_id()
     if args.inst_id:
@@ -124,7 +171,7 @@ if __name__ == '__main__':
         cmd.extend(['-config',opensslcfg])
     cmd.extend(['-key', pending_keyfile])
     # Find the base DN for certs for this service.
-    wc = WebClient(service_id, 'person')
+    wc = WebClient(service_id, 'person', service_elt = service_elt)
     dnform = wc.call('CertInfo').get('dnform', {})
     # Fill in any blanks.
     required = ['C','ST','L','O','OU','CN']

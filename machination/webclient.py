@@ -34,16 +34,25 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, obj_type, cred=None):
+    def __init__(self, service_id, obj_type, cred=None, sevice_elt=None):
         self.service_id = service_id
         self.obj_type = obj_type
         self.cred = cred
-        try:
-            service_elt = context.machination_worker_elt.xpath(
-                'services/service[@id="{}"]'.format(service_id)
-                )[0]
-        except IndexError:
-            raise Exception("service id '{}' not found in desired_status".format(service_id))
+        if service_elt:
+            # Make sure the id is the same as service_id
+            if service_elt.get('id') != service_id:
+                raise Exception(
+                    'passed an element with id {} for service {}'.format(
+                        service_elt.get('id'),
+                        sercice_id
+                    )
+        else:
+            try:
+                service_elt = context.machination_worker_elt.xpath(
+                    'services/service[@id="{}"]'.format(service_id)
+                    )[0]
+            except IndexError:
+                raise Exception("service id '{}' not found in desired_status".format(service_id))
         tmp_auth = service_elt.xpath(
             'authentication[@id="{}"]'.format(self.obj_type)
             )

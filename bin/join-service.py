@@ -39,17 +39,17 @@ def get_authen_info():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('inst_id', nargs='?',
+    parser.add_argument(
+        'hierarchy', '-h', nargs='?',
+        help='hierarchy url'
+        )
+    parser.add_argument('--inst_id', nargs='?',
                         help='os_instance id')
     parser.add_argument('--service_id', '-s', nargs='?',
                         help='service id')
     parser.add_argument(
         '--authen_type', '-a', nargs='?',
         help='authentication type (basic, cert, cosign, ...)'
-        )
-    parser.add_argument(
-        '--hierarchy', '-h', nargs='?',
-        help='hierarchy url'
         )
     parser.add_argument('--location', '-l', nargs='?',
                         help='parent hc')
@@ -61,14 +61,30 @@ if __name__ == '__main__':
                         help='No of bits for certificate cipher')
     args = parser.parse_args()
 
-    # prefer service_id from args, then first service element from
-    # desired_status
+    pub_elt = etree.fromstring('''
+<service>
+  <hierarchy id="{}"/>
+  <authentication id="person" type="public"/>
+</service>
+''')
+    pubwc = WebClient(None, 'person', service_elt=pub_elt)
+    service_elt = etree.fromstring(pubwc.call('ServiceInfo'))
+
+    # Prefer service_id from args, then first service element from
+    # desired_status, if any.
     if args.service_id:
         service_id = args.service_id
     else:
-        service_id = context.machination_worker_elt.xpath(
-            'services/service/@id'
-            )[0]
+        try: 
+            service_id = context.machination_worker_elt.xpath(
+                'services/service/@id'
+                )[0]
+            if service_id = '__example__':
+                service_id = None
+        except IndexError:
+            service_id = None
+    if not service_id:
+        service_id = input('service id: ')
 
     # Now we have an id, get the appropriate service element
     try:

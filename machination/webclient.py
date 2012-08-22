@@ -38,15 +38,7 @@ class WebClient(object):
         self.service_id = service_id
         self.obj_type = obj_type
         self.cred = cred
-        if service_elt:
-            # Make sure the id is the same as service_id
-            if service_elt.get('id') != service_id:
-                raise Exception(
-                    'passed an element with id {} for service {}'.format(
-                        service_elt.get('id'),
-                        sercice_id
-                    )
-        else:
+        if service_id and not service_elt:
             try:
                 service_elt = context.machination_worker_elt.xpath(
                     'services/service[@id="{}"]'.format(service_id)
@@ -115,6 +107,14 @@ class WebClient(object):
             self.url = '{}/{}:{}'.format(self.url,
                                          self.obj_type,
                                          self.cred.get('username'))
+        elif self.authen_type == 'public':
+            # Nothing to be done - just need it to be in the list of
+            # auth types.
+            pass
+        else:
+            raise ValueError(
+                'Invalid authentication type "{}"'.format(self.authen_type)
+                )
 
         self.opener = urllib_request.build_opener(*handlers)
 

@@ -12,17 +12,11 @@
              config="C:\OpenSSL-Win64\bin\openssl.cfg">
     </openssl>
     <services>
-      <service id="eng.ed.ac.uk">
-        <hierarchy id="https://machination2.see.ed.ac.uk/machination/hierarchy"/>
+      <service id="__example__">
+        <hierarchy id="https://machination.example.com/hierarchy"/>
         <authentication id="person"
                         type="cosign"
-                        cosignLoginPage="https://www.ease.ed.ac.uk/"/>
-      </service>
-      <service id="localhost">
-        <hierarchy id="https://localhost/machination/hierarchy"/>
-        <authentication id="person"
-                        type="cosign"
-                        cosignLoginPage="https://www.ease.ed.ac.uk/"/>
+                        cosignLoginPage="https://cosign.example.com/"/>
       </service>
     </services>
   </worker>

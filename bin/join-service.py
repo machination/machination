@@ -43,7 +43,7 @@ def get_authen_info():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        'hierarchy', nargs='?',
+        '--url', '-u', nargs='?',
         help='hierarchy url'
         )
     parser.add_argument('--inst_id', '-i', nargs='?',
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         service_elt = etree.Element('services')
 
     # We need a hierarchy url to get started
-    hierarchy = args.hierarchy
+    hierarchy = args.url
     service_elt = None
     # If there isn't one, we should look in desired_status
     if not hierarchy:

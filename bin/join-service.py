@@ -12,6 +12,9 @@ import os
 import subprocess
 from lxml import etree
 import re
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 def get_authen_info():
     '''Prompt for information in authentication type'''
@@ -40,10 +43,10 @@ def get_authen_info():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        'hierarchy', '-h', nargs='?',
+        'hierarchy', nargs='?',
         help='hierarchy url'
         )
-    parser.add_argument('--inst_id', nargs='?',
+    parser.add_argument('--inst_id', '-i', nargs='?',
                         help='os_instance id')
     parser.add_argument('--service_id', '-s', nargs='?',
                         help='service id')
@@ -61,47 +64,49 @@ if __name__ == '__main__':
                         help='No of bits for certificate cipher')
     args = parser.parse_args()
 
-    pub_elt = etree.fromstring('''
+    try:
+        services_elt = context.machination_worker_elt.xpath('services')[0]
+    except IndexError:
+        service_elt = etree.Element('services')
+
+    # We need a hierarchy url to get started
+    hierarchy = args.hierarchy
+    service_elt = None
+    # If there isn't one, we should look in desired_status
+    if not hierarchy:
+        logging.info('No hierarchy url specified')
+        if args.service_id:
+            logging.info('  Looking for service[{}].'.format(args.service_id))
+            try:
+                service_elt = services_elt.xpath(
+                    'service[@id="{}"]'.format(args.service_id)
+                    )[0]
+                logging.info('  Found one.')
+            except IndexError:
+                logging.info("  Didn't find one.")
+            if service_elt is not None:
+                try:
+                    hierarchy = service_elt.xpath('hierarchy/@id')[0]
+                except IndexError:
+                    pass
+    # If we still haven't found one, ask the user
+    if not hierarchy:
+        hierarchy = input('hierarchy url: ')
+
+    pub_elt = etree.fromstring(
+        '''
 <service>
   <hierarchy id="{}"/>
   <authentication id="person" type="public"/>
 </service>
-''')
+'''.format(hierarchy)
+        )
     pubwc = WebClient(None, 'person', service_elt=pub_elt)
-    service_elt = etree.fromstring(pubwc.call('ServiceInfo'))
+    if service_elt is None:
+        service_elt = etree.fromstring(pubwc.call('ServiceInfo'))
 
-    # Prefer service_id from args, then first service element from
-    # desired_status, if any.
-    if args.service_id:
-        service_id = args.service_id
-    else:
-        try: 
-            service_id = context.machination_worker_elt.xpath(
-                'services/service/@id'
-                )[0]
-            if service_id = '__example__':
-                service_id = None
-        except IndexError:
-            service_id = None
-    if not service_id:
-        service_id = input('service id: ')
-
-    # Now we have an id, get the appropriate service element
-    try:
-        service_elt = context.machination_worker_elt.xpath(
-            'services/service[@id="{}"]'.format(service_id)
-            )[0]
-    except IndexError:
-        # create an empty one so that the rest of the program will work
-        service_elt = etree.Element('service', id=service_id)
-
-    # Prefer hiararchy from args, then service_elt, then ask
-    if args.hierarchy:
-        service_elt.append(etree.Element('hierarchy', id=args.hierarchy))
-    if not service_elt.xpath('hierarchy'):
-        service_elt.append(
-            etree.Element('hierarchy', id=input('hierarchy url: '))
-            )
+    # Get the service id
+    service_id = service_elt.get('id')
 
     # Make sure there is an authentication type for person objects
     if not service_elt.xpath('authentication[@id="person"]'):
@@ -223,7 +228,14 @@ if __name__ == '__main__':
     try:
         wc.call('Create', path, {'os_id': os_id})
     except Exception as e:
-        if(re.search(r'ERROR:\s+ duplicate key value', e.args[0])):
+        if re.search(
+            r'Cannot create os_instance {}'.format(inst_id),
+            e.args[0]
+            ):
+            # inst_id already exists and is in the location we asked for
+            print('Object os_instance:{} already exists'.format(inst_id))
+        elif re.search(r'ERROR:\s+ duplicate key value', e.args[0]):
+            # inst_id already exists somewhere else
             print('Object os_instance:{} already exists'.format(inst_id))
         else:
             raise(e)
@@ -271,5 +283,5 @@ if __name__ == '__main__':
         f.write(cert.encode('utf8'))
 
     # Update mid.txt
-    with open(os.path.join(service_dir, 'mid.txt', 'w')) as f:
+    with open(os.path.join(service_dir, 'mid.txt'), 'w') as f:
         f.write(inst_id)

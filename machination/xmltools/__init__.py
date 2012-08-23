@@ -1368,7 +1368,11 @@ class XMLCompare(object):
     def order_diff(self):
         # check child order for all xpaths that are in both sides
         for xp in self.bothsidesset:
-            context.logger.dmsg('checking ' + xp)
+            context.logger.dmsg('checking order for' + xp)
+            mrx = MRXpath(xp)
+            if mrx.is_attribute():
+                context.logger.dmsg('  attribute - ignoring')
+                continue
             # xp guaranteed(?) to exist in both by construction
             left_elt = self.leftxml.xpath(xp)[0]
             right_elt = self.rightxml.xpath(xp)[0]
@@ -1376,7 +1380,6 @@ class XMLCompare(object):
             # after a different sibling in right cf. left
             left_prev = left_elt.getprevious()
             right_prev = right_elt.getprevious()
-            mrx = MRXpath(left_elt)
             # MRXpath objects can still be instantiated and compared
             # even if argument is None, so we don't need to worry about
             # the case where rcp and/or lcp are the first children

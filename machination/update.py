@@ -185,6 +185,7 @@ class Update(object):
     def initial_status(self):
         """Get the initial status. Will call gather_status() if necessary."""
         if self._initial_status is None:
+            l.lmsg('Working out initial status.')
             self._initial_status = self.gather_status()
         return self._initial_status
 
@@ -246,6 +247,7 @@ class Update(object):
 
     def gather_status(self):
         """Invoke all workers' generate_status() and gather into one."""
+        l.lmsg('Gathering status from workers.')
         status = copy.deepcopy(self.load_previous_status())
         # find all workers
         stelt = status.xpath('/status')[0]
@@ -288,6 +290,7 @@ class Update(object):
         if name in self.workers:
             return self.workers[name]
 
+        l.lmsg('Importing {}'.format(name))
         try:
             wmod = importlib.import_module('machination.workers.' + name)
             w = wmod.Worker()
@@ -304,6 +307,8 @@ class Update(object):
             l.wmsg("Failed to start worker '{}', storing 'None'".format(name))
             w = None
         self.workers[name] = w
+        if w:
+            l.lmsg('Worker {} imported'.format(name))
         return w
 
     def process_results(self, res, workelt, work_status):

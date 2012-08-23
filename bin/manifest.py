@@ -25,7 +25,7 @@ def __manifest_hash(directory, size):
     sha = hashlib.sha512()
     with open(os.path.join(directory, 'manifest'), 'w') as m:
         # First line is bundle size
-        m.write(size + "\n")
+        m.write(str(size) + "\n")
 
         # Walk the directory, listing files and hashing.
         os.chdir(directory)
@@ -37,12 +37,12 @@ def __manifest_hash(directory, size):
                     sha.update(f.read())
                 m.write(fn+'\n')
     with open(os.path.join(directory, 'hash'), 'w') as h:
-        m.write(sha.hexdigest())
+        h.write(sha.hexdigest())
 
 def __manifest_nohash(directory, size):
     with open(os.path.join(directory, 'manifest'), 'w') as m:
         # First line is bundle size
-        m.write(size + "\n")
+        m.write(str(size) + "\n")
 
         # Walk the directory, listing files and hashing.
         os.chdir(directory)
@@ -53,7 +53,7 @@ def __manifest_nohash(directory, size):
                 m.write(fn+'\n')
 
 if __name__ == '__main__':
-    if len(sys.argv) > 2 and (sys.argv[3] == '--nohash'):
-        manifest(sys.argv[2], True)
+    if len(sys.argv) > 2 and (sys.argv[2] == '--nohash'):
+        manifest(sys.argv[1], True)
     else:
-        manifest(sys.argv[2], False)
+        manifest(sys.argv[1], False)

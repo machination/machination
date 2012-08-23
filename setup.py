@@ -127,7 +127,6 @@ if __name__ == "__main__":
               'bin/update-to-latest.py']),
             (os.path.join(appdata_dir,'log'),[]),
             (os.path.join(appdata_dir, 'services'),[]),
-            ('machination/workers',['machination/workers/__init__.py'])
             ]
     else:
         scripts = []
@@ -135,15 +134,20 @@ if __name__ == "__main__":
         data_files = []
 
     # Build machination core (without workers or tests)
+    core_pkgs = find_packages(
+        exclude=["tests",
+#                 "*.workers",
+                 "*.workers.*",
+                 "workers.*",
+                 "workers"]
+        )
+#    core_pkgs.append('machination.workers')
+
     p = Process(
         target = run_setup, 
         args = (
             "machination-client-core",
-            find_packages(exclude=["tests",
-                                   "*.workers",
-                                   "*.workers.*",
-                                   "workers.*",
-                                   "workers"]),
+            core_pkgs,
             ["desired-status.xml"],
             scripts,
             scriptargs,

@@ -202,13 +202,9 @@ class Worker(object):
 
         # Set destination
         dest = os.path.join(self.cache_dir, '.' + work[0].attrib["id"])
-        file_dir = os.path.join(dest, 'files')
-        spec_dir = os.path.join(dest, 'special')
 
         # Set up directory structure
         os.mkdir(dest)
-        os.mkdir(file_dir)
-        os.mkdir(spec_dir)
 
         # Get the manifest and put into specials
         l.dmsg("Downloading manifest: " + manifest)
@@ -222,14 +218,15 @@ class Worker(object):
             l.emsg(reason)
             return "Failed: " + reason
 
-        mani_path = os.path.join(spec_dir, 'manifest')
-        with open(mani_path, 'w') as f:
-            f.write(m.read())
-
         # Parse the manifest
-        with open(mani_path, 'r') as f:
-            pkg_size = int(strip(f.readline()))
-            pkg = [x.strip() for x in f.readlines()]
+        pkg_size = int(strip(m.readline()))
+        pkg = [x.strip() for x in m.readlines()]
+
+        mani_path = os.path.join(dest, 'manifest')
+        with open(mani_path, 'w') as f:
+            f.write(str(pkg_size) + "\n")
+            for x in bundle:
+                f.write(x + "\n")
 
         # Check free space
         l.dmsg(str(pkg_size) + " bytes to download.")
@@ -243,15 +240,16 @@ class Worker(object):
 
         l.dmsg("Downloading files")
 
-        # Set up hash
-        sha = hashlib.sha512()
+        # Set up hash - may not be needed
+        if not work[0].attrib["hash"] == 'nohash':
+            sha = hashlib.sha512()
 
         # Main download loop
         for file in pkg:
             fileurl = baseurl + '/' + file
             l.dmsg("Downloading file: " + fileurl, 8)
 
-            target = os.path.join(file_dir, file)
+            target = os.path.join(dest, file)
             if not os.path.exists(os.path.dirname(target)):
                 os.mkdir(os.path.dirname(target))
 
@@ -275,7 +273,8 @@ class Worker(object):
             # Hash and write the file.
             with open(target, 'wb') as b:
                 tmp = a.read()
-                sha.update(tmp)
+                if not work[0].attrib["hash"] == 'nohash':
+                    sha.update(tmp)
                 b.write(tmp)
 
         # Check the package hash
@@ -283,10 +282,10 @@ class Worker(object):
             hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
                 l.emsg("Hash failure")
+                shutil.rmtree(os.path.join(dest),
+                          ignore_errors=false,
+                          onerror=self.handleRemoveReadonly)
                 return "Failed: Hash failure"
-            else:
-                with open(os.path.join(spec_dir, 'hash'), 'w') as f:
-                    f.write(hash)
 
         # Move to the 'real' bundle directory
         (dir, id) = os.path.split(dest)

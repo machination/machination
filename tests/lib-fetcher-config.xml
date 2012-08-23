@@ -1,0 +1,11 @@
+<status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
+  <worker id="fetcher">
+    <config>
+      <cache max_size='10%'/>
+      <retry number="3" time_to_wait="10"/>
+      <source id="test"
+              mechanism="urllib"
+              url="http://machination2.see.ed.ac.uk/machination/hierarchy"/>
+    </config>
+  </worker>
+</status>

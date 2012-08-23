@@ -289,7 +289,8 @@ class Update(object):
             return self.workers[name]
 
         try:
-            w = importlib.import_module('machination.workers.' + name).Worker()
+            wmod = importlib.import_module('machination.workers.' + name)
+            w = wmod.Worker()
         except ImportError as e:
             if str(e).startswith('No module named '):
                 # TODO: assume no python module for this worker,

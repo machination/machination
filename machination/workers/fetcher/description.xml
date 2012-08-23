@@ -6,63 +6,62 @@ xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
 xmlns:secret="https://github.com/machination/ns/secrets"
 xmlns:plat="https://github.com/machination/ns/platforms"
 >
-    <attribute name="id">
-        <value>fetcher-1</value>
-    </attribute>
-    <plat:platforms>
-        <plat:platform id="win32"/>
-        <plat:platform id="win64"/>
-    </plat:platforms>
-    <element name="config" wu:wu="1">
-        <optional>
-            <element name="cache">
-                <attribute name="max_size">
-                    <text/>
-                </attribute>
-            </element>
-        </optional>
-        <optional>
-            <element name="retry">
-                <attribute name="number">
-                    <text/>
-                </attribute>
-                <attribute name="time_to_wait">
-                    <text/>
-                </attribute>
-            </element>
-        </optional>
-        <oneOrMore>
-            <element name="source">
-                <attribute name="id">
-                    <text/>
-                </attribute>
-                <attribute name="mechanism">
-                    <choice>
-                        <value>urllib</value>
-                        <value>torrent</value>
-                    </choice>
-                    <text/>
-                </attribute>
-                <attribute name="url"
-                    <text/>
-                </attribute>
-            </element>
-        </oneOrMore>
+  <attribute name="id">
+    <value>fetcher</value>
+  </attribute>
+  <plat:platforms>
+    <plat:platform id="win32"/>
+    <plat:platform id="win64"/>
+  </plat:platforms>
+  <element name="config" wu:wu="1">
+    <optional>
+      <element name="cache">
+        <attribute name="max_size">
+          <text/>
+        </attribute>
+      </element>
+    </optional>
+    <optional>
+      <element name="retry">
+        <attribute name="number">
+          <text/>
+        </attribute>
+        <attribute name="time_to_wait">
+          <text/>
+        </attribute>
+      </element>
+    </optional>
+    <oneOrMore>
+      <element name="source">
+        <attribute name="id">
+          <text/>
+        </attribute>
+        <attribute name="mechanism">
+          <choice>
+            <value>urllib</value>
+            <value>torrent</value>
+          </choice>
+        </attribute>
+        <attribute name="url">
+          <text/>
+        </attribute>
+      </element>
+    </oneOrMore>
+  </element>
+  <zeroOrMore>
+    <element name="bundle" wu:wu="1">
+      <attribute name="id">
+        <text/>
+      </attribute>
+      <attribute name="keep">
+        <choice>
+          <value>0</value>
+          <value>1</value>
+        </choice>
+      </attribute>
+      <attribute name="hash">
+        <text/>
+      </attribute>
     </element>
-    <zeroOrMore>
-        <element name="bundle" wu:wu="1">
-            <attribute name="id">
-                <text/>
-            </attribute>
-            <attribute name="keep">
-                <choice>
-                    <value>0</value>
-                    <value>1</value>
-                </choice>
-            </attribute>
-            <attribute name="hash">
-                <text/>
-            </attribute
-        </element>
-    </zeroOrMore>
+  </zeroOrMore>
 </element>

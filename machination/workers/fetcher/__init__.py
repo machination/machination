@@ -15,6 +15,7 @@ import hashlib
 import platform
 import glob
 
+l = context.logger
 
 class Worker(object):
     """Fetch tagged bundles from sources defined in config"""
@@ -34,7 +35,7 @@ class Worker(object):
         self.cache_maint()
 
     def cache_maint(self):
-        context.lmsg("Cleaning fetcher cache.")
+        l.lmsg("Cleaning fetcher cache.")
 
         cache_elt = self.config_elt.xpath('config/cache[@size]')
         if not cache_elt:
@@ -52,7 +53,7 @@ class Worker(object):
                 a = bundles.pop(0)
             except IndexError as e:
                 msg = "Cache cannot be brought below limit"
-                context.wmsg(msg)
+                l.wmsg(msg)
                 break
             # Ignore files that are kept, that have already been cleaned,
             # or that aren't yet done.
@@ -123,7 +124,7 @@ class Worker(object):
     def read_config(self):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
         try:
-            c_elt = etree.Parse(config_file)
+            c_elt = etree.parse(config_file)
         except IOError as e:
             c_elt = etree.Element("config")
 
@@ -184,7 +185,7 @@ class Worker(object):
             return res
 
         # no suitable source
-        context.emsg("No suitable source defined")
+        l.emsg("No suitable source defined")
         res.attrib["status"] = "error"
         res.attrib["message"] = "No suitable source defined"
 
@@ -210,7 +211,7 @@ class Worker(object):
         os.mkdir(spec_dir)
 
         # Get the manifest and put into specials
-        context.dmsg("Downloading manifest: " + manifest)
+        l.dmsg("Downloading manifest: " + manifest)
         try:
             m = urllib.request.urlopen(manifest)
         except urllib.error.HTTPError as e:
@@ -218,7 +219,7 @@ class Worker(object):
         except urllib.error.URLError as e:
             reason = "URL Error: " + e.reason
         if reason:
-            context.emsg(reason)
+            l.emsg(reason)
             return "Failed: " + reason
 
         mani_path = os.path.join(spec_dir, 'manifest')
@@ -231,16 +232,16 @@ class Worker(object):
             pkg = [x.strip() for x in f.readlines()]
 
         # Check free space
-        context.dmsg(str(pkg_size) + " bytes to download.")
+        l.dmsg(str(pkg_size) + " bytes to download.")
         op = 'space_' + platform.system()
         if pkg_size > getattr(self, op)(cache_loc, 'free'):
             self.cache_maint()
             if pkg_size > getattr(self, op)(cache_loc,'free'):
                 msg = "Not enough free space in package cache."
-                context.emsg(msg)
+                l.emsg(msg)
                 return "Failed: " + msg
 
-        context.dmsg("Downloading files")
+        l.dmsg("Downloading files")
 
         # Set up hash
         sha = hashlib.sha512()
@@ -248,7 +249,7 @@ class Worker(object):
         # Main download loop
         for file in pkg:
             fileurl = baseurl + '/' + file
-            context.dmsg("Downloading file: " + fileurl, 8)
+            l.dmsg("Downloading file: " + fileurl, 8)
 
             target = os.path.join(file_dir, file)
             if not os.path.exists(os.path.dirname(target)):
@@ -281,7 +282,7 @@ class Worker(object):
         if not work[0].attrib["hash"] == 'nohash':
             hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
-                context.emsg("Hash failure")
+                l.emsg("Hash failure")
                 return "Failed: Hash failure"
             else:
                 with open(os.path.join(spec_dir, 'hash'), 'w') as f:
@@ -295,7 +296,7 @@ class Worker(object):
         if work[0].attrib["keep"] == "1":
             open(os.path.join(dest, '.keep'), 'a').close()
 
-        context.dmsg('Download Successful')
+        l.dmsg('Download Successful')
         return "Download Successful"
 
     def __download_torrent(self, source, work):
@@ -310,7 +311,7 @@ class Worker(object):
         # Fail if not exist
         if not os.path.isdir(dest):
             msg = "Package directory does not exist"
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
@@ -322,7 +323,7 @@ class Worker(object):
             res.attrib["status"] = success
         except:
             msg = "Could not remove package directory."
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
@@ -346,14 +347,14 @@ class Worker(object):
         bundle_dir = os.path.join(self.cache_dir, bundle)
         if not os.path.isdir(bundle_dir):
             msg = "Error: Bundle not found: " + bundle_dir
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
         hashfile = os.path.join(bundle_dir, 'special','hash')
         if not os.path.exists(hashfile):
             msg = "Hash file for bundle " + bundle + " not found."
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
@@ -365,7 +366,7 @@ class Worker(object):
         if oldhash != newhash:
             msg = "Hash for bundle " + bundle + " has changed.\n"
             msg += "This should not happen. Please contact the server admin."
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
@@ -385,18 +386,18 @@ class Worker(object):
                 else:
                     #Cache cleaned
                     msg = "Keep attribute set for cleaned bundle."
-                    context.wmsg(msg)
+                    l.wmsg(msg)
                     specials = os.path.join(bundle_dir, 'special')
                     if os.path.exists(os.path.join(bundle_dir, '.done')):
                         done = True
                     shutil.move(specials, os.path.join(self.cache_loc, '_tmp'))
                     d = self.__remove(work)
                     if d.attrib["status"] != "success":
-                        context.emsg("Bundle remove failed.")
+                        l.emsg("Bundle remove failed.")
                         return d
                     d = self.__add(work)
                     if d.attrib["status"] != "success":
-                        context.emsg("Bundle re-download failed.")
+                        l.emsg("Bundle re-download failed.")
                         return d
                     shutil.move(os.path.join(self.cache_loc, '_tmp'), specials)
                     if done:

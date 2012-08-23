@@ -53,12 +53,7 @@ def __manifest_nohash(directory, size):
                 m.write(fn+'\n')
 
 if __name__ == '__main__':
-    if (len(sys.argv) > 3) or (len(sys.argv) < 2):
-        print("Usage: manifest.py directory [--nohash]")
-        sys.exit()
-
-    if sys.argv[3] == "--nohash":
-        nohash = True
+    if len(sys.argv) > 2 and (sys.argv[3] == '--nohash'):
+        manifest(sys.argv[2], True)
     else:
-        nohash = False
-    manifest(sys.argv[2], nohash)
+        manifest(sys.argv[2], False)

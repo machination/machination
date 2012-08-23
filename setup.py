@@ -116,16 +116,19 @@ if __name__ == "__main__":
             os.environ.get('PROGRAMFILES','C:\\Program Files'),
             'Machination')
         scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
-        data_files = [(os.path.join(appdata_dir,'conf'),[]),
-                      (os.path.join(appdata_dir, 'status'),
-                       ['packaging/desired-status.xml']),
-                      (os.path.join(appdata_dir,'cache'),[]),
-                      (os.path.join(prog_dir,'bin'),
-                       ['bin/join-service.py',
-                        'bin/machination-self-update.py',
-                        'bin/update-to-latest.py']),
-                      (os.path.join(appdata_dir,'log'),[]),
-                      (os.path.join(appdata_dir, 'services'),[])]
+        data_files = [
+            (os.path.join(appdata_dir,'conf'),[]),
+            (os.path.join(appdata_dir, 'status'),
+             ['packaging/desired-status.xml']),
+            (os.path.join(appdata_dir,'cache'),[]),
+            (os.path.join(prog_dir,'bin'),
+             ['bin/join-service.py',
+              'bin/machination-self-update.py',
+              'bin/update-to-latest.py']),
+            (os.path.join(appdata_dir,'log'),[]),
+            (os.path.join(appdata_dir, 'services'),[]),
+            ('machination/workers',['machination/workers/__init__.py'])
+            ]
     else:
         scripts = []
         scriptargs = []

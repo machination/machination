@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print("Usage: manifest.py directory [--nohash]")
         sys.exit()
 
-    if sys.argv[3] == "--nohash"
+    if sys.argv[3] == "--nohash":
         nohash = True
     else:
         nohash = False

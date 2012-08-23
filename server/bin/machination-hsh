@@ -63,7 +63,7 @@ foreach my $k (keys %$colors) {
 
 # set up our list of commands
 my @cmds = qw(config pwd cd ls show reload
-              create delete attach xml2lib);
+              create delete addtohc attach xml2lib);
 my %cmds = map {$_ => \&{"_".$_}, } @cmds;
 
 my $term = Term::ReadLine->new('Machination hsh');
@@ -360,6 +360,20 @@ sub _attach {
                     $active,
                     $set_id);
   return $ap->id;
+}
+
+sub _addtohc {
+  my ($obj, $hc) = @_;
+  my $ohp = Machination::HPath->new($ha, __abs_path($obj));
+  my $hcp = Machination::HPath->new($ha, __abs_path($hc));
+  $ha->add_to_hc
+    (
+     {actor=>$user},
+     $ohp->type_id,
+     $ohp->id,
+     $hcp->id
+    );
+  return $ohp->id;
 }
 
 sub __colorize_path {

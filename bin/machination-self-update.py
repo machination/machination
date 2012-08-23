@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """Update machination client version"""
 
 from lxml import etree

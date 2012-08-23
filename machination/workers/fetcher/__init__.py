@@ -48,7 +48,7 @@ class Worker(object):
         bundles = [os.path.join(self.cache_dir, f) for f in bundles]
         bundles.sort(key=lambda x: os.path.getmtime(x))
 
-        while self.cache_over_limit():
+        while self.cache_over_limit(size):
             try:
                 a = bundles.pop(0)
             except IndexError as e:
@@ -76,23 +76,25 @@ class Worker(object):
         else:
             raise
 
-    def cache_over_limit(self, cache_loc, size):
+    def cache_over_limit(self, size):
         cache_size = size(self.cache_dir)
         if size[-1] == '%':
             op = 'space_' + platform.system()
-            disk_size = getattr(self, op)(cache_loc, 'total')
+            disk_size = getattr(self, op)(self.cache_dir, 'total')
             percent = int(size[:-1])
             left = (cache_size / disk_size) * 100
             right = percent
         else:
             # Size in bytes has either B/K/M/G/T as final character indicating
             # bytes, kb, mb, gb, etc.
-            size_in_bytes = int(size[:-1]) * 1024^s_maps[size[-1]]
+            size_in_bytes = int(size[:-1]) * 1024**s_maps[size[-1]]
             left = cache_size
             right = size_in_bytes
         return left > right
 
     def space_Windows(self, disk='C', type='total'):
+        if type not in ['total', 'free']:
+            raise ValueError("type must be either 'total' or 'free'")
         import wmi
         w = wmi.WMI()
         for drive in w.Win32_LogicalDisk():
@@ -174,20 +176,25 @@ class Worker(object):
         # Where are we getting it from?
         for source in self.config_elt.xpath('config/sources/*'):
             transport = "__download_{}".format(source.attrib["mechanism"])
+            l.lsmg(" ".join(["Trying to download via ",
+                             source.attrib["mechanism"],
+                             source.attrib["url"]]))
             out = getattr(self, transport)(source, work)
             if out == None:
-                continue
+                l.wmsg("No handler defined for " + source.attrib["mechanism"])
             elif out.startswith("Failed"):
-                res.attrib["status"] = "error"
-                res.attrib["message"] = out
+                l.wmsg("Download from " + source.attrib["url"] + " failed")
+                l.wmsg(out)
             else:
-                res.attrib["status"] = success
-            return res
+                res.attrib["status"] = "success"
+                break
+        else:
+            # no suitable source
+            l.emsg("No suitable source defined")
+            res.attrib["status"] = "error"
+            res.attrib["message"] = "No suitable source defined"
 
-        # no suitable source
-        l.emsg("No suitable source defined")
-        res.attrib["status"] = "error"
-        res.attrib["message"] = "No suitable source defined"
+        return res
 
     def __download_urllib(self, source, work):
         # Construct URL & retry parameters
@@ -299,7 +306,7 @@ class Worker(object):
         return "Download Successful"
 
     def __download_torrent(self, source, work):
-        return "Failed: Torrent download not supported."
+        pass
 
     def __remove(self, work):
         res = etree.Element("wu",
@@ -329,7 +336,10 @@ class Worker(object):
         return res
 
     def __move(self, work):
-        pass
+        res = etree.Element("wu",
+                            id=work.attrib["id"])
+        res.attrib["status"] = success
+        return res
 
     def __datamod(self, work):
         res = etree.Element("wu",
@@ -350,7 +360,7 @@ class Worker(object):
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
-        hashfile = os.path.join(bundle_dir, 'special','hash')
+        hashfile = os.path.join(bundle_dir, 'hash')
         if not os.path.exists(hashfile):
             msg = "Hash file for bundle " + bundle + " not found."
             l.emsg(msg)
@@ -422,10 +432,7 @@ class Worker(object):
             else:
                 b_elt.attrib["keep"] = 0
 
-            hashfile = os.path.join(self.cache_dir,
-                                    bundle,
-                                    'special',
-                                    'hash')
+            hashfile = os.path.join(self.cache_dir, bundle, 'hash')
             if os.path.exists(hashfile):
                 with open(hashfile, 'r') as f:
                     hash = f.read()

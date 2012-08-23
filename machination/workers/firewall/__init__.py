@@ -7,6 +7,8 @@ from machination import xmltools
 from pythoncom import com_error
 import win32com.client
 
+l = context.logger
+
 profiles = {1: "Domain", 2: "Private", 3: "Public"}
 protocols = {1: "ICMP4", 6: "TCP", 17: "UDP", 58: "ICMP6"}
 direction = {1: "In", 2: "Out"}
@@ -20,7 +22,7 @@ rule_fields = ["Name",
                "Service"]
 
 
-class worker(object):
+class Worker(object):
 
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
@@ -89,8 +91,8 @@ class worker(object):
             hr, msg, exc, arg = error.args
             message = "Error adding rule: " + rule["Name"]
             e_message = "Error details: " + win32api.FormatMessage(exc[5])
-            context.emsg(message)
-            context.dmsg(e_message)
+            l.emsg(message)
+            l.dmsg(e_message)
             res.attrib["message"] = message
             res.attrib["status"] = "error"
         else:
@@ -151,7 +153,7 @@ class worker(object):
             res.attrib["status"] = "success"
         else:
             msg = "Rule: " + rulename + " is not a Machination rule."
-            context.emsg(msg)
+            l.emsg(msg)
             res.attrib["message"] = msg
             res.attrib["status"] = "error"
 

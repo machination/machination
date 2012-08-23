@@ -10,8 +10,9 @@ import os
 import shutil
 import stat
 
+l = context.logger
 
-class worker(object):
+class Worker(object):
     windowstyles = {"normal": 1,
                     "max": 3,
                     "min": 7}
@@ -67,7 +68,7 @@ class worker(object):
             msg = "Must provide target for shortcut " + id
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            context.emsg(msg)
+            l.emsg(msg)
             return res
 
         dest = self.shell.SpecialFolders(s_props["destination"])

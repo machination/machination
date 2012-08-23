@@ -3,7 +3,6 @@
 
 """A worker to create/modify user accounts and groups in Windows."""
 
-
 from lxml import etree
 from machination import context
 import win32netcon
@@ -12,8 +11,9 @@ import win32net
 import wmi
 from platform import uname
 
+l = context.logger
 
-class worker(object):
+class Worker(object):
 
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
@@ -187,7 +187,7 @@ class worker(object):
 
         res.attrib["status"] = "success"
         if test:
-            context.emsg(test)
+            l.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
@@ -214,7 +214,7 @@ class worker(object):
 
         res.attrib["status"] = "success"
         if test:
-            context.emsg(test)
+            l.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 
@@ -244,7 +244,7 @@ class worker(object):
         res.attrib["status"] = "success"
 
         if test:
-            context.emsg(test)
+            l.emsg(test)
             res.attrib["status"] = "error"
             res.attrib["message"] = test
 

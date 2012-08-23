@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# vim: set fileencoding=utf-8:
+
 "A worker to fetch Machination bundles"
 
 from lxml import etree

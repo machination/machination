@@ -26,6 +26,14 @@ gui:doc="documentation.html"
             <attribute name="id">
                 <text/>
             </attribute>
+            <zeroOrOne>
+                <attribute name="interactive">
+                    <choice>
+                        <value>0</value>
+                        <value>1</value>
+                    </choice>
+                </attribute>
+            </zeroOrOne>
             <element name="machinationFetcherBundle">
                 <attribute name="id">
                     <text/>
@@ -44,6 +52,7 @@ gui:doc="documentation.html"
                     </attribute>
                 </element>
             </zeroOrOne>
+
             <element name="pkginfo">
                 <attribute name="type">
                     <choice>

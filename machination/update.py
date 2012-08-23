@@ -212,6 +212,16 @@ class Update(object):
             self._desired_status, res = ac.compile(data)
 #            self._desired_status = etree.parse(os.path.join(
 #                    context.status_dir(), 'desired-status.xml')).getroot()
+            # Save as working-desired-status.xml
+            with open(
+                os.path.join(
+                    context.status_dir(),
+                    'working-desired-status.xml'
+                    ),
+                'w') as ds:
+                ds.write(etree.tostring(
+                        self._desired_status,
+                        pretty_print=True).decode())
         return self._desired_status
 
     def load_previous_status(self):

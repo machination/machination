@@ -103,7 +103,10 @@ class Worker(object):
                 if wu.get('op') == 'add' or wu.get('op') == 'deepmod':
                     self.self_update(wu)
                 elif wu.get('op') == 'remove':
-                    pass
+                    # pretend success
+                    results.append(
+                        etree.Element('wu', id=wu.get('id'), status='success')
+                        )
                 else:
                     raise Exception("shouldn't get {} wu for installedVersion".format(wu.get('op')))
             else:
@@ -111,6 +114,7 @@ class Worker(object):
                 results.append(
                     etree.Element('wu', id=wu.get('id'), status='success')
                     )
+        return results
 
     def self_update(self, wu):
         '''Perform a Machination self update.

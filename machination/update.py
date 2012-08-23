@@ -4,6 +4,7 @@ from machination import context
 from machination.xmltools import XMLCompare
 from machination.xmltools import MRXpath
 from machination.xmltools import generate_wus
+from machination.xmltools import apply_wu
 from machination.xmltools import pstring
 from machination.xmltools import AssertionCompiler
 from machination import utils
@@ -118,25 +119,26 @@ class Update(object):
                         results = self.worker(wname).do_work(workelt)
                     except Exception as e:
                         for wu in workelt:
-                            work_status.set(
-                                wu.get('id'),
-                                [False, "Exception in worker {}\n{}".format(
-                                        wname, str(e)
-                                        )]
-                                )
+                            work_status[wu.get('id')] = [
+                                False,
+                                "Exception in worker {}\n{}".format(
+                                    wname, str(e)
+                                    )
+                                ]
                         l.emsg("Exception from worker {} - failing its work".format(wname))
-                    self.process_results(
-                        results,
-                        workelt,
-                        work_status
-                        )
+                    else:
+                        self.process_results(
+                            results,
+                            workelt,
+                            work_status
+                            )
                 else:
                     # No worker: fail this set of work
                     for wu in workelt:
-                        work_status.set(
-                            wu.get('id'),
-                            [False, "No worker '{}'".format(wname)]
-                            )
+                        work_status[wu.get('id')] = [
+                            False,
+                            "No worker '{}'".format(wname)
+                            ]
 
         wu_updated_status = copy.deepcopy(self.initial_status())
         # Gather sucesses and failures
@@ -144,7 +146,7 @@ class Update(object):
         for wid, completed in work_status.items():
             if completed[0]:
                 # Apply successes to wu_updated_status
-                comp.apply_wu(completed[1], wu_updated_status)
+                apply_wu(completed[1], wu_updated_status)
             else:
                 failures.append([wid, completed[1]])
         # Report failures.
@@ -156,15 +158,20 @@ class Update(object):
         # write calculated status to file
         fname = os.path.join(context.status_dir(), 'previous-status.xml')
         with open(fname, 'w') as prev:
-            prev.write(etree.tostring(wu_updated_status))
+            prev.write(etree.tostring(
+                    wu_updated_status,
+                    pretty_print=True
+                    ).decode())
 
         # see how the status has changed including calls to generate_status()
         new_status = self.gather_status()
 
         # write this status out as previous_status.xml
         with open(fname, 'w') as prev:
-            prev.write(etree.tostring(new_status))
-
+            prev.write(etree.tostring(
+                    new_status,
+                    pretty_print = True
+                    ).decode())
 
     def check_deps(self, wu, work_depends, work_status):
         """Check status of dependencies of a work unit (wu)
@@ -315,9 +322,9 @@ class Update(object):
         for ru in res:
             if ru.get("status") == "success":
                 wu = workelt.xpath('wu[@id="{}"]'.format(ru.get('id')))[0]
-                work_status.set(ru.get('id'), [True, wu])
+                work_status[ru.get('id')] = [True, wu]
             else:
-                work_status.set(ru.get('id'), [False, ru.get('message')])
+                work_status[ru.get('id')] = [False, ru.get('message')]
 
 class WorkerError(Exception):
     def __init__(self, wname, epy, eol):

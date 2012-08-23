@@ -421,7 +421,7 @@ def add_prefix_elts(wrapelt, prefix = None):
                 parent.append(elt)
             else:
                 top = elt
-                parent = elt
+            parent = elt
         parent.append(wrapelt)
         return top
     return wrapelt

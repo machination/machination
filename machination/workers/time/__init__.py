@@ -8,8 +8,9 @@ from lxml import etree
 from os import popen
 from machination import context
 
+l = context.logger
 
-class worker(object):
+class Worker(object):
     sync_map = {"NTP": "MANUAL",
                 "NT5DS": "DOMHIER",
                 "AllSync": "ALL",
@@ -44,7 +45,7 @@ class worker(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            context.emsg("Could not set time server list: " + stream)
+            l.emsg("Could not set time server list: " + stream)
         return res
 
     def __remove(self, work):
@@ -57,7 +58,7 @@ class worker(object):
         else:
             res.attrib["status"] = "error"
             res.attrib["message"] = stream
-            context.emsg("Could not clear time server list: " + stream)
+            l.emsg("Could not clear time server list: " + stream)
         return res
 
     def __deepmod(self, work):
@@ -84,7 +85,7 @@ class worker(object):
             msg = "Could not modify {0}: {1}".format(work[1].tag, stream)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
-            context.emsg(msg)
+            l.emsg(msg)
         return res
 
     def __datamod(self, work):

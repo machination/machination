@@ -8,8 +8,9 @@ import wmi
 from machination import context
 import os
 
+l = context.logger
 
-class worker(object):
+class Worker(object):
     "Manipulates environment variables in Windows."
 
     #Define a shorthand constant for HKLM.
@@ -67,8 +68,8 @@ class worker(object):
         if result:
             msg = "Could not set {0} to {1}".format(varname, val)
             ext_msg = msg + "Error code: {}".format(result)
-            context.emsg(message)
-            context.dmsg(ext_msg)
+            l.emsg(message)
+            l.dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:
@@ -110,8 +111,8 @@ class worker(object):
         if result:
             msg = "Could not remove environment variable {}".format(varname)
             ext_msg = msg + "Error code: {}".format(result)
-            context.emsg(message)
-            context.dmsg(ext_msg)
+            l.emsg(message)
+            l.dmsg(ext_msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = ext_msg
         else:

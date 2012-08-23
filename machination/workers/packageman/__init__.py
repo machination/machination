@@ -3,7 +3,6 @@
 
 """A worker to add and remove Machination packages in Windows."""
 
-
 from lxml import etree
 from machination import context
 from machination import xmltools
@@ -13,7 +12,9 @@ import sys
 import subprocess
 import wmi
 import shutil
+import glob
 
+l = context.logger
 
 class worker(object):
 
@@ -38,7 +39,7 @@ class worker(object):
         back = self.__process(work, "install")
 
         if back:
-            context.emsg(back)
+            l.emsg(back)
             res.attrib["status"] = "error"
             res.attrib["message"] = "Installation failed: " + back
         else:
@@ -51,7 +52,7 @@ class worker(object):
         back = self.__process(work, "uninstall")
 
         if back:
-            context.emsg(back)
+            l.emsg(back)
             res.attrib["status"] = "error"
             res.attrib["message"] = back
         else:
@@ -78,7 +79,7 @@ class worker(object):
     def __process(self, work, operation):
         # Prep necessary variables
         type = work.find("pkginfo").attrib["type"]
-        bundle = work.find("bundle").attrib["id"]
+        bundle = work.find("machinationFetcherBundle").attrib["id"]
         bundle_path = os.path.join(context.cache_dir(),
                                    'bundles',
                                    bundle)
@@ -92,12 +93,12 @@ class worker(object):
             if not work.find("check"):
                 err = "Interactive package without installation check: "
                 err += bundle
-                context.emsg(err)
+                l.emsg(err)
                 res.attrib["status"] = "error"
                 res.attrib["message"] = err
                 return res
-            ins_check = (work.find("check").attrib["type"],
-                         work.find("check").attrib["id"])
+            ins_check = [work.find("check").attrib["type"],
+                         work.find("check").attrib["id"]]
         else:
             ins_check = None
 
@@ -161,14 +162,15 @@ class worker(object):
         return out
 
     def __install_simple(self, bundle, pkginfo, check, inter=False):
-        # Simple apps are handled by calling install.py from the bundle
-        # directory
-        install_file = os.path.join(bundle, 'files', "install.py")
+        # Simple apps are handled by calling an executable "install" file
+        # from the package special directory
 
-        if not os.path.exists(install_file):
-            return "Install.py not found: " + install_file
-
-        cmd = " ".join([sys.executable, install_file])
+        try:
+            cmd = glob.glob(os.path.join(bundle,
+                                         'special',
+                                         "install") + ".*")[0]
+        except IndexError as e:
+            return "Install script not found"
 
         if inter:
             platutils.win.run_as_current_user(cmd)
@@ -181,23 +183,18 @@ class worker(object):
         else:
             out = subprocess.call(cmd)
 
-        # Cache install/uninstall info
-        uninstall_file = os.path.join(bundle, 'files', "uninstall.py")
-        dest = os.path.join(bundle, 'special')
-        shutil.copy(install_file, dest)
-        shutil.copy(uninstall_file, dest)
-
         return out
 
     def __uninstall_simple(self, bundle, pkginfo, check, inter=False):
-        # Simple apps are handled by calling install.py from the bundle
-        # directory
-        install_file = os.path.join(bundle, 'special', "uninstall.py")
+        # Simple apps are handled by calling an executable "uninstall" file
+        # from the package special directory
 
-        if not os.path.exists(install_file):
-            return "Uninstall.py not found: " + install_file
-
-        cmd = " ".join([sys.executable, install_file])
+        try:
+            cmd = glob.glob(os.path.join(bundle,
+                                         'special',
+                                         "uninstall") + ".*")[0]
+        except IndexError as e:
+            return "Unnstall script not found"
 
         if inter:
             platutils.win.run_as_current_user(cmd)

@@ -44,6 +44,8 @@ except AttributeError:
 
 def pstring(e, top=True, depth=0, istring='  '):
     """pretty string representation of an etree element"""
+    if isinstance(e, etree._ElementTree):
+        e = e.getroot()
     rep = []
     rep.append('{}<{}'.format(istring * depth, e.tag))
     for att in e.keys():

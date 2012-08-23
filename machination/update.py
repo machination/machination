@@ -116,7 +116,7 @@ class Update(object):
                 if worker:
                     try:
                         results = self.worker(wname).do_work(workelt)
-                    except as e:
+                    except Exception as e:
                         for wu in workelt:
                             work_status.set(
                                 wu.get('id'),
@@ -198,6 +198,7 @@ class Update(object):
             # do the first one.
 #            hurl = services[0].xpath('hierarchy/@id')
             service_id = services[0].get('id')
+            l.lmsg('Connecting to service "{}"'.format(service_id))
             # find the machination id for this service
             mid = context.get_id(service_id)
             wc = WebClient(service_id, 'os_instance', 'cert')

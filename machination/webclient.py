@@ -1,6 +1,7 @@
 import pprint
 import sys
 import os
+import errno
 from lxml import etree
 from machination.xmldata import from_xml, to_xml
 from machination import context
@@ -27,9 +28,15 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
         # will behave as a constructor
         return self.do_open(self.getConnection, req)
     def getConnection(self, host, timeout=None):
-        return http_client.HTTPSConnection(host,
-                                           key_file=self.key,
-                                           cert_file=self.cert)
+        try:
+            con = http_client.HTTPSConnection(host,
+                                              key_file=self.key,
+                                              cert_file=self.cert)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                e.filename = '{} or {}'.format(self.key, self.cert)
+                raise
+        return con
 
 class WebClient(object):
     """Machination WebClient"""

@@ -23,6 +23,8 @@ parser.add_argument('gitdir', nargs='?', default='.',
                     help='repository with packages')
 parser.add_argument('--bundle_dir', '-b', nargs='?', default = def_bdir,
                     help='directory in which to make fake bundles')
+parser.add_argument('--update', '-u', nargs='?', default = '1',
+                    help='whether to perform the update or not')
 args = parser.parse_args()
 
 # get git version
@@ -120,6 +122,11 @@ iv.append(desired)
 # write to file
 with open('iv.xml', "w") as ivf:
     ivf.write(etree.tostring(iv, pretty_print=True).decode())
+
+# Only do the update if args.update = 1
+if args.update != '1':
+    logging.info('No actual update requested: exiting.')
+    sys.exit(0)
 
 # invoke self update
 args = [

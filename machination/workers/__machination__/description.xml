@@ -73,19 +73,29 @@
 
     <optional>
       <element name='daemon' wu:wu="1">
-        <attribute name='address'/>
-        <attribute name='port'/>
-        <attribute name='sleeptime'/>
+        <attribute name='address'>
+          <text/>
+        </attribute>
+        <attribute name='port'>
+          <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+        </attribute>
+        <attribute name='sleeptime'>
+          <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+        </attribute>
       </element>
     </optional>
 
     <optional>
       <element name="openssl" wu:wu='1'>
         <optional>
-          <attribute name='binary'/>
+          <attribute name='binary'>
+            <text/>
+          </attribute>
         </optional>
         <optional>
-          <attribute name='config'/>
+          <attribute name='config'>
+            <text/>
+          </attribute>
         </optional>
       </element>
     </optional>
@@ -94,9 +104,13 @@
       <element name='services' wu:wu='1'>
         <oneOrMore>
           <element name='service'>
-            <attribute name='id'/>
+            <attribute name='id'>
+              <text/>
+            </attribute>
             <element name='hierarchy'>
-              <attribute name='id'/>
+              <attribute name='id'>
+                <text/>
+              </attribute>
             </element>
             <zeroOrMore>
               <element name='authentication'>
@@ -106,9 +120,18 @@
                     <value>os_instance</value>
                   </choice>
                 </attribute>
-                <attribute name='type'/>
+                <attribute name='type'>
+                  <choice>
+                    <value>public</value>
+                    <value>basic</value>
+                    <value>cosign</value>
+                    <value>cert</value>
+                  </choice>
+                </attribute>
                 <optional>
-                  <attribute name='cosignLoginPage'/>
+                  <attribute name='cosignLoginPage'>
+                    <text/>
+                  </attribute>
                 </optional>
               </element>
             </zeroOrMore>
@@ -121,7 +144,9 @@
       <element name='installedVersion' wu:wu="1">
         <oneOrMore>
           <element name='machinationFetcherBundle'>
-            <attribute name='id'/>
+            <attribute name='id'>
+              <text/>
+            </attribute>
           </element>
         </oneOrMore>
       </element>

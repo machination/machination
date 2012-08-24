@@ -651,11 +651,12 @@ $list = GetAssertionList($type_name, $obj_name, $channel)
 =cut
 
 sub call_GetAssertionList {
-  my ($owner,$approval,$type_name, $obj_name, $channel) = @_;
+  my ($owner,$approval,$type_name, $obj_name) = @_;
   my $info;
 
   my $obj_type_id = $ha->type_id($type_name);
   my $obj_id = $ha->entity_id($obj_type_id, $obj_name);
+  my $channel = call_ProfChannel($owner, $approval, $type_name);
 
   my $authorised = 0;
   my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);

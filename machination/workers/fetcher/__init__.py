@@ -226,19 +226,24 @@ class Worker(object):
             reason = "HTTP Error: " + e.code
         except urllib.error.URLError as e:
             reason = "URL Error: " + e.reason
+
         if reason:
             l.emsg(reason)
             return "Failed: " + reason
 
         # Parse the manifest
-        pkg_size = int(strip(m.readline()))
-        pkg = [x.strip() for x in m.readlines()]
+        # FIXME: Assumes utf-8 encoding
+
+        pkg_size = int(m.readline().decode('utf-8').strip())
+        pkg = [x.decode('utf-8').strip() for x in m.readlines()]
 
         mani_path = os.path.join(dest, 'manifest')
         with open(mani_path, 'w') as f:
             f.write(str(pkg_size) + "\n")
             for x in bundle:
                 f.write(x + "\n")
+
+        m.close()
 
         # Check free space
         l.dmsg(str(pkg_size) + " bytes to download.")
@@ -288,6 +293,8 @@ class Worker(object):
                 if not work[0].attrib["hash"] == 'nohash':
                     sha.update(tmp)
                 b.write(tmp)
+
+            a.close()
 
         # Check the package hash
         if not work[0].attrib["hash"] == 'nohash':

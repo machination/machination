@@ -104,9 +104,9 @@ class Worker(object):
         for drive in w.Win32_LogicalDisk():
             if drive.Caption[0] == disk[0]:
                 if type=='total':
-                    return drive.Size
+                    return int(drive.Size)
                 else:
-                    return drive.FreeSpace
+                    return int(drive.FreeSpace)
         else:
             raise ValueError("specified disk " + disk + "does not exist")
 
@@ -135,6 +135,12 @@ class Worker(object):
             c_elt = etree.Element("config")
 
         self.cache_dir = os.path.join(context.cache_dir(), "bundles")
+        try:
+            os.mkdir(self.cache_dir)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                # don't worry about it
+                pass
 
         return c_elt
 
@@ -142,7 +148,7 @@ class Worker(object):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
         with open(config_file, 'w') as c:
             c.write(etree.tostring(self.config_elt,
-                                   pretty_print=True)
+                                   pretty_print=True).decode()
                    )
 
     def do_work(self, work_list):
@@ -154,12 +160,12 @@ class Worker(object):
         pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
-            wu_mrx = MRXpath(wu.attrib{"id"])
+            wu_mrx = MRXpath(wu.attrib["id"])
             if wu_mrx.name() == "config":
                 self.config_elt = xmltools.apply_wu(
                     wu,
                     self.config_elt,
-                    prefix=pref
+                    prefix=pref_mrx
                     )
                 flag = True
                 res = etree.Element("wu",
@@ -180,9 +186,9 @@ class Worker(object):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         # Where are we getting it from?
-        for source in self.config_elt.xpath('config/sources/*'):
+        for source in self.config_elt.xpath('source'):
             transport = "_download_{}".format(source.attrib["mechanism"])
-            l.lsmg(" ".join(["Trying to download via ",
+            l.lmsg(" ".join(["Trying to download via ",
                              source.attrib["mechanism"],
                              source.attrib["url"]]))
             out = getattr(self, transport)(source, work)
@@ -204,23 +210,37 @@ class Worker(object):
 
     def _download_urllib(self, source, work):
         # Construct URL & retry parameters
-        baseurl = source.attrib["URL"] + '/' + work[0].attrib["id"]
+        baseurl = source.attrib["url"] + '/' + work[0].attrib["id"]
         manifest = baseurl + '/manifest'
-        if config_elt.xpath('config/retry'):
-            retry = config_elt.xpath('config/retry')[0].attrib["number"]
-            ttw = config_elt.xpath('config/retry')[0].attrib["time_to_wait"]
+        if self.config_elt.xpath('retry'):
+            retry = self.config_elt.xpath('retry/@number')[0]
+            ttw = self.config_elt.xpath('retry/@time_to_wait')[0]
         else:
             retry = 1
             ttw = 30
 
         # Set destination
+        print(context.cache_dir())
+        print(self.cache_dir)
         dest = os.path.join(self.cache_dir, '.' + work[0].attrib["id"])
 
         # Set up directory structure
-        os.mkdir(dest)
+        try:
+            os.mkdir(dest)
+        except WindowsError as e:
+            if e.errno == 183:
+                # 183 means file/dir exists
+                pass
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                # not worried
+                pass
+        except:
+            return 'Failed: something went wrong constructing cache dir'
 
         # Get the manifest and put into specials
         l.dmsg("Downloading manifest: " + manifest)
+        reason = None
         try:
             m = urllib.request.urlopen(manifest)
         except urllib.error.HTTPError as e:
@@ -243,16 +263,16 @@ class Worker(object):
         mani_path = os.path.join(dest, 'manifest')
         with open(mani_path, 'w') as f:
             f.write(str(pkg_size) + "\n")
-            for x in bundle:
+            for x in pkg:
                 f.write(x + "\n")
 
 
         # Check free space
         l.dmsg(str(pkg_size) + " bytes to download.")
         op = 'space_' + platform.system()
-        if pkg_size > getattr(self, op)(cache_loc, 'free'):
+        if pkg_size > getattr(self, op)(self.cache_dir, 'free'):
             self.cache_maint()
-            if pkg_size > getattr(self, op)(cache_loc,'free'):
+            if pkg_size > getattr(self, op)(self.cache_dir,'free'):
                 msg = "Not enough free space in package cache."
                 l.emsg(msg)
                 return "Failed: " + msg
@@ -260,7 +280,7 @@ class Worker(object):
         l.dmsg("Downloading files")
 
         # Set up hash - may not be needed
-        if not work[0].attrib["hash"] == 'nohash':
+        if work[0].get("hash"):
             sha = hashlib.sha512()
 
         # Main download loop
@@ -292,14 +312,14 @@ class Worker(object):
             # Hash and write the file.
             with open(target, 'wb') as b:
                 tmp = a.read()
-                if not work[0].attrib["hash"] == 'nohash':
+                if work[0].get("hash"):
                     sha.update(tmp)
                 b.write(tmp)
 
             a.close()
 
         # Check the package hash
-        if not work[0].attrib["hash"] == 'nohash':
+        if work[0].get("hash"):
             hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
                 l.emsg("Hash failure")
@@ -308,13 +328,13 @@ class Worker(object):
                           onerror=self.handleRemoveReadonly)
                 return "Failed: Hash failure"
 
+        if work[0].get("keep") == "1":
+            open(os.path.join(dest, '.keep'), 'a').close()
+
         # Move to the 'real' bundle directory
         (dir, id) = os.path.split(dest)
         f_dest = os.path.join(dir, id[1:])
         os.rename(dest, f_dest)
-
-        if work[0].attrib["keep"] == "1":
-            open(os.path.join(dest, '.keep'), 'a').close()
 
         l.dmsg('Download Successful')
         return "Download Successful"

@@ -97,8 +97,9 @@ def _get_dir(name):
             xpath = '/status/worker[@id="__machination__"]/directories'
             directories = desired_status.xpath(xpath)[0]
         except IndexError:
-            raise Exception("/status/worker[@id='__machination__']/directories element not found in '%s'"
-                            % desired_status_file)
+#            raise Exception("/status/worker[@id='__machination__']/directories element not found in '%s'"
+#                            % desired_status_file)
+            directories = etree.Element('directories')
         if name in directories.keys():
             return directories.get(name).format(dsdir=os.path.dirname(desired_status_file))
 

@@ -7,15 +7,16 @@ import hashlib
 import os
 import sys
 
-def manifest(directory, nohash):
+def manifest(bundles=[], nohash):
     "Writes Machination manifest files."
 
-    dirsize = __size(directory)
+    for directory in bundles:
+        dirsize = __size(directory)
 
-    if nohash:
-        return __manifest_nohash(directory, dirsize)
-    else:
-        return __manifest_hash(directory, dirsize)
+        if nohash:
+            return __manifest_nohash(directory, dirsize)
+        else:
+            return __manifest_hash(directory, dirsize)
 
 def __size(start_path='.'):
         total = 0
@@ -31,8 +32,7 @@ def __manifest_hash(directory, size):
         m.write(str(size) + "\n")
 
         # Walk the directory, listing files and hashing.
-        os.chdir(directory)
-        for dirname, dirnames, filenames in os.walk('.'):
+        for dirname, dirnames, filenames in os.walk(directory):
             for files in filenames:
                 if files == 'manifest': continue
                 fn = os.path.normpath(os.path.join(dirname, files))
@@ -48,15 +48,21 @@ def __manifest_nohash(directory, size):
         m.write(str(size) + "\n")
 
         # Walk the directory, listing files and hashing.
-        os.chdir(directory)
-        for dirname, dirnames, filenames in os.walk('.'):
+        for dirname, dirnames, filenames in os.walk(directory):
             for files in filenames:
                 if files == 'manifest': continue
                 fn = os.path.normpath(os.path.join(dirname, files))
                 m.write(fn+'\n')
 
 if __name__ == '__main__':
-    if len(sys.argv) > 2 and (sys.argv[2] == '--nohash'):
-        manifest(sys.argv[1], True)
+    use = "Usage: machination-manifest [--nohash] directory1 directory2 ..."
+    if len(sys.argv) < 2:
+        print(use) 
+        sys.exit()
+    elif (len(sys.argv) == 2) and (sys.argv[1] == "--nohash"):
+        print("No directory specified.")
+        sys.exit()
+    elif sys.argv[1] == "--nohash":
+        manifest(sys.argv[2:], True)
     else:
-        manifest(sys.argv[1], False)
+        manifest(sys.argv[1:], False)

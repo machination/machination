@@ -185,6 +185,15 @@ class Worker(object):
     def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
+        # Have we already got it?
+        target = self.cache_dir() + work.attrib["id"]
+        if os.path.isdir(target):
+            # Successful download already happened
+            msg = "Bundle directory already exists."
+            l.emsg(msg)
+            res.attrib["status"] = "error"
+            res.attrib["message"] = msg
+
         # Where are we getting it from?
         for source in self.config_elt.xpath('source'):
             transport = "_download_{}".format(source.attrib["mechanism"])
@@ -463,16 +472,14 @@ class Worker(object):
 
             if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
                 b_elt.attrib["keep"] = 1
-            else:
-                b_elt.attrib["keep"] = 0
 
             hashfile = os.path.join(self.cache_dir, bundle, 'hash')
             if os.path.exists(hashfile):
                 with open(hashfile, 'r') as f:
                     hash = f.read()
-            else:
-                hash = 'nohash'
+                b_elt.attrib["hash"] = hash
 
-            b_elt.attrib["hash"] = hash
+            if not os.path.isdir(os.path.join(self.cache_dir, bundle, 'files')):
+                b_elt.attrib["cleaned"] = 1
 
         return w_elt

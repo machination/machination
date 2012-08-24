@@ -151,7 +151,7 @@ class Worker(object):
         result = []
         flag = False
         pref = "/status/worker[@id='fetcher']"
-        confcheck = ''.join(pref, "/config")
+        confcheck = ''.join([pref, "/config"])
 
         for wu in work_list:
             if wu.attrib["id"].startswith(confcheck):

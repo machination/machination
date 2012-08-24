@@ -1929,6 +1929,8 @@ class AssertionCompiler(object):
         content = a.get('action_arg')
         if content is None:
             content = a.get('ass_arg')
+        if content is None:
+            content = ''
         context.logger.dmsg('setting text of {} to {}'.format(
                 mpath.to_abbrev_xpath(), content))
 

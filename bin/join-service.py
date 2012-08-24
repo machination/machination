@@ -9,6 +9,7 @@ import machination.utils
 from machination import context
 from machination.webclient import WebClient
 import os
+import io
 import subprocess
 from lxml import etree
 import re

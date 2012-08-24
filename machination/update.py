@@ -32,6 +32,8 @@ class Update(object):
     def do_update(self):
         """Perform an update cycle"""
         self.results = None
+        if context.desired_status.getroot().get('autoconstructed'):
+            raise ValueError('Refusing to use autoconstructed status.')
         l.dmsg('desired:\n%s' % pstring(self.desired_status()), 10)
         l.dmsg('initial:\n%s' % pstring(self.initial_status()), 10)
 
@@ -371,6 +373,10 @@ class OLWorker(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--get_desired', '-g', action = 'store_true',
+        help='Download and compile desired status, then exit.'
+        )
     parser.add_argument('--desired', '-d', nargs='?',
                         help='desired status file')
     parser.add_argument('--desired_xpath', '-dx', nargs='?',
@@ -381,6 +387,16 @@ if __name__ == '__main__':
                         help='xpath of status in initial status file')
 
     args = parser.parse_args()
+
+    if args.get_desired:
+        u = Update()
+        print(
+            etree.tostring(
+                u.desired_status(),
+                pretty_print = True
+                ).decode()
+            )
+        sys.exit()
 
     desired = None
     if args.desired is not None:

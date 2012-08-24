@@ -176,6 +176,18 @@ except IOError:
 '''
                 )
             )
+        # On Windows we need to give the location of ssl command and libs
+        if platform.system() == 'Windows':
+            ssl_elt = etree.fromstring('''
+<openssl binary="C:\\OpenSSL-Win64\\bin\\openssl.exe"
+         config="C:\\OpenSSL-Win64\\bin\\openssl.cfg"/>
+'''
+             )
+            welt = desired_status.xpath(
+                '/status/worker[@id="__machination__"]'
+                )[0]
+            welt.append(ssl_elt)
+            
 
 machination_worker_elt = get_worker_elt('__machination__')
 logging_elts = machination_worker_elt.xpath(

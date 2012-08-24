@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     pub_elt = etree.fromstring(
         '''
-<service fromServiceInfo="1">
+<service>
   <hierarchy id="{}"/>
   <authentication id="person" type="public"/>
 </service>
@@ -105,6 +105,7 @@ if __name__ == '__main__':
     pubwc = WebClient(None, 'person', service_elt=pub_elt)
     if service_elt is None:
         service_elt = etree.fromstring(pubwc.call('ServiceInfo'))
+        service_elt.set('fromServiceInfo', '1')
 
     # Get the service id
     service_id = service_elt.get('id')
@@ -290,6 +291,7 @@ if __name__ == '__main__':
     # Add service to desired_status if we had to query the server for
     # it.
     if service_elt.get('fromServiceInfo') == "1":
+        logging.info('Got service info from service url, adding to desired_status')
         ds = context.desired_status
         if ds.getroot().get('autoconstructed'):
             del(ds.getroot().attrib['autoconstructed'])
@@ -300,6 +302,7 @@ if __name__ == '__main__':
             context.machination_worker_elt.append(svcs_elt)
         svcs_elt.append(service_elt)
         # Save to file
-        ds_file = os.path.join(context.status_dir(), 'desired_status.xml')
+        ds_file = os.path.join(context.status_dir(), 'desired-status.xml')
+        logging.info('Saving desired status to {}'.format(ds_file))
         with open(ds_file, 'w') as f:
             f.write(etree.tostring(ds, pretty_print = True).decode())

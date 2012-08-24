@@ -129,7 +129,7 @@ class Worker(object):
     def read_config(self):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
         try:
-            c_elt = etree.parse(config_file)
+            c_elt = etree.parse(config_file).getroot()
         except IOError as e:
             c_elt = etree.Element("config")
 
@@ -155,12 +155,14 @@ class Worker(object):
 
         for wu in work_list:
             if wu.attrib["id"].startswith(confcheck):
-                xmltools.apply_wu(wu,
-                                  self.config_elt,
-                                  strip=pref)
+                self.config_elt = xmltools.apply_wu(
+                    wu,
+                    self.config_elt,
+                    prefix=pref
+                    )
                 flag = True
                 res = etree.Element("wu",
-                                    id=work.wu.attrib["id"],
+                                    id=wu.attrib["id"],
                                     status="success")
             else:
                 operator = "__{}".format(wu.attrib["op"])

@@ -130,7 +130,7 @@ class Worker(object):
         config_file = os.path.join(context.conf_dir(), "fetcher.xml")
         try:
             c_elt = etree.parse(config_file).getroot()
-        except IOError as e:
+        except:
             c_elt = etree.Element("config")
 
         self.cache_dir = os.path.join(context.cache_dir(), "bundles")

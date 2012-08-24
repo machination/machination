@@ -165,7 +165,7 @@ class Worker(object):
                                     id=wu.attrib["id"],
                                     status="success")
             else:
-                operator = "__{}".format(wu.attrib["op"])
+                operator = "_{}".format(wu.attrib["op"])
                 res = getattr(self, operator)(wu)
             result.append(res)
 
@@ -175,12 +175,12 @@ class Worker(object):
 
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         # Where are we getting it from?
         for source in self.config_elt.xpath('config/sources/*'):
-            transport = "__download_{}".format(source.attrib["mechanism"])
+            transport = "_download_{}".format(source.attrib["mechanism"])
             l.lsmg(" ".join(["Trying to download via ",
                              source.attrib["mechanism"],
                              source.attrib["url"]]))
@@ -201,7 +201,7 @@ class Worker(object):
 
         return res
 
-    def __download_urllib(self, source, work):
+    def _download_urllib(self, source, work):
         # Construct URL & retry parameters
         baseurl = source.attrib["URL"] + '/' + work[0].attrib["id"]
         manifest = baseurl + '/manifest'
@@ -310,10 +310,10 @@ class Worker(object):
         l.dmsg('Download Successful')
         return "Download Successful"
 
-    def __download_torrent(self, source, work):
+    def _download_torrent(self, source, work):
         pass
 
-    def __remove(self, work):
+    def _remove(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         # Identify package directory
@@ -340,19 +340,19 @@ class Worker(object):
 
         return res
 
-    def __move(self, work):
+    def _move(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         res.attrib["status"] = success
         return res
 
-    def __datamod(self, work):
+    def _datamod(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         res.attrib["status"] = success
         return res
 
-    def __deepmod(self, work):
+    def _deepmod(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"],
                             status="success")
@@ -405,11 +405,11 @@ class Worker(object):
                     if os.path.exists(os.path.join(bundle_dir, '.done')):
                         done = True
                     shutil.move(specials, os.path.join(self.cache_loc, '_tmp'))
-                    d = self.__remove(work)
+                    d = self._remove(work)
                     if d.attrib["status"] != "success":
                         l.emsg("Bundle remove failed.")
                         return d
-                    d = self.__add(work)
+                    d = self._add(work)
                     if d.attrib["status"] != "success":
                         l.emsg("Bundle re-download failed.")
                         return d

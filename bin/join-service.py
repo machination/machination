@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     pub_elt = etree.fromstring(
         '''
-<service>
+<service fromServiceInfo="1">
   <hierarchy id="{}"/>
   <authentication id="person" type="public"/>
 </service>
@@ -286,3 +286,6 @@ if __name__ == '__main__':
     # Update mid.txt
     with open(os.path.join(service_dir, 'mid.txt'), 'w') as f:
         f.write(inst_id)
+
+    # Add service to desired_status if we had to query the server for
+    # it.

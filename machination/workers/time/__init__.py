@@ -26,14 +26,14 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
         command = "net stop w32time && net start w32time"
         stream = popen(command)
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         # Add can only be called on ManualPeerList
         res = etree.Element("wu", id=work.attrib["id"])
         peers = [peer.attrib["id"] for peer in work[1].iter("Peer")]
@@ -48,7 +48,7 @@ class Worker(object):
             l.emsg("Could not set time server list: " + stream)
         return res
 
-    def __remove(self, work):
+    def _remove(self, work):
         # Remove can only be called on ManualPeerList
         res = etree.Element("wu", id=work.attrib["id"])
         command = self.cmd + ' /config /manualpeerlist:""'
@@ -61,7 +61,7 @@ class Worker(object):
             l.emsg("Could not clear time server list: " + stream)
         return res
 
-    def __deepmod(self, work):
+    def _deepmod(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
         # What are we changing?
         switch = work[1].tag.lower()
@@ -88,10 +88,10 @@ class Worker(object):
             l.emsg(msg)
         return res
 
-    def __datamod(self, work):
-        return self.__deepmod(self, work)
+    def _datamod(self, work):
+        return self._deepmod(self, work)
 
-    def __move(self, work):
+    def _move(self, work):
         # Order makes no sense
         pass
 

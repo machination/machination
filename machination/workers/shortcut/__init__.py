@@ -40,12 +40,12 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
 
@@ -90,22 +90,22 @@ class Worker(object):
         res.attrib["status"] = "success"
         return res
 
-    def __datamod(self, work):
-        d = self.__remove(work)
+    def _datamod(self, work):
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
-        return self.__add(work)
+        return self._add(work)
 
-    def __deepmod(self, work):
-        d = self.__remove(work)
+    def _deepmod(self, work):
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
-        return self.__add(work)
+        return self._add(work)
 
-    def __move(self, work):
+    def _move(self, work):
         pass
 
-    def __remove(self, work):
+    def _remove(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
 

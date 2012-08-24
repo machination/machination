@@ -34,12 +34,12 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         "Add new firewall rules."
         res = etree.Element("wu",
                             id=work.attrib["id"])
@@ -100,7 +100,7 @@ class Worker(object):
 
         return res
 
-    def __datamod(self, work):
+    def _datamod(self, work):
         "Change existing firewall rules variables"
         res = etree.Element("wu",
                             id=work.attrib["id"])
@@ -108,13 +108,13 @@ class Worker(object):
         # The win7 firewall rule modification interface
         # is notoriously fragile. So let's not and say we did.
 
-        d = self.__remove(work)
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
         else:
-            return self.__add(work)
+            return self._add(work)
 
-    def __deepmod(self, work):
+    def _deepmod(self, work):
         "Change existing firewall rules variables"
         res = etree.Element("wu",
                             id=work.attrib["id"])
@@ -122,16 +122,16 @@ class Worker(object):
         # The win7 firewall rule modification interface
         # is notoriously fragile. So let's not and say we did.
 
-        d = self.__remove(work)
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
         else:
-            return self.__add(work)
+            return self._add(work)
 
-    def __move(self, work):
+    def _move(self, work):
         pass
 
-    def __remove(self, work):
+    def _remove(self, work):
         "Remove unwanted firewall rules"
         res = etree.Element("wu",
                             id=work.attrib["id"])

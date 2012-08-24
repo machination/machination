@@ -39,12 +39,12 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
         return result
 
-    def __add_user(self, username, password, expire, description):
+    def _add_user(self, username, password, expire, description):
         u = {"name": username,
              "password": password,
              "comment": description,
@@ -62,7 +62,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __mod_user(self, user, expire, description):
+    def _mod_user(self, user, expire, description):
         info = win32net.NetUserGetInfo(None, user, 3)
 
         if expire is not None:
@@ -77,7 +77,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __del_user(self, username):
+    def _del_user(self, username):
         # Don't ever delete special user accounts
         if username in self.sp_users:
             return None
@@ -88,7 +88,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __add_group(self, name):
+    def _add_group(self, name):
         g_info = {"name": name}
 
         if name in self.sp_groups:
@@ -100,7 +100,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __check_group(self, g_name):
+    def _check_group(self, g_name):
         c = wmi.WMI()
         extant = c.Win32_Group(Name=g_name, LocalAccount=True)
         back = None
@@ -108,16 +108,16 @@ class Worker(object):
             back = add_group(g_name)
         return back
 
-    def __check_group_rm(self, g_name):
+    def _check_group_rm(self, g_name):
         members, count, handle = win32net.NetLocalGroupGetMembers(None,
                                                                g_name,
                                                                3)
         back = None
         if count == 0 and g_name not in self.sp_groups:
-            back = self.__del_group(g_name)
+            back = self._del_group(g_name)
         return back
 
-    def __del_group(self, name):
+    def _del_group(self, name):
         if name in self.sp_groups:
             return None
         try:
@@ -127,7 +127,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __add_user_to_group(self, user, group, domain=None):
+    def _add_user_to_group(self, user, group, domain=None):
         if domain:
             userstring = u"\\".join([domain.upper(), user])
         else:
@@ -142,7 +142,7 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __del_user_from_group(self, user, group, domain=None):
+    def _del_user_from_group(self, user, group, domain=None):
         if domain:
             userstring = u"\\".join([domain.upper(), user])
         else:
@@ -156,12 +156,12 @@ class Worker(object):
             errno, errctx, errmsg = error.args
             return errmsg
 
-    def __get_group_name(self, xpath):
+    def _get_group_name(self, xpath):
         mrx = machination.xmltools.MRXpath(xpath)
         mrx = mrx.parent()
         return mrx.id()
 
-    def __add(self, work):
+    def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
 
@@ -172,10 +172,10 @@ class Worker(object):
             u_desc = " ".join(work[0].xpath('/user/description/text()',
                                             smart_strings=False))
             u_expire = work[0].attrib["password_can_expire"]
-            test = self.__add_user(u_name, u_pwd, u_expire, u_desc)
+            test = self._add_user(u_name, u_pwd, u_expire, u_desc)
         elif work[0].tag == "member":
-            group = self.__get_group_name(work.attrib["id"])
-            test = self.__check_group(group)
+            group = self._get_group_name(work.attrib["id"])
+            test = self._check_group(group)
 
             if not test:
                 m_name = work[0].attrib["id"]
@@ -183,7 +183,7 @@ class Worker(object):
                     m_dom = work[0].attrib["domain"]
                 else:
                     m_dom = None
-                test = self.__add_user_to_group(m_name, group, m_dom)
+                test = self._add_user_to_group(m_name, group, m_dom)
 
         res.attrib["status"] = "success"
         if test:
@@ -193,24 +193,24 @@ class Worker(object):
 
         return res
 
-    def __remove(self, work):
+    def _remove(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
 
         if work[0].tag == "user":
             u_name = work[0].attrib["id"]
-            test = self.__del_user(u_name)
+            test = self._del_user(u_name)
         elif work[0].tag == "member":
-            group = self.__get_group_name(work.attrib["id"])
+            group = self._get_group_name(work.attrib["id"])
             m_name = work[0].attrib["id"]
             if "domain" in work[0].attrib:
                 m_dom = work[0].attrib["domain"]
             else:
                 m_dom = None
-            test = self.__del_user_from_group(m_name, group, m_dom)
+            test = self._del_user_from_group(m_name, group, m_dom)
             if not test:
                 # Delete went smoothly. Can we delete the group?
-                test = self.__check_group_rm(group)
+                test = self._check_group_rm(group)
 
         res.attrib["status"] = "success"
         if test:
@@ -220,7 +220,7 @@ class Worker(object):
 
         return res
 
-    def __deepmod(self, work):
+    def _deepmod(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
 
@@ -239,7 +239,7 @@ class Worker(object):
                 expire = None
             if user.Description == desc:
                 desc = None
-            test = self.__mod_user(user.Name, expire, desc)
+            test = self._mod_user(user.Name, expire, desc)
 
         res.attrib["status"] = "success"
 
@@ -250,10 +250,10 @@ class Worker(object):
 
         return res
 
-    def __datamod(self, work):
-        return self.__deepmod(work)
+    def _datamod(self, work):
+        return self._deepmod(work)
 
-    def __order(self, work):
+    def _order(self, work):
         pass
 
     def generate_status(self):

@@ -14,7 +14,7 @@ class Worker(object):
     "Manipulates environment variables in Windows."
 
     #Define a shorthand constant for HKLM.
-    __HKLM = 2147483650
+    _HKLM = 2147483650
     envloc = "system\currentcontrolset\control\session manager\environment"
 
     # Define methods used to access registry values based on type.
@@ -41,12 +41,12 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         "Add new environment variables."
         varname = work[1].attrib["id"]
         if work[1].attrib["type"]:
@@ -58,7 +58,7 @@ class Worker(object):
             val = unicode(work[1].text, 'utf-8')
 
         # For convenience sake, all variables are stored as REG_EXPAND_SZ
-        result = r.SetExpandedStringValue(hDefKey=self.__HKLM,
+        result = r.SetExpandedStringValue(hDefKey=self._HKLM,
                                   sSubKeyName=self.envloc,
                                   sValueName=varname,
                                   sValue=val)
@@ -76,22 +76,22 @@ class Worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __datamod(self, work):
+    def _datamod(self, work):
         "Change existing environment variables"
         # Given that modifications to multi-vars are done in statuscompare
         # as <var> is the wu-tag, for registry entries, modify == add.
-        return self.__add(work)
+        return self._add(work)
 
-    def __deepmod(self, work):
+    def _deepmod(self, work):
         "Change existing environment variables"
         # Given that modifications to multi-vars are done in statuscompare
         # as <var> is the wu-tag, for registry entries, modify == add.
-        return self.__add(work)
+        return self._add(work)
 
-    def __move(self, work):
+    def _move(self, work):
         pass
 
-    def __remove(self, work):
+    def _remove(self, work):
         "Remove unwanted variables"
         # If we don't have notpres=1, it's an environment var that Machination
         # doesn't care about, so we just report a success
@@ -102,7 +102,7 @@ class Worker(object):
         # Since we actually care about it, get the variable name from the
         # XML passed as part of the wu
         varname = work[1].attrib["id"]
-        result = r.DeleteValue(hDefKey=self.__HKLM,
+        result = r.DeleteValue(hDefKey=self._HKLM,
                                sSubKeyName=self.envloc,
                                sValueName=varname)
         res = etree.Element("wu",

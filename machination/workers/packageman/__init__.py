@@ -28,15 +28,15 @@ class Worker(object):
         result = []
 
         for wu in work_list:
-            operator = "__{}".format(wu.attrib["op"])
+            operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu, s_elt)
             result.append(res)
         return result
 
-    def __add(self, work):
+    def _add(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        back = self.__process(work, "install")
+        back = self._process(work, "install")
 
         if back:
             l.emsg(back)
@@ -46,10 +46,10 @@ class Worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __remove(self, work):
+    def _remove(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        back = self.__process(work, "uninstall")
+        back = self._process(work, "uninstall")
 
         if back:
             l.emsg(back)
@@ -59,24 +59,24 @@ class Worker(object):
             res.attrib["status"] = "success"
         return res
 
-    def __datamod(self, work):
-        d = self.__remove(work)
+    def _datamod(self, work):
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
         else:
-            return self.__add(work)
+            return self._add(work)
 
-    def __deepmod(self, work):
-        d = self.__remove(work)
+    def _deepmod(self, work):
+        d = self._remove(work)
         if d.attrib["status"] == "error":
             return d
         else:
-            return self.__add(work)
+            return self._add(work)
 
-    def __move(self, work):
+    def _move(self, work):
         pass
 
-    def __process(self, work, operation):
+    def _process(self, work, operation):
         # Prep necessary variables
         type = work.find("pkginfo").attrib["type"]
         bundle = work.find("machinationFetcherBundle").attrib["id"]
@@ -108,7 +108,7 @@ class Worker(object):
         else:
             pkginfo = None
 
-        op = "__{0}_{1}".format(operation, type)
+        op = "_{0}_{1}".format(operation, type)
 
         back = getattr(self, op)(bundle_path, pkginfo, check, inter)
 
@@ -117,7 +117,7 @@ class Worker(object):
 
         return back
 
-    def __install_msi(self, bundle, pkginfo, check, inter=False):
+    def _install_msi(self, bundle, pkginfo, check, inter=False):
         paramlist = {"REBOOT": "ReallySuppress",
                      "ALLUSERS": "1",
                      "ROOTDRIVE": "C:"}
@@ -151,7 +151,7 @@ class Worker(object):
 
         if inter:
             platutils.win.run_as_current_user(cmd)
-            inscheck = self.__check_reg(msi_guid)
+            inscheck = self._check_reg(msi_guid)
             if inscheck:
                 out = None
             else:
@@ -161,7 +161,7 @@ class Worker(object):
 
         return out
 
-    def __install_simple(self, bundle, pkginfo, check, inter=False):
+    def _install_simple(self, bundle, pkginfo, check, inter=False):
         # Simple apps are handled by calling an executable "install" file
         # from the package special directory
 
@@ -174,7 +174,7 @@ class Worker(object):
 
         if inter:
             platutils.win.run_as_current_user(cmd)
-            operator = "__check_{0}".format(check[0])
+            operator = "_check_{0}".format(check[0])
             inscheck = getattr(self, operator)(check[1])
             if inscheck:
                 out = None
@@ -185,7 +185,7 @@ class Worker(object):
 
         return out
 
-    def __uninstall_simple(self, bundle, pkginfo, check, inter=False):
+    def _uninstall_simple(self, bundle, pkginfo, check, inter=False):
         # Simple apps are handled by calling an executable "uninstall" file
         # from the package special directory
 
@@ -198,7 +198,7 @@ class Worker(object):
 
         if inter:
             platutils.win.run_as_current_user(cmd)
-            operator = "__check_{0}".format(check[0])
+            operator = "_check_{0}".format(check[0])
             inscheck = getattr(self, operator)(check[1])
             if inscheck:
                 out = "Uninstallation failed."
@@ -209,7 +209,7 @@ class Worker(object):
 
         return out
 
-    def __uninstall_msi(self, bundle, pkginfo, check, inter=False):
+    def _uninstall_msi(self, bundle, pkginfo, check, inter=False):
         paramlist = {"REBOOT": "ReallySuppress",
                      "ALLUSERS": "1",
                      "ROOTDRIVE": "C:"}
@@ -238,7 +238,7 @@ class Worker(object):
 
         if inter:
             platutils.win.run_as_current_user(cmd)
-            inscheck = self.__check_reg(guid)
+            inscheck = self._check_reg(guid)
             if inscheck:
                 out = "Uninstallation failed."
             else:
@@ -248,22 +248,22 @@ class Worker(object):
 
         return out
 
-    def __check_file(self, filename):
+    def _check_file(self, filename):
         return os.path.exists(filename)
 
-    def __check_reg(self, key):
+    def _check_reg(self, key):
         r = wmi.Registry()
-        __HLKM = 2147483650
+        _HLKM = 2147483650
         uloc = "software\microsoft\windows\currentversion\uninstall"
 
-        result, names = r.EnumKey(__HKLM, uloc)
+        result, names = r.EnumKey(_HKLM, uloc)
 
         if key in names:
             return True
 
         # 32 bit program so check that registry node
         uloc = "software\wow6432node\microsoft\windows\currentversion\uninstall"
-        result, names = r.EnumKey(__HKLM, uloc)
+        result, names = r.EnumKey(_HKLM, uloc)
 
         if result:
             return False

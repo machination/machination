@@ -16,7 +16,7 @@ import glob
 
 l = context.logger
 
-class worker(object):
+class Worker(object):
 
     def __init__(self):
         self.name = self.__module__.split('.')[-1]

@@ -289,3 +289,17 @@ if __name__ == '__main__':
 
     # Add service to desired_status if we had to query the server for
     # it.
+    if service_elt.get('fromServiceInfo') == "1":
+        ds = context.desired_status
+        if ds.getroot().get('autoconstructed'):
+            del(ds.getroot().attrib['autoconstructed'])
+        try:
+            svcs_elt = context.machination_worker_elt.xpath('services')[0]
+        except IndexError:
+            svcs_elt = etree.Element('services')
+            context.machination_worker_elt.append(svcs_elt)
+        svcs_elt.append(service_elt)
+        # Save to file
+        ds_file = os.path.join(context.status_dir(), 'desired_status.xml')
+        with open(ds_file, 'w') as f:
+            f.write(etree.tostring(ds, pretty_print = True).decode())

@@ -6,6 +6,7 @@
 from lxml import etree
 from machination import context
 from machination import xmltools
+from machination.xmltools import MRXpath
 from time import sleep
 import urllib.request
 import urllib.error
@@ -150,11 +151,11 @@ class Worker(object):
         # Setup
         result = []
         flag = False
-        pref = "/status/worker[@id='fetcher']"
-        confcheck = ''.join([pref, "/config"])
+        pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
-            if wu.attrib["id"].startswith(confcheck):
+            wu_mrx = MRXpath(wu.attrib{"id"])
+            if wu_mrx.name() == "config":
                 self.config_elt = xmltools.apply_wu(
                     wu,
                     self.config_elt,
@@ -237,13 +238,14 @@ class Worker(object):
         pkg_size = int(m.readline().decode('utf-8').strip())
         pkg = [x.decode('utf-8').strip() for x in m.readlines()]
 
+        m.close()
+
         mani_path = os.path.join(dest, 'manifest')
         with open(mani_path, 'w') as f:
             f.write(str(pkg_size) + "\n")
             for x in bundle:
                 f.write(x + "\n")
 
-        m.close()
 
         # Check free space
         l.dmsg(str(pkg_size) + " bytes to download.")

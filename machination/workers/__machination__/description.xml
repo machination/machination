@@ -35,24 +35,49 @@
       <interleave>
         <zeroOrMore>
           <element name="stream">
-            <attribute name="id"/>
-            <attribute name="loglevel"/>
+            <attribute name="id">
+              <text/>
+            </attribute>
+            <attribute name="loglevel">
+              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+            </attribute>
           </element>
         </zeroOrMore>
         <zeroOrMore>
           <element name="file">
-            <attribute name="id"/>
-            <attribute name="loglevel"/>
+            <attribute name="id">
+              <text/>
+            </attribute>
+            <attribute name="loglevel">
+              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+            </attribute>
+            <optional>
+              <attribute name="keepruns">
+                <data type="nonNegativeInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+              </attribute>
+            </optional>
+          </element>
+        </zeroOrMore>
+        <zeroOrMore>
+          <element name="syslog">
+            <attribute name="id">
+              <text/>
+            </attribute>
+            <attribute name="loglevel">
+              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+            </attribute>
           </element>
         </zeroOrMore>
       </interleave>
     </element>
 
-    <element name='daemon' wu:wu="1">
-      <attribute name='address'/>
-      <attribute name='port'/>
-      <attribute name='sleeptime'/>
-    </element>
+    <optional>
+      <element name='daemon' wu:wu="1">
+        <attribute name='address'/>
+        <attribute name='port'/>
+        <attribute name='sleeptime'/>
+      </element>
+    </optional>
 
     <optional>
       <element name="openssl" wu:wu='1'>
@@ -65,38 +90,42 @@
       </element>
     </optional>
 
-    <element name='services' wu:wu='1'>
-      <oneOrMore>
-        <element name='service'>
-          <attribute name='id'/>
-          <element name='hierarchy'>
+    <optional>
+      <element name='services' wu:wu='1'>
+        <oneOrMore>
+          <element name='service'>
+            <attribute name='id'/>
+            <element name='hierarchy'>
+              <attribute name='id'/>
+            </element>
+            <zeroOrMore>
+              <element name='authentication'>
+                <attribute name='id'>
+                  <choice>
+                    <value>person</value>
+                    <value>os_instance</value>
+                  </choice>
+                </attribute>
+                <attribute name='type'/>
+                <optional>
+                  <attribute name='cosignLoginPage'/>
+                </optional>
+              </element>
+            </zeroOrMore>
+          </element>
+        </oneOrMore>
+      </element>
+    </optional>
+
+    <optional>
+      <element name='installedVersion' wu:wu="1">
+        <oneOrMore>
+          <element name='machinationFetcherBundle'>
             <attribute name='id'/>
           </element>
-          <zeroOrMore>
-            <element name='authentication'>
-              <attribute name='id'>
-                <choice>
-                  <value>person</value>
-                  <value>os_instance</value>
-                </choice>
-              </attribute>
-              <attribute name='type'/>
-              <optional>
-                <attribute name='cosignLoginPage'/>
-              </optional>
-            </element>
-          </zeroOrMore>
-        </element>
-      </oneOrMore>
-    </element>
-
-    <element name='installedVersion' wu:wu="1">
-      <oneOrMore>
-        <element name='machinationFetcherBundle'>
-          <attribute name='id'/>
-        </element>
-      </oneOrMore>
-    </element>
+        </oneOrMore>
+      </element>
+    </optional>
 
   </interleave>
 </element>

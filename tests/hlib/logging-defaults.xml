@@ -4,7 +4,6 @@
       <file id="errorsandwarnings.txt" loglevel="2" keepruns="100"/>
       <file id="log.txt" loglevel="5" keepruns="5"/>
       <file id="everything.txt" loglevel="10" keepruns="1"/>
-      <syslog id="machlog1.see.ed.ac.uk" loglevel="6"/>
     </logging>
   </worker>
 </status>

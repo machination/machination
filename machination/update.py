@@ -21,7 +21,6 @@ import pprint
 
 l = context.logger
 
-
 class Update(object):
 
     def __init__(self, initial_status=None, desired_status=None):
@@ -69,9 +68,11 @@ class Update(object):
             else:
                 # entry for dep[1] does not exist, create it
                 work_depends.set(dep[1], [dep[0]])
+        l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
         # we need to make all workunits depend on something for
         # topsort to work
         wudeps.extend([['', x] for x in comp.find_work()])
+        l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
         i = 0
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
@@ -210,26 +211,32 @@ class Update(object):
             # find the machination id for this service
             mid = context.get_id(service_id)
             wc = WebClient(service_id, 'os_instance', 'cert')
-            channel = wc.call("ProfChannel", 'os_instance')
-            data = wc.call('GetAssertionList',
-                           'os_instance',
-                           mid,
-                           channel)
-            pprint.pprint(data)
-            ac = AssertionCompiler(wc)
-            self._desired_status, res = ac.compile(data)
-#            self._desired_status = etree.parse(os.path.join(
-#                    context.status_dir(), 'desired-status.xml')).getroot()
-            # Save as working-desired-status.xml
-            with open(
-                os.path.join(
-                    context.status_dir(),
-                    'working-desired-status.xml'
-                    ),
-                'w') as ds:
-                ds.write(etree.tostring(
-                        self._desired_status,
-                        pretty_print=True).decode())
+#            channel = wc.call("ProfChannel", 'os_instance')
+            try:
+                data = wc.call('GetAssertionList',
+                               'os_instance',
+                               mid)
+            except:
+                # couldn't dowload assertions - go with last desireed status
+                self._desired_status = copy.deepcopy(
+                    context.desired_status.getroot()
+                    )
+            else:
+                # we do have some assertions - compile them
+#                pprint.pprint(data)
+                ac = AssertionCompiler(wc)
+                self._desired_status, res = ac.compile(data)
+                # Save as desired-status.xml
+                with open(
+                    os.path.join(
+                        context.status_dir(),
+                        'desired-status.xml'
+                        ),
+                    'w') as ds:
+                    ds.write(etree.tostring(
+                            self._desired_status,
+                            pretty_print=True).decode())
+
         return self._desired_status
 
     def load_previous_status(self):

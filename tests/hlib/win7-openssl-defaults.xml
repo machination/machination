@@ -1,0 +1,7 @@
+<status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
+  <worker id="__machination__">
+    <openssl binary="C:\OpenSSL-Win64\bin\openssl.exe"
+             config="C:\OpenSSL-Win64\bin\openssl.cfg">
+    </openssl>
+  </worker>
+</status>

@@ -31,45 +31,47 @@
       </element>
     </optional>
 
-    <element name='logging' wu:wu="1">
-      <interleave>
-        <zeroOrMore>
-          <element name="stream">
-            <attribute name="id">
-              <text/>
-            </attribute>
-            <attribute name="loglevel">
-              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
-            </attribute>
-          </element>
-        </zeroOrMore>
-        <zeroOrMore>
-          <element name="file">
-            <attribute name="id">
-              <text/>
-            </attribute>
-            <attribute name="loglevel">
-              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
-            </attribute>
-            <optional>
-              <attribute name="keepruns">
-                <data type="nonNegativeInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+    <optional>
+      <element name='logging' wu:wu="1">
+        <interleave>
+          <zeroOrMore>
+            <element name="stream">
+              <attribute name="id">
+                <text/>
               </attribute>
-            </optional>
-          </element>
-        </zeroOrMore>
-        <zeroOrMore>
-          <element name="syslog">
-            <attribute name="id">
-              <text/>
-            </attribute>
-            <attribute name="loglevel">
-              <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
-            </attribute>
-          </element>
-        </zeroOrMore>
-      </interleave>
-    </element>
+              <attribute name="loglevel">
+                <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+              </attribute>
+            </element>
+          </zeroOrMore>
+          <zeroOrMore>
+            <element name="file">
+              <attribute name="id">
+                <text/>
+              </attribute>
+              <attribute name="loglevel">
+                <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+              </attribute>
+              <optional>
+                <attribute name="keepruns">
+                  <data type="nonNegativeInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+                </attribute>
+              </optional>
+            </element>
+          </zeroOrMore>
+          <zeroOrMore>
+            <element name="syslog">
+              <attribute name="id">
+                <text/>
+              </attribute>
+              <attribute name="loglevel">
+                <data type="positiveInteger" datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"/>
+              </attribute>
+            </element>
+          </zeroOrMore>
+        </interleave>
+      </element>
+    </optional>
 
     <optional>
       <element name='daemon' wu:wu="1">

@@ -41,6 +41,8 @@ class Logger(object):
         # Set up module-global vars
 
         self.loggers = []
+        self.log_dir = log_dir
+        self.default_loglevel = default_loglevel
         self.fmtstring = "%(left)s%(lvl)s:%(modname)s.%(funct)s%(right)s"\
                 ": %(message)s"
 
@@ -48,48 +50,52 @@ class Logger(object):
         # entry in logging_elt
 
         for dest in logging_elt:
-            if not isinstance(dest.tag, str):
-                continue
-
-            if dest.tag == "syslog":
-                logger = logging.Logger(dest.attrib["id"])
-                srv = (dest.attrib["id"], 514)
-                hdlr = SysLogHandler(srv, SysLogHandler.LOG_LOCAL5)
-                hdlr.setLevel(logging.DEBUG)
-                fmt = logging.Formatter("%(asctime)s " + self.fmtstring,
-                                        "%b %d %H:%M:%S")
-                hdlr.setFormatter(fmt)
-                logger.addHandler(hdlr)
-                self.loggers.append([logger, int(dest.attrib["loglevel"])])
-
-            elif dest.tag == "file":
-                logger = logging.Logger(dest.attrib["id"])
-                filepath = os.path.join(log_dir,
-                                        dest.attrib["id"])
-                hdlr = logging.FileHandler(filepath)
-                fmt = logging.Formatter(self.fmtstring)
-                hdlr.setFormatter(fmt)
-                logger.addHandler(hdlr)
-                self.loggers.append([logger, int(dest.attrib["loglevel"])])
-
-            elif dest.tag == 'stream':
-                logger = logging.Logger(dest.attrib['id'])
-                hdlr = logging.StreamHandler(getattr(sys,
-                                                     dest.get('id',
-                                                              'stderr')))
-                fmt = logging.Formatter(self.fmtstring)
-                hdlr.setFormatter(fmt)
-                logger.addHandler(hdlr)
-                self.loggers.append([logger,
-                                     int(dest.get("loglevel",
-                                                  default_loglevel))
-                                     ])
-
-            else:
-                # Unhandled value
-                raise IOError("1", "Unknown log method " + repr(dest.tag))
+            self.add_destination(dest)
 
         self.lmsg('logging started')
+
+    def add_destination(self, dest):
+        """Add a logging destination to self.loggers"""
+        if not isinstance(dest.tag, str):
+            return
+
+        if dest.tag == "syslog":
+            logger = logging.Logger(dest.attrib["id"])
+            srv = (dest.attrib["id"], 514)
+            hdlr = SysLogHandler(srv, SysLogHandler.LOG_LOCAL5)
+            hdlr.setLevel(logging.DEBUG)
+            fmt = logging.Formatter("%(asctime)s " + self.fmtstring,
+                                    "%b %d %H:%M:%S")
+            hdlr.setFormatter(fmt)
+            logger.addHandler(hdlr)
+            self.loggers.append([logger, int(dest.attrib["loglevel"])])
+
+        elif dest.tag == "file":
+            logger = logging.Logger(dest.attrib["id"])
+            filepath = os.path.join(self.log_dir,
+                                    dest.attrib["id"])
+            hdlr = logging.FileHandler(filepath)
+            fmt = logging.Formatter(self.fmtstring)
+            hdlr.setFormatter(fmt)
+            logger.addHandler(hdlr)
+            self.loggers.append([logger, int(dest.attrib["loglevel"])])
+
+        elif dest.tag == 'stream':
+            logger = logging.Logger(dest.attrib['id'])
+            hdlr = logging.StreamHandler(getattr(sys,
+                                                 dest.get('id',
+                                                          'stderr')))
+            fmt = logging.Formatter(self.fmtstring)
+            hdlr.setFormatter(fmt)
+            logger.addHandler(hdlr)
+            self.loggers.append([logger,
+                                 int(dest.get("loglevel",
+                                              self.default_loglevel))
+                                 ])
+
+        else:
+            # Unhandled value
+            raise IOError("1", "Unknown log method " + repr(dest.tag))
 
     def dmsg(self, msg, lvl=6):
         "Log a debug message. Default level is 6"

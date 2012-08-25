@@ -377,6 +377,10 @@ if __name__ == '__main__':
         '--get_desired', '-g', action = 'store_true',
         help='Download and compile desired status, then exit.'
         )
+    parser.add_argument(
+        '--logging', '-l', action = 'append',
+        help='Specify extra logging elements, eg: <stream id="stdout" loglevel="6"/>'
+        )
     parser.add_argument('--desired', '-d', nargs='?',
                         help='desired status file')
     parser.add_argument('--desired_xpath', '-dx', nargs='?',
@@ -387,6 +391,12 @@ if __name__ == '__main__':
                         help='xpath of status in initial status file')
 
     args = parser.parse_args()
+    
+    if args.logging is None:
+        args.logging = []
+    for eltstr in args.logging:
+        l.add_destination(etree.fromstring(eltstr))
+        l.lmsg('added log destination {}'.format(eltstr))
 
     if args.get_desired:
         u = Update()

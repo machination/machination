@@ -8,6 +8,8 @@ from machination import context
 #from machination.xmltools import pstring
 from machination.cosign import CosignPasswordMgr, CosignHandler
 
+l = context.logger
+
 try:
     import urllib.request as urllib_request
     import http.client as http_client
@@ -128,11 +130,11 @@ class WebClient(object):
         self.opener = urllib_request.build_opener(*handlers)
 
     def call(self, name, *args):
-        print("calling " + name + " on " + self.url)
+        l.lmsg("calling " + name + " on " + self.url)
         call_elt = etree.Element("r", call=name)
         for arg in args:
             call_elt.append(to_xml(arg))
-        print(etree.tostring(call_elt, pretty_print=True))
+        l.dmsg(etree.tostring(call_elt, pretty_print=True))
 
         # construct and send a request
         r = urllib_request.Request(

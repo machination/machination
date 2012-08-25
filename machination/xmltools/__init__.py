@@ -489,7 +489,7 @@ def apply_wu(wu, stelt, prefix = None):
             # deepmod was created).
             #
             # TODO(colin): preserve the original order
-            print(elt_mrx.to_xpath())
+#            print(elt_mrx.to_xpath())
             if wd.is_workunit(elt_mrx) and not new_top.xpath(elt_mrx.to_xpath()):
                 new_elt.append(copy.deepcopy(elt))
         # now the deepmod element should represent the new state

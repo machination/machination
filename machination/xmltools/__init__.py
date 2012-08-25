@@ -455,7 +455,7 @@ def apply_wu(wu, stelt, prefix = None):
             parent_elt.insert(0, copy.deepcopy(wu[0]))
         else:
             # find the element corresponding to pos
-            prev = stdoc.xpath(pos)[0]
+            prev = stelt.xpath(pos)[0]
             # insert after prev
             parent_elt.insert(
                 parent_elt.index(prev) + 1,
@@ -470,7 +470,7 @@ def apply_wu(wu, stelt, prefix = None):
         if pos == '<first>':
             parent_elt.insert(0, tgt_elt)
         else:
-            prev = stdoc.xpath(strip_prefix(pos, strip))[0]
+            prev = stelt.xpath(strip_prefix(pos, strip))[0]
             parent_elt.insert(
                 parent_elt.index(prev) + 1,
                 tgt_elt

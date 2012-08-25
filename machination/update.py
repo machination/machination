@@ -149,7 +149,7 @@ class Update(object):
         for wid, completed in work_status.items():
             if completed[0]:
                 # Apply successes to wu_updated_status
-                apply_wu(completed[1], wu_updated_status)
+                wu_updated_status = apply_wu(completed[1], wu_updated_status)
             else:
                 failures.append([wid, completed[1]])
         # Report failures.

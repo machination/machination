@@ -114,37 +114,41 @@ class Update(object):
 #                                     workelt, work_depends, work_status)
 
             # do the work
-            for wname, workelt in byworker.items():
+            for wname, bigworkelt in byworker.items():
                 l.lmsg('dispatching to ' + wname)
-                l.dmsg('work:\n' + pstring(workelt))
+                l.dmsg('work:\n' + pstring(bigworkelt))
                 worker = self.worker(wname)
                 if worker:
-                    try:
-                        results = self.worker(wname).do_work(workelt)
-                    except Exception as e:
-                        exc_type, exc_value, exc_tb = sys.exc_info()
-                        for wu in workelt:
-                            work_status[wu.get('id')] = [
-                                False,
-                                "Exception in worker {}\n{}".format(
-                                    wname, str(e)
+                    for bigwu in bigworkelt:
+                        # go back to sending wus one at a time for now
+                        workelt = etree.Element('wus',worker=wname)
+                        workelt.append(copy.deepcopy(bigwu))
+                        try:
+                            results = self.worker(wname).do_work(workelt)
+                        except Exception as e:
+                            exc_type, exc_value, exc_tb = sys.exc_info()
+                            for wu in workelt:
+                                work_status[wu.get('id')] = [
+                                    False,
+                                    "Exception in worker {}\n{}".format(
+                                        wname, str(e)
+                                        )
+                                    ]
+                                l.emsg(
+                                    "Exception from worker {} - failing its work\n{}".format(
+                                        wname,
+                                        ''.join(traceback.format_tb(exc_tb)) + repr(e)
+                                        )
                                     )
-                                ]
-                        l.emsg(
-                            "Exception from worker {} - failing its work\n{}".format(
-                                wname,
-                                ''.join(traceback.format_tb(exc_tb)) + repr(e)
+                        else:
+                            self.process_results(
+                                results,
+                                workelt,
+                                work_status
                                 )
-                            )
-                    else:
-                        self.process_results(
-                            results,
-                            workelt,
-                            work_status
-                            )
                 else:
                     # No worker: fail this set of work
-                    for wu in workelt:
+                    for wu in bigworkelt:
                         work_status[wu.get('id')] = [
                             False,
                             "No worker '{}'".format(wname)
@@ -156,6 +160,10 @@ class Update(object):
         for wid, completed in work_status.items():
             if completed[0]:
                 # Apply successes to wu_updated_status
+                l.dmsg('applying {} to:\n{}'.format(
+                        etree.tostring(completed[1], pretty_print=True).decode(),
+                         etree.tostring(wu_updated_status, pretty_print=True).decode(),
+                        ))
                 wu_updated_status = apply_wu(completed[1], wu_updated_status)
             else:
                 failures.append([wid, completed[1]])
@@ -301,9 +309,9 @@ class Update(object):
                 try:
                     wstatus = worker.generate_status()
                 except AttributeError:
-                    # No generate_status method: leave previous status
-                    # undefined.
-                    pass
+                    # No generate_status method and no previous status
+                    # element, create one
+                    stelt.append(etree.Element('worker', id=welt.get('id')))
                 else:
                     stelt.append(wstatus)
         return status

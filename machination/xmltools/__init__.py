@@ -41,6 +41,33 @@ except AttributeError:
     from machination import threebits
     functools.lru_cache = threebits.lru_cache
 
+def mc14n(elt):
+    '''Machination canonicalization
+
+    Mostly strip ignorable white space from data elements'''
+
+    # Make sure we are working on an element
+    if isinstance(elt, etree._ElementTree):
+        elt = elt.getroot()
+
+    # Strip comments
+    if isinstance(elt, etree._Comment):
+        elt.getparent().remove(elt)
+
+    # C14n of children
+    children = 0
+    for e in elt.iterchildren():
+        mc14n(e)
+        children = children + 1
+
+    # If elt has any children then it can't be a text element. Note
+    # this include comment children => no comments in text bearing
+    # elements.
+    if children:
+        elt.text = None
+        elt.tail = None
+
+    return elt
 
 def pstring(e, top=True, depth=0, istring='  '):
     """pretty string representation of an etree element"""

@@ -18,6 +18,7 @@ import os
 import importlib
 import sys
 import pprint
+import traceback
 
 l = context.logger
 
@@ -121,6 +122,7 @@ class Update(object):
                     try:
                         results = self.worker(wname).do_work(workelt)
                     except Exception as e:
+                        exc_type, exc_value, exc_tb = sys.exc_info()
                         for wu in workelt:
                             work_status[wu.get('id')] = [
                                 False,
@@ -128,7 +130,12 @@ class Update(object):
                                     wname, str(e)
                                     )
                                 ]
-                        l.emsg("Exception from worker {} - failing its work".format(wname))
+                        l.emsg(
+                            "Exception from worker {} - failing its work\n{}".format(
+                                wname,
+                                ''.join(traceback.format_tb(exc_tb)) + repr(e)
+                                )
+                            )
                     else:
                         self.process_results(
                             results,
@@ -319,8 +326,13 @@ class Update(object):
                 except Exception as eol:
                     l.wmsg("No worker '%s', storing 'None'!" % name)
                     w = None
-        except:
-            l.wmsg("Failed to start worker '{}', storing 'None'".format(name))
+        except Exception as e:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            l.emsg("Failed to start worker '{}', storing 'None'".format(name))
+            l.emsg('Traceback:\n{}'.format(
+                    ''.join(traceback.format_tb(exc_tb)) + repr(e)
+                    )
+                   )
             w = None
         self.workers[name] = w
         if w:

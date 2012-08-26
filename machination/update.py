@@ -7,6 +7,7 @@ from machination.xmltools import generate_wus
 from machination.xmltools import apply_wu
 from machination.xmltools import pstring
 from machination.xmltools import AssertionCompiler
+from machination.xmltools import mc14n
 from machination import utils
 from machination.webclient import WebClient
 from lxml import etree
@@ -26,6 +27,7 @@ class Update(object):
 
     def __init__(self, initial_status=None, desired_status=None):
         self.workers = {}
+        mc14n(context.desired_status)
         self._initial_status = initial_status
         self._desired_status = desired_status
         self._previous_status = None
@@ -160,11 +162,14 @@ class Update(object):
         for wid, completed in work_status.items():
             if completed[0]:
                 # Apply successes to wu_updated_status
-                l.dmsg('applying {} to:\n{}'.format(
+                print('applying {} to:\n{}'.format(
                         etree.tostring(completed[1], pretty_print=True).decode(),
                          etree.tostring(wu_updated_status, pretty_print=True).decode(),
                         ))
                 wu_updated_status = apply_wu(completed[1], wu_updated_status)
+                print('result:\n{}'.format(
+                        etree.tostring(wu_updated_status, pretty_print=True).decode(),
+                        ))
             else:
                 failures.append([wid, completed[1]])
         # Report failures.
@@ -234,7 +239,8 @@ class Update(object):
                                'os_instance',
                                mid)
             except:
-                # couldn't dowload assertions - go with last desireed status
+                # couldn't dowload assertions - go with last desireed
+                # status. Should already be canonicalized.
                 self._desired_status = copy.deepcopy(
                     context.desired_status.getroot()
                     )
@@ -243,6 +249,7 @@ class Update(object):
 #                pprint.pprint(data)
                 ac = AssertionCompiler(wc)
                 self._desired_status, res = ac.compile(data)
+                mc14n(self._desired_status)
                 # Save as desired-status.xml
                 with open(
                     os.path.join(
@@ -268,12 +275,13 @@ class Update(object):
                 self._previous_status = E.status()
             else:
                 raise
+        mc14n(self._previous_status)
         return self._previous_status
 
     def previous_status(self):
         """Get the status from the previous run."""
         if self._previous_status is None:
-            return self.load_previous_status()
+            self._previous_status = self.load_previous_status()
         return self._previous_status
 
     def gather_status(self):
@@ -314,6 +322,7 @@ class Update(object):
                     stelt.append(etree.Element('worker', id=welt.get('id')))
                 else:
                     stelt.append(wstatus)
+        mc14n(status)
         return status
 
     def worker(self, name):

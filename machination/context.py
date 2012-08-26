@@ -187,7 +187,6 @@ except IOError:
                 '/status/worker[@id="__machination__"]'
                 )[0]
             welt.append(ssl_elt)
-            
 
 machination_worker_elt = get_worker_elt('__machination__')
 logging_elts = machination_worker_elt.xpath(

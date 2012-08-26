@@ -186,7 +186,7 @@ class Worker(object):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         # Have we already got it?
-        target = self.cache_dir() + work.attrib["id"]
+        target = self.cache_dir + work.attrib["id"]
         if os.path.isdir(target):
             # Successful download already happened
             msg = "Bundle directory already exists."

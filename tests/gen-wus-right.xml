@@ -1,0 +1,24 @@
+<status>
+  <worker id="__machination__">
+    <services>
+      <service id="splat">
+	<hierarchy id="hurl"/>
+	<authentication/>
+      </service>
+    </services>
+    <daemon address="" port="1313" sleeptime="10000"/>
+    <logging/>
+  </worker>
+  <worker id="packageman">
+    <package id="toad">
+      <machinationFetcherBundle id="toad-1"/>
+    </package>
+  </worker>
+  <worker id="fetcher">
+    <config>
+      <source id="test" mechanis="urllib" url="dlurl"/>
+    </config>
+  
+    <bundle id="toad-1"/>
+  </worker>
+</status>

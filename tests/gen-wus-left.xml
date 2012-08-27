@@ -1,0 +1,15 @@
+<status>
+  <worker id="__machination__">
+    <services>
+      <service id="splat">
+	<hierarchy id="hurl"/>
+      </service>
+    </services>
+    <daemon address="" port="1313" sleeptime="10000"/>
+  </worker>
+  <worker id="fetcher">
+    <config>
+      <source id="test" mechanis="urllib" url="dlurl"/>
+    </config>
+  </worker>
+</status>

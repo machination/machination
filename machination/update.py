@@ -48,6 +48,7 @@ class Update(object):
         except IndexError:
             deps = etree.fromstring('<status><deps/></status>')[0]
         wudeps = comp.wudeps(deps.iterchildren(tag=etree.Element))
+
         # Track success/failure of work units.
         #
         # Before a work unit is attempted work_status[wu] should not
@@ -86,6 +87,16 @@ class Update(object):
                 continue
             l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 6)
             wus, working_elt = generate_wus(set(lev), comp)
+
+# Some debugging code
+#            print(etree.tostring(self.desired_status(), pretty_print = True).decode())
+#            print(etree.tostring(self.initial_status(), pretty_print = True).decode())
+#
+#            for wu in wus:
+#                print(etree.tostring(wu, pretty_print = True).decode())
+#
+#            sys.exit(0)
+
 
             # collect workunits by worker
             byworker = {}
@@ -315,7 +326,8 @@ class Update(object):
                 except AttributeError:
                     # No generate_status method and no previous status
                     # element, create one
-                    stelt.append(etree.Element('worker', id=welt.get('id')))
+                    #stelt.append(etree.Element('worker', id=welt.get('id')))
+                    pass
                 else:
                     stelt.append(wstatus)
         mc14n(status)

@@ -1447,7 +1447,18 @@ class XMLCompare(object):
 
         wi = len(MRXpath(prefix))
 
-        return {self.wds(prefix)[MRXpath(x)[wi].id()].find_workunit(x) for x in diffs if x.startswith(prefix + "/worker")}
+        wus = set()
+        for x in diffs:
+            print(x)
+            mrx = MRXpath(x)
+            if mrx[wi].name() != 'worker':
+                continue
+            if len(mrx) < 2:
+                continue
+            wus.add(self.wds(prefix)[mrx[wi].id()].find_workunit(x))
+        return wus
+
+#        return {self.wds(prefix)[MRXpath(x)[wi].id()].find_workunit(x) for x in diffs if(len(MRXpath(x)) > 2)}
 
     def wds(self, prefix="/status"):
         """create a dictionary of WorkerDescriptions"""

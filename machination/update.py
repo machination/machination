@@ -162,15 +162,10 @@ class Update(object):
         for wid, completed in work_status.items():
             if completed[0]:
                 # Apply successes to wu_updated_status
-                print('applying {} to:\n{}'.format(
-                        etree.tostring(completed[1], pretty_print=True).decode(),
-                         etree.tostring(wu_updated_status, pretty_print=True).decode(),
-                        ))
+                l.dmsg('Marking {} succeeded.'.format(wid))
                 wu_updated_status = apply_wu(completed[1], wu_updated_status)
-                print('result:\n{}'.format(
-                        etree.tostring(wu_updated_status, pretty_print=True).decode(),
-                        ))
             else:
+                l.dmsg('Marking {} failed.'.format(wid))
                 failures.append([wid, completed[1]])
         # Report failures.
         l.lmsg(

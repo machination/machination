@@ -168,6 +168,7 @@ class Worker(object):
                                     id=wu.attrib["id"],
                                     status="error",
                                     message=msg)
+                continue
             wu_mrx = MRXpath(wu.attrib["id"])
             if wu_mrx.name() == "config":
                 self.config_elt = xmltools.apply_wu(

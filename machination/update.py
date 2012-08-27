@@ -241,6 +241,7 @@ class Update(object):
             except:
                 # couldn't dowload assertions - go with last desireed
                 # status. Should already be canonicalized.
+                l.wmsg('Failed to download assertions - using desired status from context.')
                 self._desired_status = copy.deepcopy(
                     context.desired_status.getroot()
                     )
@@ -420,7 +421,7 @@ if __name__ == '__main__':
                         help='xpath of status in initial status file')
 
     args = parser.parse_args()
-    
+
     if args.logging is None:
         args.logging = []
     for eltstr in args.logging:

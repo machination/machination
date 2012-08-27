@@ -1397,10 +1397,10 @@ class XMLCompare(object):
     def order_diff(self):
         # check child order for all xpaths that are in both sides
         for xp in self.bothsidesset:
-            context.logger.dmsg('checking order for' + xp)
+            context.logger.dmsg('checking order for' + xp, 10)
             mrx = MRXpath(xp)
             if mrx.is_attribute():
-                context.logger.dmsg('  attribute - ignoring')
+                context.logger.dmsg('  attribute - ignoring', 10)
                 continue
             # xp guaranteed(?) to exist in both by construction
             left_elt = self.leftxml.xpath(xp)[0]

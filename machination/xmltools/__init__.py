@@ -1449,7 +1449,7 @@ class XMLCompare(object):
 
         wus = set()
         for x in diffs:
-            print(x)
+#            print(x)
             mrx = MRXpath(x)
             if mrx[wi].name() != 'worker':
                 continue

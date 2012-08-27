@@ -254,7 +254,7 @@ class Worker(object):
     def _check_reg(self, key):
         r = wmi.Registry()
         _HLKM = 2147483650
-        reg_key = "software\microsoft\windows\currentversion\uninstall"
+        reg_key = r"software\microsoft\windows\currentversion\uninstall"
 
         result, names = r.EnumKey(_HKLM, reg_key)
 
@@ -262,7 +262,7 @@ class Worker(object):
             return True
 
         # 32 bit program so check that registry node
-        reg_key = "software\wow6432node\microsoft\windows\currentversion\uninstall"
+        reg_key = r"software\wow6432node\microsoft\windows\currentversion\uninstall"
         result, names = r.EnumKey(_HKLM, reg_key)
 
         if result:

@@ -41,6 +41,15 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
+            if wu[0].tag != "var":
+                msg = "Work unit of type: " + wu[0].tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
@@ -88,9 +97,6 @@ class Worker(object):
         # as <var> is the wu-tag, for registry entries, modify == add.
         return self._add(work)
 
-    def _move(self, work):
-        pass
-
     def _remove(self, work):
         "Remove unwanted variables"
         # If we don't have notpres=1, it's an environment var that Machination
@@ -118,9 +124,3 @@ class Worker(object):
         else:
             res.attrib["status"] = "success"
         return res
-
-    def generate_status(self):
-        w_elt = etree.Element("Return")
-        w_elt.attrib["method"] = "generate_status"
-        w_elt.attrib["implemented"] = 0
-        return w_elt

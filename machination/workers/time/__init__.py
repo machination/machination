@@ -26,6 +26,15 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
+            if wu[0].tag not in ["SyncFromFlags", "ManualPeerList"]:
+                msg = "Work unit of type: " + wu[0].tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
@@ -90,10 +99,6 @@ class Worker(object):
 
     def _datamod(self, work):
         return self._deepmod(self, work)
-
-    def _move(self, work):
-        # Order makes no sense
-        pass
 
     def generate_status(self):
         type = ""

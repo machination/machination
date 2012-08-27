@@ -32,7 +32,10 @@ class Worker(object):
                 msg = "Work unit of type: " + wu.tag
                 msg += " not understood by packageman. Failing."
                 l.emsg(msg)
-                res = etree.Element("wu",id=wu.attrib["id"],status="error",message=msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
                 continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
@@ -78,9 +81,6 @@ class Worker(object):
             return d
         else:
             return self._add(work)
-
-    def _move(self, work):
-        pass
 
     def _process(self, work, operation):
         # Prep necessary variables
@@ -275,10 +275,3 @@ class Worker(object):
             return False
 
         return key in names
-
-    def generate_status(self):
-        # Update can keep track of packages.
-        w_elt = etree.Element("Return")
-        w_elt.attrib["method"] = "generate_status"
-        w_elt.attrib["implemented"] = "0"
-        return w_elt

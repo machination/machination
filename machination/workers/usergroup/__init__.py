@@ -39,6 +39,15 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
+            if wu[0].tag not in ["user", "group"]:
+                msg = "Work unit of type: " + wu[0].tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
@@ -252,44 +261,3 @@ class Worker(object):
 
     def _datamod(self, work):
         return self._deepmod(work)
-
-    def _order(self, work):
-        pass
-
-    def generate_status(self):
-        c = wmi.WMI()
-        w_elt = etree.Element("usergroup")
-        sysname = uname()[1]
-
-        # Build a list of local group elements
-        for group in c.Win32_Group(LocalAccount=True):
-            g_elt = etree.Element("group")
-            g_elt.attrib["id"] = group.Name
-            # Get a list of group members
-            members, count, handle = win32net.NetLocalGroupGetMembers(None,
-                                                               group.Name,
-                                                               3)
-            for member in members:
-                # Member is a dictionary, thanks to the windows API.
-                domname = member["domainandname"].split('\\')
-                m_elt = etree.Element("member")
-                if domname[0].upper() != sysname.upper():
-                    m_elt.attrib["domain"] = domname[0]
-                m_elt.attrib["id"] = domname[1]
-                g_elt.append(m_elt)
-
-            # We're only interested in groups with members
-            if len(g_elt) > 0:
-                w_elt.append(g_elt)
-
-        # Iterate over local user elements only
-        for user in c.Win32_UserAccount(LocalAccount=True):
-            u_elt = etree.Element("user")
-            u_elt.attrib["id"] = user.Name
-            u_elt.attrib["password_can_expire"] = int(user.PasswordExpires)
-            d = etree.Element("Description")
-            d.text = user.Description
-            u_elt.append(d)
-            w_elt.append(u_elt)
-
-        return w_elt

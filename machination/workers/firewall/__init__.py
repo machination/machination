@@ -34,6 +34,15 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
+            if wu[0].tag != "rule":
+                msg = "Work unit of type: " + wu[0].tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)

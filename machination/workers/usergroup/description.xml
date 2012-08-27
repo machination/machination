@@ -46,7 +46,7 @@ gui:doc="documentation.html"
                 </element>
             </zeroOrMore>
         </element>
-        <element name="group">
+        <element name="group" wu:wu="1">
             <attribute name="id">
                 <text/>
             </attribute>

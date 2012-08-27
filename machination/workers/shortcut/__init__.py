@@ -40,6 +40,15 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
+            if wu[0].tag != "shortcut":
+                msg = "Work unit of type: " + wu[0].tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)
@@ -102,9 +111,6 @@ class Worker(object):
             return d
         return self._add(work)
 
-    def _move(self, work):
-        pass
-
     def _remove(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
@@ -143,9 +149,3 @@ class Worker(object):
             func(path)
         else:
             raise
-
-    def generate_status(self):
-        w_elt = etree.Element("Return")
-        w_elt.attrib["method"] = "generate_status"
-        w_elt.attrib["implemented"] = 0
-        return w_elt

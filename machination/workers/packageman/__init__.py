@@ -274,5 +274,5 @@ class Worker(object):
         # Update can keep track of packages.
         w_elt = etree.Element("Return")
         w_elt.attrib["method"] = "generate_status"
-        w_elt.attrib["implemented"] = 0
+        w_elt.attrib["implemented"] = "0"
         return w_elt

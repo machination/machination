@@ -54,6 +54,9 @@ def mc14n(elt):
     if isinstance(elt, etree._Comment):
         elt.getparent().remove(elt)
 
+    # No tails (not for /local/ people)
+    elt.tail = None
+
     # C14n of children
     children = 0
     for e in elt.iterchildren():
@@ -65,7 +68,6 @@ def mc14n(elt):
     # elements.
     if children:
         elt.text = None
-        elt.tail = None
 
     return elt
 

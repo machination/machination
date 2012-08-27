@@ -1,6 +1,10 @@
 <status>
   <worker id="splat">
     <indented><notindented>text</notindented></indented>
+    <child2>
+      <schild1/>
+      <schild2/>
+    </child2>
   </worker>
   <!-- comment -->
 </status>

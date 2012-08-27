@@ -160,6 +160,14 @@ class Worker(object):
         pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
+            if wu.tag not in ["bundle", "config"]:
+                msg = "Work unit of type: " + wu.tag
+                msg += " not understood by fetcher. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"],
+                                    status="error",
+                                    message=msg)
             wu_mrx = MRXpath(wu.attrib["id"])
             if wu_mrx.name() == "config":
                 self.config_elt = xmltools.apply_wu(

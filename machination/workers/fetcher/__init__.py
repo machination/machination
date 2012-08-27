@@ -160,8 +160,8 @@ class Worker(object):
         pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
-            if wu.tag not in ["bundle", "config"]:
-                msg = "Work unit of type: " + wu.tag
+            if wu[0].tag not in ["bundle", "config"]:
+                msg = "Work unit of type: " + wu[0].tag
                 msg += " not understood by fetcher. Failing."
                 l.emsg(msg)
                 res = etree.Element("wu",
@@ -385,12 +385,6 @@ class Worker(object):
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
 
-        return res
-
-    def _move(self, work):
-        res = etree.Element("wu",
-                            id=work.attrib["id"])
-        res.attrib["status"] = success
         return res
 
     def _datamod(self, work):

@@ -402,6 +402,7 @@ class Worker(object):
             l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
+            return res
 
         hashfile = os.path.join(bundle_dir, 'hash')
         if not os.path.exists(hashfile):
@@ -409,6 +410,7 @@ class Worker(object):
             l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
+            return res
 
         with open(hashfile, 'r') as f:
             oldhash = f.read()
@@ -421,6 +423,7 @@ class Worker(object):
             l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
+            return res
 
         old = os.path.exists(os.path.join(bundle_dir, '.keep'))
         new = work[0].attrib["keep"] == '1'

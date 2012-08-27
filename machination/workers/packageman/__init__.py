@@ -28,6 +28,12 @@ class Worker(object):
         result = []
 
         for wu in work_list:
+            if wu.tag != "package":
+                msg = "Work unit of type: " + wu.tag
+                msg += " not understood by packageman. Failing."
+                l.emsg(msg)
+                res = etree.Element("wu",id=wu.attrib["id"],status="error",message=msg)
+                continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
             result.append(res)

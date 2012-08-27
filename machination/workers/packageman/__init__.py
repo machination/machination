@@ -29,7 +29,7 @@ class Worker(object):
 
         for wu in work_list:
             operator = "_{}".format(wu.attrib["op"])
-            res = getattr(self, operator)(wu, s_elt)
+            res = getattr(self, operator)(wu)
             result.append(res)
         return result
 

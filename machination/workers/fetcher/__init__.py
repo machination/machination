@@ -195,13 +195,14 @@ class Worker(object):
         res = etree.Element("wu",
                             id=work.attrib["id"])
         # Have we already got it?
-        target = self.cache_dir + work.attrib["id"]
+        target = os.path.join(self.cache_dir, work[0].attrib["id"])
         if os.path.isdir(target):
             # Successful download already happened
             msg = "Bundle directory already exists."
             l.emsg(msg)
             res.attrib["status"] = "error"
             res.attrib["message"] = msg
+            return res
 
         # Where are we getting it from?
         for source in self.config_elt.xpath('source'):
@@ -238,8 +239,6 @@ class Worker(object):
             ttw = 30
 
         # Set destination
-        print(context.cache_dir())
-        print(self.cache_dir)
         dest = os.path.join(self.cache_dir, '.' + work[0].attrib["id"])
 
         # Set up directory structure
@@ -488,4 +487,7 @@ class Worker(object):
             if not os.path.isdir(os.path.join(self.cache_dir, bundle, 'files')):
                 b_elt.attrib["cleaned"] = 1
 
+        print(">>SW>>")
+        print(etree.tostring(w_elt,pretty_print=True).decode())
+        print("<<SW<<")
         return w_elt

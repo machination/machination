@@ -80,6 +80,7 @@ class Update(object):
         wudeps.extend([['', x] for x in comp.find_work()])
         l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
         i = 0
+        wu_updated_status = copy.deepcopy(self.initial_status())
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:
@@ -88,19 +89,26 @@ class Update(object):
             l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 6)
             wus, working_elt = generate_wus(set(lev), comp)
 
-# Some debugging code
-#            print(etree.tostring(self.desired_status(), pretty_print = True).decode())
-#            print(etree.tostring(self.initial_status(), pretty_print = True).decode())
-#
+#            l.dmsg(pstring(self.initial_status(),10))
+#            l.dmsg(pstring(self.desired_status(),10))
 #            for wu in wus:
-#                print(etree.tostring(wu, pretty_print = True).decode())
-#
-#            sys.exit(0)
+#                l.dmsg(pstring(wu), 10)
 
 
             # collect workunits by worker
             byworker = {}
             for wu in wus:
+                # If it's an add for a worker, add the worker element
+                wu_mrx = MRXpath(wu.get('id'))
+                if wu_mrx.to_noid_path() == '/status/worker' and wu.get('op') == 'add':
+                    wu_updated_status.xpath('/status')[0].append(
+                        etree.Element(
+                            'worker',
+                            id = wu_mrx.id()
+                            )
+                        )
+                    continue
+
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
                 if not check[0]:
@@ -167,7 +175,6 @@ class Update(object):
                             "No worker '{}'".format(wname)
                             ]
 
-        wu_updated_status = copy.deepcopy(self.initial_status())
         # Gather sucesses and failures
         failures = []
         for wid, completed in work_status.items():

@@ -71,7 +71,7 @@ def mc14n(elt):
 
     return elt
 
-def pstring(e, top=True, depth=0, istring='  '):
+def pstring_old(e, top=True, depth=0, istring='  '):
     """pretty string representation of an etree element"""
     if isinstance(e, etree._ElementTree):
         e = e.getroot()
@@ -92,6 +92,12 @@ def pstring(e, top=True, depth=0, istring='  '):
     if not top:
         rep.append("\n")
     return ''.join(rep)
+
+def pstring(e):
+    """pretty string representation of an etree element"""
+    if isinstance(e, etree._ElementTree):
+        e = e.getroot()
+    return etree.tostring(e, pretty_print = True).decode()
 
 
 def generate_wus(todo, comp, orderstyle="move"):
@@ -389,11 +395,11 @@ def generate_wus(todo, comp, orderstyle="move"):
             # there is not a corresponding element in working
 
             # if it's a worker element we better just add it
-            if tmrx.to_noid_path() == "/status/worker":
-                welt = etree.Element(tmrx.name(), id=tmrx.id())
-                working.xpath("/status")[0].append(welt)
-                # but no need to go on and generate a wu
-                continue
+#            if tmrx.to_noid_path() == "/status/worker":
+#                welt = etree.Element(tmrx.name(), id=tmrx.id())
+#                working.xpath("/status")[0].append(welt)
+#                # but no need to go on and generate a wu
+#                continue
 
             # add
             # if there is an add in actions, otherwise the
@@ -511,13 +517,17 @@ def apply_wu(wu, stelt, prefix = None):
         prefix = MRXpath(prefix)
     stelt = add_prefix_elts(copy.deepcopy(stelt), prefix)
     xpath = wu.get('id')
-#    print('In:')
-#    print(etree.tostring(stelt).decode('utf8'))
-#    print(xpath)
-#    print()
-    tgt_elt = stelt.xpath(xpath)[0]
-    parent_elt = tgt_elt.getparent()
     op = wu.get('op')
+    if op == 'add':
+#        print('In:')
+#        print(pstring(stelt))
+#        print(xpath)
+#        print(pstring(wu))
+#        print()
+        parent_elt = stelt.xpath(MRXpath(xpath).parent().to_xpath())[0]
+    else:
+        tgt_elt = stelt.xpath(xpath)[0]
+        parent_elt = tgt_elt.getparent()
     if op == 'add':
         # The element to add is in wu[0]
         pos = wu.get('pos')

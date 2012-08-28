@@ -67,7 +67,7 @@ class Update(object):
                 for ivb_elt in wu[0].xpath('machinationFetcherBundle'):
                     bid = MRXpath.quote_id(MRXpath, ivb_elt.get('id'))
                     bundle_xp = MRXpath(
-                        '/status/worker[@id="fetcher"]/bundle[{}]'.format(bid)
+                        "/status/worker[@id='fetcher']/bundle['{}']".format(bid)
                         ).to_xpath()
                     selfupdate_bundles.add(bundle_xp)
 
@@ -112,7 +112,7 @@ class Update(object):
             wudeps.extend(
                 [[iv_mrx.to_xpath(), x]
                  for x in
-                 (comp.find_work() - selfupdate_bundles - iv_mrx.to_xpath())]
+                 (comp.find_work() - selfupdate_bundles - {iv_mrx.to_xpath()})]
                 )
         for dep in wudeps:
             if work_depends.get(dep[1]):
@@ -120,8 +120,8 @@ class Update(object):
                 work_depends.get(dep[1]).append(dep[0])
             else:
                 # entry for dep[1] does not exist, create it
-                work_depends.set(dep[1], [dep[0]])
-        l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
+                work_depends[dep[1]] = [dep[0]]
+#        l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
         # we need to make all workunits depend on something for
         # topsort to work
         if selfupdate:
@@ -129,13 +129,11 @@ class Update(object):
             wudeps.extend([['', x] for x in selfupdate_bundles])
         else:
             wudeps.extend([['', x] for x in comp.find_work()])
-        l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
-        i = 0
+#        l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
+
         wu_updated_status = copy.deepcopy(self.initial_status())
 
-        pprint.pprint(topsort.topsort_levels(wudeps))
-        sys.exit(0)
-
+        i = 0
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:
@@ -167,10 +165,8 @@ class Update(object):
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
                 if not check[0]:
-                    work_status.set(
-                        wu.get('id'),
-                        [False, "Dependency '{}' failed".format(check[1])]
-                        )
+                    work_status[wu.get('id')] = [
+                        False, "Dependency '{}' failed".format(check[1])]
                     # don't include this wu in work to be done
                     continue
                 workername = MRXpath(wu.get('id')).workername(prefix='/status')

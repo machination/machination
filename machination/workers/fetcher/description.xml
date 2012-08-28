@@ -60,9 +60,6 @@ xmlns:plat="https://github.com/machination/ns/platforms"
             <value>1</value>
           </choice>
         </attribute>
-        <attribute name="hash">
-            <text/>
-        </attribute>
       </optional>
     </element>
   </zeroOrMore>

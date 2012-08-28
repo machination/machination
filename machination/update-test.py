@@ -47,12 +47,37 @@ class Update(object):
         iv_mrx = MRXpath(
             '/status/worker[@id="__machination__"]/installedVersion'
             )
-        print(iv_mrx)
-        pprint.pprint(comp.actions()['deepmod'])
+        selfupdate = False
+        selfupdate_bundles = set()
         if iv_mrx.to_xpath() in comp.find_work():
+            # installedVersion has changed somehow
             wus, working = generate_wus({iv_mrx.to_xpath()}, comp)
-            print(wus)
-        sys.exit(0)
+            wu = wus[0]
+            if wu.get('op') == 'add' or wu.get('op') == 'deepmod':
+                # Definitely updating
+                l.lmsg(
+                    '{} on {}: need to self update'.format(
+                        wu.get('op'),
+                        iv_mrx.to_xpath()
+                        ),
+                    3)
+                selfupdate = True
+
+                # Check for bundles and add to selfupdate_bundles
+                for ivb_elt in wu[0].xpath('machinationFetcherBundle'):
+                    bid = MRXpath.quote_id(MRXpath, ivb_elt.get('id'))
+                    bundle_xp = MRXpath(
+                        '/status/worker[@id="fetcher"]/bundle[{}]'.format(bid)
+                        ).to_xpath()
+                    selfupdate_bundles.add(bundle_xp)
+
+                # only interested in bundles with a work unit to do
+                selfupdate_bundles = selfupdate_bundles & comp.find_work()
+
+#                fetcher_wus, working = generate_wus(todo, comp)
+#                # use the fetcher worker to get bundles
+#                worker = self.worker('fetcher')
+#                for wu in fetcher_wus:
 
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
@@ -78,6 +103,17 @@ class Update(object):
         # set up a dictionary:
         # { work_unit: [list, of, units, work_unit, depends, on] }
         work_depends = {}
+
+        if selfupdate:
+            # installedVersion depends on all bundles
+            wudeps.extend([[x, iv_mrx.to_xpath()] for x in selfupdate_bundles])
+            # Everything else apart from selfupdate bundles depends on
+            # installedVersion
+            wudeps.extend(
+                [[iv_mrx.to_xpath(), x]
+                 for x in
+                 (comp.find_work() - selfupdate_bundles - iv_mrx.to_xpath())]
+                )
         for dep in wudeps:
             if work_depends.get(dep[1]):
                 # entry for dep[1] already exists, add to it
@@ -88,10 +124,18 @@ class Update(object):
         l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
         # we need to make all workunits depend on something for
         # topsort to work
-        wudeps.extend([['', x] for x in comp.find_work()])
+        if selfupdate:
+            # selfupdate_bundles should be done first
+            wudeps.extend([['', x] for x in selfupdate_bundles])
+        else:
+            wudeps.extend([['', x] for x in comp.find_work()])
         l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
         i = 0
         wu_updated_status = copy.deepcopy(self.initial_status())
+
+        pprint.pprint(topsort.topsort_levels(wudeps))
+        sys.exit(0)
+
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:

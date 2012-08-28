@@ -519,11 +519,6 @@ def apply_wu(wu, stelt, prefix = None):
     xpath = wu.get('id')
     op = wu.get('op')
     if op == 'add':
-#        print('In:')
-#        print(pstring(stelt))
-#        print(xpath)
-#        print(pstring(wu))
-#        print()
         parent_elt = stelt.xpath(MRXpath(xpath).parent().to_xpath())[0]
     else:
         tgt_elt = stelt.xpath(xpath)[0]

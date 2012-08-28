@@ -374,9 +374,11 @@ class Update(object):
     def process_results(self, res, workelt, work_status):
         for ru in res:
             if ru.get("status") == "success":
+                l.lmsg('{} reports success'.format(ru.get('id')))
                 wu = workelt.xpath('wu[@id="{}"]'.format(ru.get('id')))[0]
                 work_status[ru.get('id')] = [True, wu]
             else:
+                l.emsg('{} reports failure'.format(ru.get('id')))
                 work_status[ru.get('id')] = [False, ru.get('message')]
 
 class WorkerError(Exception):

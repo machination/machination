@@ -118,8 +118,7 @@ if __name__ == "__main__":
         scriptargs = [''.join(sys.argv[1:]), '--install-script', scriptfile]
         data_files = [
             (os.path.join(appdata_dir,'conf'),[]),
-            (os.path.join(appdata_dir, 'status'),
-             ['packaging/desired-status.xml']),
+            (os.path.join(appdata_dir, 'status'),[]),
             (os.path.join(appdata_dir,'cache'),[]),
             (os.path.join(prog_dir,'bin'),
              ['bin/join-service.py',

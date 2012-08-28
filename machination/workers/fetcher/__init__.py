@@ -72,9 +72,7 @@ class Worker(object):
                 continue
             if not os.path.exists(os.path.join(a, '.done')):
                 continue
-            shutil.rmtree(os.path.join(a, 'files'),
-                          ignore_errors=false,
-                          onerror=self.handleRemoveReadonly)
+            shutil.rmtree(os.path.join(a, 'files'))
         return None
 
     def handleRemoveReadOnly(self, func, path, exc):
@@ -165,15 +163,16 @@ class Worker(object):
         pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
-            if wu[0].tag not in ["bundle", "config"]:
-                msg = "Work unit of type: " + wu[0].tag
-                msg += " not understood by fetcher. Failing."
-                l.emsg(msg)
-                res = etree.Element("wu",
-                                    id=wu.attrib["id"],
-                                    status="error",
-                                    message=msg)
-                continue
+            if len(wu) != 0:
+                if wu[0].tag not in ["bundle", "config"]:
+                    msg = "Work unit of type: " + wu[0].tag
+                    msg += " not understood by fetcher. Failing."
+                    l.emsg(msg)
+                    res = etree.Element("wu",
+                                        id=wu.attrib["id"],
+                                        status="error",
+                                        message=msg)
+                    continue
             wu_mrx = MRXpath(wu.attrib["id"])
             if wu_mrx.name() == "config":
                 self.config_elt = xmltools.apply_wu(
@@ -212,12 +211,13 @@ class Worker(object):
         # Where are we getting it from?
         for source in self.config_elt.xpath('source'):
             transport = "_download_{}".format(source.attrib["mechanism"])
-            l.lmsg(" ".join(["Trying to download via ",
+            l.lmsg(" ".join(["Trying to download via",
                              source.attrib["mechanism"],
+                             "from",
                              source.attrib["url"]]))
             out = getattr(self, transport)(source, work)
             if out == None:
-                l.wmsg("No handler defined for " + source.attrib["mechanism"])
+                l.wmsg("No handler for " + source.attrib["mechanism"])
             elif out.startswith("Failed"):
                 l.wmsg("Download from " + source.attrib["url"] + " failed")
                 l.wmsg(out)
@@ -266,11 +266,12 @@ class Worker(object):
         try:
             m = urllib.request.urlopen(manifest)
         except urllib.error.HTTPError as e:
-            reason = "HTTP Error: " + e.code
+            reason = "HTTP Error: " + str(e.code)
         except urllib.error.URLError as e:
             reason = "URL Error: " + e.reason
 
         if reason:
+            shutil.rmtree(dest),
             l.emsg(reason)
             return "Failed: " + reason
 
@@ -322,12 +323,12 @@ class Worker(object):
                     break
                 except urllib.error.HTTPError as e:
                     if num == 0:
-                        wmsg("HTTP Error " + e.code +
+                        wmsg("HTTP Error " + str(e.code) +
                              " Retrying in " + ttw + " seconds")
                         num -= 1
                         sleep(ttw)
                     else:
-                        msg = "Failed: HTTP Error: " + e.code
+                        msg = "Failed: HTTP Error: " + str(e.code)
                         emsg(msg)
                         return msg
 
@@ -345,9 +346,7 @@ class Worker(object):
             hash = work[0].attrib["hash"]
             if hash != sha.hexdigest():
                 l.emsg("Hash failure")
-                shutil.rmtree(os.path.join(dest),
-                          ignore_errors=false,
-                          onerror=self.handleRemoveReadonly)
+                shutil.rmtree(dest)
                 return "Failed: Hash failure"
             else:
               open(os.path.join(dest, '.hash.'),'a').close()
@@ -366,10 +365,15 @@ class Worker(object):
         pass
 
     def _remove(self, work):
+        print(etree.tostring(work,pretty_print=True).decode())
         res = etree.Element("wu",
                             id=work.attrib["id"])
+        # Deconstruct wu xpath
+        wu_mrx = MRXpath(work.attrib["id"])
+        bundle_id = wu_mrx.id()
+
         # Identify package directory
-        dest = os.path.join(self.cache_dir, work[0].attrib["id"])
+        dest = os.path.join(self.cache_dir, bundle_id)
 
         # Fail if not exist
         if not os.path.isdir(dest):
@@ -380,9 +384,7 @@ class Worker(object):
 
         # Nuke the directory
         try:
-            shutil.rmtree(dest,
-                          ignore_errors=false,
-                          onerror=self.handleRemoveReadonly)
+            shutil.rmtree(dest)
             res.attrib["status"] = success
         except:
             msg = "Could not remove package directory."
@@ -478,10 +480,13 @@ class Worker(object):
         # Loop through bundle elements.
 
         for bundle in self.list_bundles():
+            if bundle[0] == ".":
+              continue
+
             b_elt = etree.SubElement(w_elt, "bundle", id=bundle)
 
             if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
-                b_elt.attrib["keep"] = 1
+                b_elt.attrib["keep"] = "1"
 
             hashfile = os.path.join(self.cache_dir, bundle, '.hash')
             if os.path.exists(hashfile):
@@ -491,6 +496,6 @@ class Worker(object):
                 b_elt.attrib["hash"] = hash
 
             if not os.path.isdir(os.path.join(self.cache_dir, bundle, 'files')):
-                b_elt.attrib["cleaned"] = 1
+                b_elt.attrib["cleaned"] = "1"
 
         return w_elt

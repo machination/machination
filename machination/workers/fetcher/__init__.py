@@ -38,6 +38,12 @@ class Worker(object):
         self.config_elt = self.read_config()
         self.cache_maint()
 
+    def list_bundles(self):
+        return [
+            d for d in os.listdir(self.cache_dir)
+            if os.path.isdir(os.path.join(self.cache_dir, d))
+        ]
+
     def cache_maint(self):
         l.lmsg("Cleaning fetcher cache.")
 
@@ -48,13 +54,12 @@ class Worker(object):
             size = cache_elt[0].attrib["size"]
 
         # List all the bundle directories in order of mtime
-        bundles = filter(os.path.isdir, os.path.listdir(self.cache_dir))
-        bundles = [os.path.join(self.cache_dir, f) for f in bundles]
-        bundles.sort(key=lambda x: os.path.getmtime(x))
+        bdl = [os.path.join(self.cache_dir, f) for f in self.list_bundles]
+        bdl.sort(key=lambda x: os.path.getmtime(x))
 
         while self.cache_over_limit(size):
             try:
-                a = bundles.pop(0)
+                a = bdl.pop(0)
             except IndexError as e:
                 msg = "Cache cannot be brought below limit"
                 l.wmsg(msg)
@@ -344,7 +349,8 @@ class Worker(object):
                           ignore_errors=false,
                           onerror=self.handleRemoveReadonly)
                 return "Failed: Hash failure"
-
+            else:
+              open(os.path.join(dest, '.hash.'),'a').close()
         if work[0].get("keep") == "1":
             open(os.path.join(dest, '.keep'), 'a').close()
 
@@ -470,16 +476,16 @@ class Worker(object):
         w_elt.append(self.config_elt)
 
         # Loop through bundle elements.
-        bundles = filter(os.path.isdir, os.path.listdir(self.cache_dir))
 
-        for bundle in bundles:
+        for bundle in self.list_bundles():
             b_elt = etree.SubElement(w_elt, "bundle", id=bundle)
 
             if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
                 b_elt.attrib["keep"] = 1
 
-            hashfile = os.path.join(self.cache_dir, bundle, 'hash')
+            hashfile = os.path.join(self.cache_dir, bundle, '.hash')
             if os.path.exists(hashfile):
+                hashfile = os.path.join(self.cache_dir,bundle,'hash')
                 with open(hashfile, 'r') as f:
                     hash = f.read()
                 b_elt.attrib["hash"] = hash
@@ -487,7 +493,4 @@ class Worker(object):
             if not os.path.isdir(os.path.join(self.cache_dir, bundle, 'files')):
                 b_elt.attrib["cleaned"] = 1
 
-        print(">>SW>>")
-        print(etree.tostring(w_elt,pretty_print=True).decode())
-        print("<<SW<<")
         return w_elt

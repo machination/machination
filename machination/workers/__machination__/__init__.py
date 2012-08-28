@@ -51,6 +51,10 @@ class Worker(object):
         # Copy the __machination__ worker element as our starting point.
         w_elt = copy.deepcopy(context.get_worker_elt(self.name))
 
+        # Delete any installedVersion elements
+        for e in w_elt.xpath('installedVersion'):
+            w_elt.remove(e)
+
         # Find installedVersion information
         self.generated_iv = getattr(self, self.get_installed_func())()
         w_elt.append(self.generated_iv)
@@ -139,13 +143,18 @@ class Worker(object):
         # Copy the self update script
         su_script_name = 'machination-self-update.py'
         shutil.copy(
-            os.path.join(context.bin_dir(), suscript_name),
+            os.path.join(context.bin_dir(), su_script_name),
             sudir
             )
         su_script = os.path.join(sudir, su_script_name)
 
         # Write installedVersion elements (current and desired)
         iv = etree.Element('iv')
+        # Write the location of bundles into iv (at /iv/@bundleDir)
+        iv.set(
+            'bundleDir',
+            os.path.join(context.cache_dir(), 'bundles')
+            )
         wu[0].set('version', 'desired')
         self.generated_iv.set('version', 'current')
         iv.append(self.generated_iv)
@@ -154,12 +163,9 @@ class Worker(object):
         with open(iv_file, 'w') as ivf:
             ivf.write(etree.tostring(iv))
 
-        # TODO(colin): Write the location of bundles into iv
-        # (at /iv/@bundleDir)
-        iv.set(
-            'bundleDir',
-            os.path.join(context.cache_dir(), 'bundles')
-            )
-
         # Hand over to the self update script
-        os.execl(sys.executable, 'machination-self-update', su_script, iv_file)
+        os.execl(
+            sys.executable,
+            'machination-self-update',
+            su_script,
+            iv_file)

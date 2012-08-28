@@ -7,7 +7,7 @@ import hashlib
 import os
 import sys
 
-def manifest(bundles=[], nohash):
+def manifest(bundles=[], nohash=False):
     "Writes Machination manifest files."
 
     for directory in bundles:

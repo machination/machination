@@ -210,12 +210,28 @@ def generate_wus(todo, comp, orderstyle="move"):
             raise Exception("could not find %s in working or template " %
                             mx.to_abbrev_xpath())
 
+        e_to_remove = set()
+        e_removed = set()
+        e_to_move = {}
+        elts_changed = False
+        atts_changed = False
+        text_changed = False
         for se in e.iter(tag=etree.Element):
             se_mrx = MRXpath(se)
+#            print('checking element {}'.format(se_mrx))
+#            print('  se_wux:' + wd.find_workunit(se_mrx))
+#            print('  mx_wux:' + wd.find_workunit(mx))
+
+            if se_mrx.parent().to_xpath() in e_removed:
+                # Parent already scheduled for removal
+                e_removed.add(se_mrx.to_xpath())
+                continue
+
             if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
                 # se must have a more specific workunit than mx,
                 # remove from working - another workunit is in charge
-                se.getparent().remove(se)
+                e_to_remove.add(se_mrx.to_xpath())
+                e_removed.add(se_mrx.to_xpath())
                 continue
 
             # find equivalent element from template.
@@ -223,21 +239,29 @@ def generate_wus(todo, comp, orderstyle="move"):
                 ste = template.xpath(se_mrx.to_xpath())[0]
             except IndexError:
                 # xpath doesn't exist in template, remove
-                se.getparent().remove(se)
+                elts_changed = True
+                e_to_remove.add(se_mrx.to_xpath())
+                e_removed.add(se_mrx.to_xpath())
                 continue
 
             # change any different attributes
             for k in se.keys():
                 if k in ste.keys():
-                    se.set(k, ste.get(k))
+                    if se.get(k) != ste.get(k):
+                        atts_changed = True
+                        se.set(k, ste.get(k))
                 else:
+                    atts_changed = True
                     del se.attrib[k]
             for k in ste.keys():
                 if k not in se.keys():
+                    atts_changed = True
                     se.set(k, ste.get(k))
 
             # change any different text
-            se.text = ste.text
+            if se.text != ste.text:
+                text_changed = True
+                se.text = ste.text
 
             if se_mrx.to_xpath() in comp.bystate['orderdiff']\
                     and e != se:
@@ -246,30 +270,49 @@ def generate_wus(todo, comp, orderstyle="move"):
                 context.logger.dmsg('moving {} subelement {}'.
                                     format(mx.to_xpath(), se_mrx.to_xpath()))
                 prevwe = closest_shared_previous(working,
-                                                      template,
-                                                      se_mrx)
+                                                 template,
+                                                 se_mrx)
                 parent = se.getparent()
-                parent.remove(se)
-                parent.insert(parent.index(prevwe) + 1, se)
+                e_to_move[se_mrx.to_xpath] = [se, parent.index(prevwe)+1]
 
-        # check for elements in template but not working
+        for xp in e_to_remove:
+            rem = e.xpath(xp)[0]
+            rem.getparent().remove(rem)
+
+        for xp in e_to_move:
+            se, index = e_to_move[xp]
+            parent = se.getparent()
+            parent.remove(se)
+            parent.insert(index, se)
+
         for ste in te.iter(tag=etree.Element):
+            ste_mrx = MRXpath(ste)
             try:
-                se = working.xpath(MRXpath(ste).to_xpath())[0]
+                se = working.xpath(ste_mrx.to_xpath())[0]
             except IndexError:
-                # ste doesn't exist in working, need to add
+                # ste doesn't exist in working.
+
+                # Don't add if ste is a work unit
+                if wd.find_workunit(MRXpath(ste)) != wd.find_workunit(mx):
+                    continue
+
+                # Add a copy
                 add = copy.deepcopy(ste)
-                # find the first previous xpath that also exists
-                # in working
-                prevwe = closest_shared_previous(working,
-                                                      template,
-                                                      MRXpath(ste))
+
                 # strip out any sub work units
                 for aelt in add.iterdescendants():
                     if wd.find_workunit(MRXpath(aelt)) != \
                             wd.find_workunit(mx):
                         aelt.getparent().remove(aelt)
-                # add to working
+
+                # find the first previous xpath that also exists
+                # in working
+                prevwe = closest_shared_previous(working,
+                                                 template,
+                                                 MRXpath(ste))
+
+                # We can just add to working because we aren't
+                # iterating over part of it
                 if prevwe is None:
                     parent_mrx = MRXpath(ste.getparent())
                     wep = working.xpath(parent_mrx.to_xpath())[0]
@@ -281,12 +324,11 @@ def generate_wus(todo, comp, orderstyle="move"):
             else:
                 continue
 
-        # generate a wu
-        # TODO(colin): don't generate a wu if everything has been covered
-        # by sub workunits
-        wus.append(
-            E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
-            )
+        # generate wu
+        if elts_changed or atts_changed or text_changed:
+            wus.append(
+                E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
+                )
 
     # add and reorder
     # iterate over elements in template and see if working needs them

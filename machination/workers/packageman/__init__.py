@@ -84,12 +84,12 @@ class Worker(object):
 
     def _process(self, work, operation):
         # Prep necessary variables
-        type = work.find("pkginfo").attrib["type"]
-        bundle = work.find("machinationFetcherBundle").attrib["id"]
+        type = work[0].xpath('pkginfo/@type')[0]
+        bundle = work[0].xpath('machinationFetcherBundle/@id')[0]
         bundle_path = os.path.join(context.cache_dir(),
                                    'bundles',
                                    bundle)
-        if "interactive" in work.keys:
+        if "interactive" in work.keys():
             inter = work.attrib["interactive"]
         else:
             inter = False
@@ -103,8 +103,8 @@ class Worker(object):
                 res.attrib["status"] = "error"
                 res.attrib["message"] = err
                 return res
-            ins_check = [work.find("check").attrib["type"],
-                         work.find("check").attrib["id"]]
+            ins_check = [work[0].xpath('check/@type')[0],
+                         work[0].xpath('check/@id')[0]]
         else:
             ins_check = None
 
@@ -116,7 +116,7 @@ class Worker(object):
 
         op = "_{0}_{1}".format(operation, type)
 
-        back = getattr(self, op)(bundle_path, pkginfo, check, inter)
+        back = getattr(self, op)(bundle_path, pkginfo, ins_check, inter)
 
         if not back:
             open(os.path.join(bundle_path,'.done'), 'a').close()
@@ -163,7 +163,14 @@ class Worker(object):
             else:
                 out = "Installation failed."
         else:
-            out = subprocess.call(cmd, stdout=subprocess.PIPE)
+            out = None
+            a = os.getcwd()
+            os.chdir(os.path.join(bundle, 'special'))
+            try:
+                subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                out = "Error running " + e.output.decode()
+            os.chdir(a)
 
         return out
 
@@ -187,7 +194,14 @@ class Worker(object):
             else:
                 out = "Installation Failed."
         else:
-            out = subprocess.call(cmd)
+            out = None
+            a = os.getcwd()
+            os.chdir(os.path.join(bundle, 'special'))
+            try:
+                subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                out = "Error running " + e.output.decode()
+            os.chdir(a)
 
         return out
 
@@ -211,7 +225,14 @@ class Worker(object):
             else:
                 out = None
         else:
-            out = subprocess.call(cmd)
+            out = None
+            a = os.getcwd()
+            os.chdir(os.path.join(bundle, 'special'))
+            try:
+                subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                out = "Error running " + e.output.decode()
+            os.chdir(a)
 
         return out
 
@@ -250,7 +271,14 @@ class Worker(object):
             else:
                 out = None
         else:
-            out = subprocess.call(cmd, stdout=subprocess.PIPE)
+            out = None
+            a = os.getcwd()
+            os.chdir(os.path.join(bundle, 'special'))
+            try:
+                subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                out = "Error running " + e.output.decode()
+            os.chdir(a)
 
         return out
 

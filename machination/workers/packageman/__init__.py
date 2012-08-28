@@ -28,8 +28,8 @@ class Worker(object):
         result = []
 
         for wu in work_list:
-            if wu.tag != "package":
-                msg = "Work unit of type: " + wu.tag
+            if wu[0].tag != "package":
+                msg = "Work unit of type: " + wu[0].tag
                 msg += " not understood by packageman. Failing."
                 l.emsg(msg)
                 res = etree.Element("wu",

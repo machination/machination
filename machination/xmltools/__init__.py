@@ -34,6 +34,8 @@ from machination import context
 from machination import utils
 import hashlib
 
+l = context.logger
+
 # see if functools.lru_cache is defined
 try:
     getattr(functools, 'lru_cache')
@@ -131,7 +133,7 @@ def generate_wus(todo, comp, orderstyle="move"):
     """
 
     working = copy.deepcopy(comp.leftxml)
-    template = comp.rightxml
+    template = copy.deepcopy(comp.rightxml)
     wds = comp.wds()
 #        actions = comp.actions(comp.bystate['datadiff'])
 #        actions = {'remove': todo & comp.bystate['left'],
@@ -152,6 +154,7 @@ def generate_wus(todo, comp, orderstyle="move"):
         for e in working.xpath(rx.to_xpath()):
             e.getparent().remove(e)
         # <wu op="remove" id="rx"/>
+        l.dmsg('generating remove for {}'.format(rx.to_xpath()))
         wus.append(E.wu(op="remove", id=rx.to_xpath()))
 
     # data only modified
@@ -231,11 +234,13 @@ def generate_wus(todo, comp, orderstyle="move"):
             if se_mrx.parent().to_xpath() in e_removed:
                 # Parent already scheduled for removal
                 e_removed.add(se_mrx.to_xpath())
+#                l.dmsg('deepmod parent already removed for {}'.format(se_mrx.to_xpath()),10)
                 continue
 
             if wd.find_workunit(se_mrx) != wd.find_workunit(mx):
                 # se must have a more specific workunit than mx,
                 # remove from working - another workunit is in charge
+#                l.dmsg('deepmod more specific work unit for ' + se_mrx.to_xpath(), 10)
                 e_to_remove.add(se_mrx.to_xpath())
                 e_removed.add(se_mrx.to_xpath())
                 continue
@@ -243,6 +248,7 @@ def generate_wus(todo, comp, orderstyle="move"):
             # find equivalent element from template.
             try:
                 ste = template.xpath(se_mrx.to_xpath())[0]
+#                l.dmsg('deepmod found {} in template'.format(se_mrx.to_xpath()))
             except IndexError:
                 # xpath doesn't exist in template, remove
                 elts_changed = True
@@ -331,6 +337,7 @@ def generate_wus(todo, comp, orderstyle="move"):
                 continue
 
         # generate wu
+        l.dmsg('Adding deepmod for {}'.format(mx.to_xpath()), 10)
         if elts_changed or atts_changed or text_changed:
             wus.append(
                 E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())

@@ -303,8 +303,10 @@ class Worker(object):
         l.dmsg("Downloading files")
 
         # Set up hash - may not be needed
-        if work[0].get("hash"):
+        h_flag = False
+        if "hash" in pkg:
             sha = hashlib.sha512()
+            h_flag = True
 
         # Main download loop
         for file in pkg:
@@ -335,21 +337,24 @@ class Worker(object):
             # Hash and write the file.
             with open(target, 'wb') as b:
                 tmp = a.read()
-                if work[0].get("hash"):
+                if h_flag:
                     sha.update(tmp)
                 b.write(tmp)
 
             a.close()
 
         # Check the package hash
-        if work[0].get("hash"):
-            hash = work[0].attrib["hash"]
+        if h_flag:
+            with open(os.path.join(dest, 'hash'), 'r') as h:
+              hash = h.read()
             if hash != sha.hexdigest():
                 l.emsg("Hash failure")
+                l.dmsg("Hash file: " + hash)
+                l.dmsg("Hexdigest: " + sha.hexdigest())
                 shutil.rmtree(dest)
                 return "Failed: Hash failure"
             else:
-              open(os.path.join(dest, '.hash.'),'a').close()
+              l.lmsg("Hash check successful")
         if work[0].get("keep") == "1":
             open(os.path.join(dest, '.keep'), 'a').close()
 
@@ -414,27 +419,6 @@ class Worker(object):
             res.attrib["message"] = msg
             return res
 
-        hashfile = os.path.join(bundle_dir, 'hash')
-        if not os.path.exists(hashfile):
-            msg = "Hash file for bundle " + bundle + " not found."
-            l.emsg(msg)
-            res.attrib["status"] = "error"
-            res.attrib["message"] = msg
-            return res
-
-        with open(hashfile, 'r') as f:
-            oldhash = f.read()
-
-        newhash = work[0].attrib["hash"]
-
-        if oldhash != newhash:
-            msg = "Hash for bundle " + bundle + " has changed.\n"
-            msg += "This should not happen. Please contact the server admin."
-            l.emsg(msg)
-            res.attrib["status"] = "error"
-            res.attrib["message"] = msg
-            return res
-
         old = os.path.exists(os.path.join(bundle_dir, '.keep'))
         new = work[0].attrib["keep"] == '1'
 
@@ -485,17 +469,10 @@ class Worker(object):
 
             b_elt = etree.SubElement(w_elt, "bundle", id=bundle)
 
-            if os.path.exists(os.path.join(self.cache_dir, bundle, '.keep')):
+            if os.path.exists(os.path.join(self.cache_dir,bundle,'.keep')):
                 b_elt.attrib["keep"] = "1"
 
-            hashfile = os.path.join(self.cache_dir, bundle, '.hash')
-            if os.path.exists(hashfile):
-                hashfile = os.path.join(self.cache_dir,bundle,'hash')
-                with open(hashfile, 'r') as f:
-                    hash = f.read()
-                b_elt.attrib["hash"] = hash
-
-            if not os.path.isdir(os.path.join(self.cache_dir, bundle, 'files')):
+            if not os.path.isdir(os.path.join(self.cache_dir,bundle,'files')):
                 b_elt.attrib["cleaned"] = "1"
 
         return w_elt

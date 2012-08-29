@@ -8,6 +8,7 @@ from machination.xmltools import apply_wu
 from machination.xmltools import pstring
 from machination.xmltools import AssertionCompiler
 from machination.xmltools import mc14n
+from machination.xmltools import get_fullpos
 from machination import utils
 from machination.webclient import WebClient
 from lxml import etree
@@ -39,10 +40,46 @@ class Update(object):
             raise ValueError('Refusing to use autoconstructed status.')
         l.dmsg('desired:\n%s' % pstring(self.desired_status()), 10)
         l.dmsg('initial:\n%s' % pstring(self.initial_status()), 10)
-
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
         l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate), 6)
+
+        # See if we have to do a self update
+        iv_mrx = MRXpath(
+            '/status/worker[@id="__machination__"]/installedVersion'
+            )
+        selfupdate = False
+        selfupdate_bundles = set()
+        if iv_mrx.to_xpath() in comp.find_work():
+            # installedVersion has changed somehow
+            wus, working = generate_wus({iv_mrx.to_xpath()}, comp)
+            wu = wus[0]
+            if wu.get('op') == 'add' or wu.get('op') == 'deepmod':
+                # Definitely updating
+                l.lmsg(
+                    '{} on {}: need to self update'.format(
+                        wu.get('op'),
+                        iv_mrx.to_xpath()
+                        ),
+                    3)
+                selfupdate = True
+
+                # Check for bundles and add to selfupdate_bundles
+                for ivb_elt in wu[0].xpath('machinationFetcherBundle'):
+                    bid = MRXpath.quote_id(MRXpath, ivb_elt.get('id'))
+                    bundle_xp = MRXpath(
+                        "/status/worker[@id='fetcher']/bundle['{}']".format(bid)
+                        ).to_xpath()
+                    selfupdate_bundles.add(bundle_xp)
+
+                # only interested in bundles with a work unit to do
+                selfupdate_bundles = selfupdate_bundles & comp.find_work()
+
+#                fetcher_wus, working = generate_wus(todo, comp)
+#                # use the fetcher worker to get bundles
+#                worker = self.worker('fetcher')
+#                for wu in fetcher_wus:
+
         try:
             deps = self.desired_status().xpath('/status/deps')[0]
         except IndexError:
@@ -67,20 +104,38 @@ class Update(object):
         # set up a dictionary:
         # { work_unit: [list, of, units, work_unit, depends, on] }
         work_depends = {}
+
+        if selfupdate:
+            # installedVersion depends on all bundles
+            wudeps.extend([[x, iv_mrx.to_xpath()] for x in selfupdate_bundles])
+            # Everything else apart from selfupdate bundles depends on
+            # installedVersion
+            wudeps.extend(
+                [[iv_mrx.to_xpath(), x]
+                 for x in
+                 (comp.find_work() - selfupdate_bundles - {iv_mrx.to_xpath()})]
+                )
         for dep in wudeps:
             if work_depends.get(dep[1]):
                 # entry for dep[1] already exists, add to it
                 work_depends.get(dep[1]).append(dep[0])
             else:
                 # entry for dep[1] does not exist, create it
-                work_depends.set(dep[1], [dep[0]])
-        l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
+                work_depends[dep[1]] = [dep[0]]
+#        l.dmsg('work_depends = {}'.format(pprint.pformat(work_depends)))
         # we need to make all workunits depend on something for
         # topsort to work
-        wudeps.extend([['', x] for x in comp.find_work()])
-        l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
-        i = 0
+        if selfupdate:
+            # selfupdate_bundles should be done first
+            wudeps.extend([['', x] for x in selfupdate_bundles])
+        else:
+            wudeps.extend([['', x] for x in comp.find_work()])
+#        l.dmsg('wudeps = {}'.format(pprint.pformat(wudeps)))
+
         wu_updated_status = copy.deepcopy(self.initial_status())
+
+        i = 0
+        failures = []
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:
@@ -97,6 +152,7 @@ class Update(object):
 
             # collect workunits by worker
             byworker = {}
+            add_map = {}
             for wu in wus:
                 # If it's an add for a worker, add the worker element
                 wu_mrx = MRXpath(wu.get('id'))
@@ -109,13 +165,21 @@ class Update(object):
                         )
                     continue
 
+                # If it's an add, we need to add it to the add_map so
+                # that adds still function properly if they get out of
+                # order or previous adds have failed.
+                if wu.get('op') == 'add':
+#                    print('adding {} to add_map'.format(wu.get('id')))
+                    add_map[wu.get('id')] = get_fullpos(
+                        wu.get('pos'), 
+                        MRXpath(wu.get('id')).parent()
+                        )
+
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
                 if not check[0]:
-                    work_status.set(
-                        wu.get('id'),
-                        [False, "Dependency '{}' failed".format(check[1])]
-                        )
+                    work_status[wu.get('id')] = [
+                        False, "Dependency '{}' failed".format(check[1])]
                     # don't include this wu in work to be done
                     continue
                 workername = MRXpath(wu.get('id')).workername(prefix='/status')
@@ -167,6 +231,20 @@ class Update(object):
                                 workelt,
                                 work_status
                                 )
+                            wid = bigwu.get('id')
+                            completed = work_status.get(wid)
+                            if completed[0]:
+                                # Apply successes to wu_updated_status
+                                l.dmsg('Marking {} succeeded.'.format(wid))
+                                wu_updated_status = apply_wu(
+                                    completed[1],
+                                    wu_updated_status,
+                                    add_map = add_map)
+                            else:
+                                l.dmsg('Marking {} failed.'.format(wid))
+                                failures.append([wid, completed[1]])
+                            
+                            
                 else:
                     # No worker: fail this set of work
                     for wu in bigworkelt:
@@ -175,16 +253,6 @@ class Update(object):
                             "No worker '{}'".format(wname)
                             ]
 
-        # Gather sucesses and failures
-        failures = []
-        for wid, completed in work_status.items():
-            if completed[0]:
-                # Apply successes to wu_updated_status
-                l.dmsg('Marking {} succeeded.'.format(wid))
-                wu_updated_status = apply_wu(completed[1], wu_updated_status)
-            else:
-                l.dmsg('Marking {} failed.'.format(wid))
-                failures.append([wid, completed[1]])
         # Report failures.
         l.lmsg(
             'The following work units reported failure:\n{}'.format(

@@ -387,9 +387,11 @@ class Update(object):
                     # when it writes sucessful changes to
                     # previous_status.xml
                     pass
-                else:
-                    stelt.remove(welt)
+                stelt.remove(welt)
+                try:
                     stelt.append(wstatus)
+                except Exception as e:
+                    stelt.append(welt)
             done.add(welt.get('id'))
         for welt in self.desired_status().xpath('/status/worker'):
             if welt.get("id") in done:

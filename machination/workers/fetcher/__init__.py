@@ -302,7 +302,7 @@ class Worker(object):
 
         l.dmsg("Downloading files")
 
-        # Set up hash - may not be needed
+        # Set up hash
         h_flag = False
         if "hash" in pkg:
             sha = hashlib.sha512()
@@ -337,7 +337,7 @@ class Worker(object):
             # Hash and write the file.
             with open(target, 'wb') as b:
                 tmp = a.read()
-                if h_flag:
+                if h_flag and file != "hash":
                     sha.update(tmp)
                 b.write(tmp)
 
@@ -348,13 +348,13 @@ class Worker(object):
             with open(os.path.join(dest, 'hash'), 'r') as h:
               hash = h.read()
             if hash != sha.hexdigest():
-                l.emsg("Hash failure")
-                l.dmsg("Hash file: " + hash)
-                l.dmsg("Hexdigest: " + sha.hexdigest())
+                w.emsg("Hash failure")
+                d.emsg("Hash file: " + hash)
+                d.emsg("Hexdigest: " + sha.hexdigest())
                 shutil.rmtree(dest)
                 return "Failed: Hash failure"
             else:
-              l.lmsg("Hash check successful")
+              d.lmsg("Hash check successful")
         if work[0].get("keep") == "1":
             open(os.path.join(dest, '.keep'), 'a').close()
 

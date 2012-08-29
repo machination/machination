@@ -10,7 +10,8 @@ import sys
 def manifest(bundles=[], nohash=False):
     "Writes Machination manifest files."
 
-    for directory in bundles:
+    for entry in bundles:
+        directory = os.path.normpath(entry)
         dirsize = __size(directory)
 
         if nohash:
@@ -38,7 +39,8 @@ def __manifest_hash(directory, size):
                 fn = os.path.normpath(os.path.join(dirname, files))
                 with open(fn, 'rb') as f:
                     sha.update(f.read())
-                m.write(fn+'\n')
+                m.write(fn[len(directory)+1:]+'\n')
+        os.chdir(a)
     with open(os.path.join(directory, 'hash'), 'w') as h:
         h.write(sha.hexdigest())
 
@@ -52,12 +54,12 @@ def __manifest_nohash(directory, size):
             for files in filenames:
                 if files == 'manifest': continue
                 fn = os.path.normpath(os.path.join(dirname, files))
-                m.write(fn+'\n')
+                m.write(fn[len(directory)+1:]+'\n')
 
 if __name__ == '__main__':
     use = "Usage: machination-manifest [--nohash] directory1 directory2 ..."
     if len(sys.argv) < 2:
-        print(use) 
+        print(use)
         sys.exit()
     elif (len(sys.argv) == 2) and (sys.argv[1] == "--nohash"):
         print("No directory specified.")

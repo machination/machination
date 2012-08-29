@@ -8,6 +8,7 @@ from machination.xmltools import apply_wu
 from machination.xmltools import pstring
 from machination.xmltools import AssertionCompiler
 from machination.xmltools import mc14n
+from machination.xmltools import get_fullpos
 from machination import utils
 from machination.webclient import WebClient
 from lxml import etree
@@ -134,6 +135,7 @@ class Update(object):
         wu_updated_status = copy.deepcopy(self.initial_status())
 
         i = 0
+        failures = []
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:
@@ -150,6 +152,7 @@ class Update(object):
 
             # collect workunits by worker
             byworker = {}
+            add_map = {}
             for wu in wus:
                 # If it's an add for a worker, add the worker element
                 wu_mrx = MRXpath(wu.get('id'))
@@ -161,6 +164,16 @@ class Update(object):
                             )
                         )
                     continue
+
+                # If it's an add, we need to add it to the add_map so
+                # that adds still function properly if they get out of
+                # order or previous adds have failed.
+                if wu.get('op') == 'add':
+#                    print('adding {} to add_map'.format(wu.get('id')))
+                    add_map[wu.get('id')] = get_fullpos(
+                        wu.get('pos'), 
+                        MRXpath(wu.get('id')).parent()
+                        )
 
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
@@ -218,6 +231,20 @@ class Update(object):
                                 workelt,
                                 work_status
                                 )
+                            wid = bigwu.get('id')
+                            completed = work_status.get(wid)
+                            if completed[0]:
+                                # Apply successes to wu_updated_status
+                                l.dmsg('Marking {} succeeded.'.format(wid))
+                                wu_updated_status = apply_wu(
+                                    completed[1],
+                                    wu_updated_status,
+                                    add_map = add_map)
+                            else:
+                                l.dmsg('Marking {} failed.'.format(wid))
+                                failures.append([wid, completed[1]])
+                            
+                            
                 else:
                     # No worker: fail this set of work
                     for wu in bigworkelt:
@@ -226,16 +253,6 @@ class Update(object):
                             "No worker '{}'".format(wname)
                             ]
 
-        # Gather sucesses and failures
-        failures = []
-        for wid, completed in work_status.items():
-            if completed[0]:
-                # Apply successes to wu_updated_status
-                l.dmsg('Marking {} succeeded.'.format(wid))
-                wu_updated_status = apply_wu(completed[1], wu_updated_status)
-            else:
-                l.dmsg('Marking {} failed.'.format(wid))
-                failures.append([wid, completed[1]])
         # Report failures.
         l.lmsg(
             'The following work units reported failure:\n{}'.format(

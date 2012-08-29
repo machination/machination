@@ -510,8 +510,37 @@ def add_prefix_elts(wrapelt, prefix = None):
         return top
     return wrapelt
 
+def get_fullpos(pos, parent_mrx):
+    '''Return full position xpath from relative one.'''
+    if pos == '<first>':
+        return pos
+    fullpos = copy.deepcopy(parent_mrx)
+    fullpos.append(pos)
+    return fullpos.to_xpath()
 
-def apply_wu(wu, stelt, prefix = None):
+def _addpos_to_index(fullpos, stelt, add_map):
+    if fullpos == '<first>':
+        return 0
+    # try to find the element corresponding to pos
+    try:
+        prev = stelt.xpath(fullpos)[0]
+    except IndexError:
+        # Uh oh - couldn't find element at pos. That probably
+        # means it was supposed to be added by a previous work
+        # unit that failed, or some add workunits are being applied
+        # out of order.
+        #
+        # Check the add map
+        if add_map is None:
+            raise IndexError('No {} element found and no add_map'.format(fullpos))
+        newpos = add_map.get(fullpos)
+        if newpos:
+            return _addpos_to_index(newpos, stelt, add_map)
+        else:
+            raise IndexError('No pos found after following add_map:\n'.format(pprint.pformat(add_map)))
+    return prev.getparent().index(prev) + 1
+
+def apply_wu(wu, stelt, prefix = None, add_map = None):
     """Apply a work unit to a status element.
 
     Arguments:
@@ -526,24 +555,18 @@ def apply_wu(wu, stelt, prefix = None):
     xpath = wu.get('id')
     op = wu.get('op')
     if op == 'add':
-        parent_elt = stelt.xpath(MRXpath(xpath).parent().to_xpath())[0]
+        parent_mrx = MRXpath(xpath).parent()
+        parent_elt = stelt.xpath(parent_mrx.to_xpath())[0]
     else:
         tgt_elt = stelt.xpath(xpath)[0]
         parent_elt = tgt_elt.getparent()
     if op == 'add':
         # The element to add is in wu[0]
         pos = wu.get('pos')
-        if pos == '<first>':
-            # Insert as first element
-            parent_elt.insert(0, copy.deepcopy(wu[0]))
-        else:
-            # find the element corresponding to pos
-            prev = stelt.xpath(pos)[0]
-            # insert after prev
-            parent_elt.insert(
-                parent_elt.index(prev) + 1,
-                copy.deepcopy(wu[0])
-                )
+        parent_elt.insert(
+            _addpos_to_index(get_fullpos(pos, parent_mrx), stelt, add_map),
+            copy.deepcopy(wu[0])
+            )
     elif op == 'remove':
         parent_elt.remove(tgt_elt)
     elif op == 'datamod':

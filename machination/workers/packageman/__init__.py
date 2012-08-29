@@ -22,7 +22,7 @@ class Worker(object):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
-        self.s_elt = self._read_status
+        self.s_elt = self._read_status()
 
     def _read_status(self):
         status_file = os.path.join(context.conf_dir(), "packageman.xml")

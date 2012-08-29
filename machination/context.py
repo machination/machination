@@ -121,7 +121,11 @@ def _get_dir(name, status_elt = None):
     elif name == "cache":
         return os.path.join(win_machination_path(), "cache") if platname == "Win" else '/var/cache/machination'
     elif name == "bin":
-        return os.path.join(win_machination_path(), "bin") if platname == "Win" else '/usr/bin'
+        progfiles = os.path.join(
+            os.environ.get('PROGRAMFILES', 'C:\\Program Files'),
+            'Machination'
+            )
+        return os.path.join(progfiles, "bin") if platname == "Win" else '/usr/bin'
     elif name == 'log':
         return os.path.join(win_machination_path(), "log") if platname == "Win" else '/var/log/machination'
 

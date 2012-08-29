@@ -161,7 +161,7 @@ class Worker(object):
         iv.append(wu[0])
         iv_file = os.path.join(sudir, 'installed_version.xml')
         with open(iv_file, 'w') as ivf:
-            ivf.write(etree.tostring(iv))
+            ivf.write(etree.tostring(iv, pretty_print=True).decode())
 
         # Hand over to the self update script
         os.execl(

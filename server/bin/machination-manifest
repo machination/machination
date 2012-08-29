@@ -6,6 +6,7 @@
 import hashlib
 import os
 import sys
+import pprint
 
 def manifest(bundles=[], nohash=False):
     "Writes Machination manifest files."
@@ -15,9 +16,9 @@ def manifest(bundles=[], nohash=False):
         dirsize = __size(directory)
 
         if nohash:
-            return __manifest_nohash(directory, dirsize)
+            __manifest_nohash(directory, dirsize)
         else:
-            return __manifest_hash(directory, dirsize)
+            __manifest_hash(directory, dirsize)
 
 def __size(start_path='.'):
         total = 0
@@ -36,13 +37,14 @@ def __manifest_hash(directory, size):
         for dirname, dirnames, filenames in os.walk(directory):
             for files in filenames:
                 if files == 'manifest': continue
+                if files == 'hash': continue
                 fn = os.path.normpath(os.path.join(dirname, files))
                 with open(fn, 'rb') as f:
                     sha.update(f.read())
                 m.write(fn[len(directory)+1:]+'\n')
-        os.chdir(a)
-    with open(os.path.join(directory, 'hash'), 'w') as h:
-        h.write(sha.hexdigest())
+        with open(os.path.join(directory, 'hash'), 'w') as h:
+            h.write(sha.hexdigest())
+            m.write('hash\n')
 
 def __manifest_nohash(directory, size):
     with open(os.path.join(directory, 'manifest'), 'w') as m:

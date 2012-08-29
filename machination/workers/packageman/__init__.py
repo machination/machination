@@ -22,11 +22,30 @@ class Worker(object):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
+        self.s_elt = self._read_status
+
+    def _read_status(self):
+        status_file = os.path.join(context.conf_dir(), "packageman.xml")
+        try:
+            s_elt = etree.parse(status_file).getroot()
+        except:
+            s_elt = etree.Element("worker")
+            s_elt.set("id", self.name)
+
+        return s_elt
+
+    def _write_status(self):
+        status_file = os.path.join(context.conf_dir(), "packageman.xml")
+        with open(status_file, 'w') as s:
+            s.write(etree.tostring(self.s_elt,
+                                   pretty_print=True).decode()
+                   )
 
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
 
+        pref_mrx = MRXpath("/status/worker[@id='packageman']")
         for wu in work_list:
             if wu[0].tag != "package":
                 msg = "Work unit of type: " + wu[0].tag
@@ -39,26 +58,41 @@ class Worker(object):
                 continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
+            if res.attrib["status"] == "success":
+                self.s_elt = xmltools.apply_wu(wu,
+                                               self.s_elt,
+                                               prefix=pref_mrx)
             result.append(res)
+        self.write_status()
         return result
 
     def _add(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        back = self._process(work, "install")
+        back = self._process(work[0], "install")
 
         if back:
             l.emsg(back)
             res.attrib["status"] = "error"
             res.attrib["message"] = "Installation failed: " + back
         else:
+            # Write status element to file.
+            with open(self.config_file, 'a') as f:
+                f.write(etree.tostring(work[0], pretty_print=True).decode())
             res.attrib["status"] = "success"
         return res
 
     def _remove(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
+        # Deconstruct wu xpath
+        wu_mrx = MRXpath(work.attrib["id"])
+        wu_id = wu_mrx.id()
+        # Iterate over top level packages until we find one with the same id
+        # Use a generator to save memory
+        e = (elt for elt in self.s_elt if elt.attrib["id"] == wu_id)
+        work_elt = next(e)
 
-        back = self._process(work, "uninstall")
+        back = self._process(work_elt, "uninstall")
 
         if back:
             l.emsg(back)
@@ -84,8 +118,8 @@ class Worker(object):
 
     def _process(self, work, operation):
         # Prep necessary variables
-        type = work[0].xpath('pkginfo/@type')[0]
-        bundle = work[0].xpath('machinationFetcherBundle/@id')[0]
+        type = work.xpath('pkginfo/@type')[0]
+        bundle = work.xpath('machinationFetcherBundle/@id')[0]
         bundle_path = os.path.join(context.cache_dir(),
                                    'bundles',
                                    bundle)
@@ -103,8 +137,8 @@ class Worker(object):
                 res.attrib["status"] = "error"
                 res.attrib["message"] = err
                 return res
-            ins_check = [work[0].xpath('check/@type')[0],
-                         work[0].xpath('check/@id')[0]]
+            ins_check = [work.xpath('check/@type')[0],
+                         work.xpath('check/@id')[0]]
         else:
             ins_check = None
 
@@ -303,3 +337,7 @@ class Worker(object):
             return False
 
         return key in names
+
+    def generate_status(self):
+        return self.s_elt
+

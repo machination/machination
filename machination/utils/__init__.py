@@ -97,4 +97,45 @@ def os_info():
 
     return (sysname, major, minor, bitness)
 
+class Version(object):
+    '''Parse, store and compare version numbers'''
+
+    def __init__(self, thing):
+        '''Instantiate from string or other Version object'''
+        if isinstance(thing, Version):
+            self = copy.deepcopy(thing)
+        elif isinstance(thing, str):
+            self.ver = [int(x) for x in thing.split('.')]
+        else:
+            raise TypeError("Don't know how to make a Version from a " + 
+                            type(thing))
+
+    def __eq__(self, other):
+        for i in range(3):
+            if self.ver[i] < other.ver[i]: return False
+            if self.ver[i] > other.ver[i]: return False
+        # equal
+        return True
+
+    def __ne__(self, other):
+        for i in range(3):
+            if self.ver[i] < other.ver[i]: return True
+            if self.ver[i] > other.ver[i]: return True
+        # equal
+        return False
+    
+    def __lt__(self, other):
+        for i in range(3):
+            if self.ver[i] < other.ver[i]: return True
+            if self.ver[i] > other.ver[i]: return False
+        # equal
+        return False
+
+    def __gt__(self, other):
+        for i in range(3):
+            if self.ver[i] > other.ver[i]: return True
+            if self.ver[i] < other.ver[i]: return False
+        # equal
+        return False
+
 del sys, context

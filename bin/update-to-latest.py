@@ -117,7 +117,7 @@ con = wmi.WMI()
 for prod in con.query(
     "select * from Win32_Product where Name like 'Python machination-client%'"
     ):
-    logging.info('adding {} to current'.format(pkgid))
+    logging.info('adding {} to current'.format(prod.Name[7:]))
     current.append(etree.Element('machinationFetcherBundle', id=prod.Name[7:]))
 iv.append(current)
 iv.append(desired)

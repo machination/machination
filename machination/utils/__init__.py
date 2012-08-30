@@ -26,6 +26,7 @@ import sys
 import os
 import pkgutil
 import platform
+import copy
 from machination import context
 
 __all__ = ['machination_id', 'machination_path']
@@ -103,12 +104,23 @@ class Version(object):
     def __init__(self, thing):
         '''Instantiate from string or other Version object'''
         if isinstance(thing, Version):
-            self = copy.deepcopy(thing)
+            self.ver = copy.copy(thing.ver)
         elif isinstance(thing, str):
             self.ver = [int(x) for x in thing.split('.')]
         else:
-            raise TypeError("Don't know how to make a Version from a " + 
+            raise TypeError("Don't know how to make a Version from a " +
                             type(thing))
+        if len(self.ver) != 3:
+            raise TypeError(
+                'Version should have three dotted numbers, not ' +
+                str(len(self.ver))
+                )
+
+    def __str__(self):
+        return '.'.join([str(x) for x in self.ver])
+
+    def __repr__(self):
+        return "machination.utils.Version('{}')".format(self.__str__())
 
     def __eq__(self, other):
         for i in range(3):
@@ -123,7 +135,7 @@ class Version(object):
             if self.ver[i] > other.ver[i]: return True
         # equal
         return False
-    
+
     def __lt__(self, other):
         for i in range(3):
             if self.ver[i] < other.ver[i]: return True
@@ -137,5 +149,11 @@ class Version(object):
             if self.ver[i] < other.ver[i]: return False
         # equal
         return False
+
+    def __le__(self, other):
+        return self.__lt__(other) or self.__eq__(other)
+
+    def __ge__(self, other):
+        return self.__gt__(other) or self.__eq__(other)
 
 del sys, context

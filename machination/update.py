@@ -42,7 +42,7 @@ class Update(object):
         l.dmsg('initial:\n%s' % pstring(self.initial_status()), 10)
         comp = XMLCompare(copy.deepcopy(self.initial_status()),
                           self.desired_status())
-        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate), 6)
+        l.dmsg('xpaths by state:\n' + pprint.pformat(comp.bystate), 10)
 
         # See if we have to do a self update
         iv_mrx = MRXpath(

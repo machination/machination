@@ -98,6 +98,15 @@ class Worker(object):
             elt.append(etree.Element("machinationFetcherBundle", id=prod.Name[7:]))
         return elt
 
+    def get_version(self, string, name_too = False):
+        '''Get package version from bundle id or package name'''
+        match = re.search(r'(machination-client-.*)-(\d+\.\d+\.\d+)', string)
+        if match:
+            if name_too:
+                return (match.group(1), utils.Version(match.group(2)))
+            else:
+                return utils.Version(match.group(2))
+        raise ValueError('Could not find version in ' + string)
 
     def do_work(self, wus):
         results = []
@@ -159,6 +168,38 @@ class Worker(object):
         self.generated_iv.set('version', 'current')
         iv.append(self.generated_iv)
         iv.append(wu[0])
+
+        # Check to make sure we aren't being asked to downgrade any
+        # packages.
+        curver = {}
+        nocando = []
+        for b in self.generated_iv:
+            name, version = self.get_version(b.get('id'), name_too = True)
+            curver[name] = version
+        for b in wu[0]:
+            name, version = self.get_version(b.get('id'), name_too = True)
+            if name not in curver:
+                # pkg remove
+                continue
+            if version < curver:
+                l.wmsg('Refusing to downgrade ' + name)
+                l.wmsg(
+                    'desired-status asks for version {} ' +
+                    'but {} is installed'.format(version, curver)
+                    )
+                # Can't remove b while we're iterating - remember it
+                # for later.
+                nocando.append(b)
+        for b in nocando:
+            name, version = self.get_version(b.get('id'), name_too = True)
+            wu[0].remove(b)
+            wu[0].add(
+                etree.Element(
+                    'machinationFetcherBundle',
+                    id = '{}-{}'.format(name, curever[name])
+                    )
+                )
+
         iv_file = os.path.join(sudir, 'installed_version.xml')
         with open(iv_file, 'w') as ivf:
             ivf.write(etree.tostring(iv, pretty_print=True).decode())

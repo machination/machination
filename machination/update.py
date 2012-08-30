@@ -189,15 +189,6 @@ class Update(object):
 
             # TODO(colin): parallelise downloads and other work
 
-            # start the downloads
-#            if 'fetcher' in byworker:
-#                workelt = byworker['fetcher']
-#                del byworker['fetcher']
-#                l.lmsg('invoking fetcher')
-#                l.dmsg('fetching:\n' + pstring(workelt))
-#                self.process_results(self.worker('fetcher').do_work(workelt),
-#                                     workelt, work_depends, work_status)
-
             # do the work
             for wname, bigworkelt in byworker.items():
                 l.lmsg('dispatching to ' + wname)

@@ -1,26 +1,26 @@
 <status xmlns:x2a="https://github.com/machination/ns/xml2assertions">
   <worker id="fetcher">
-      <bundle id="machination-client-core-1.900.56"/>
-      <bundle id="machination-client-worker-__machination__-1.900.56"/>
-      <bundle id="machination-client-worker-fetcher-1.900.56"/>
-      <bundle id="machination-client-worker-packageman-1.900.56"/>
-      <bundle id="machination-client-worker-usergroup-1.900.56"/>
-      <bundle id="machination-client-worker-environment-1.900.56"/>
-      <bundle id="machination-client-worker-firewall-1.900.56"/>
-      <bundle id="machination-client-worker-shortcut-1.900.56"/>
-      <bundle id="machination-client-worker-time-1.900.56"/>
+      <bundle id="machination-client-core-1.900.86"/>
+      <bundle id="machination-client-worker-__machination__-1.900.86"/>
+      <bundle id="machination-client-worker-fetcher-1.900.86"/>
+      <bundle id="machination-client-worker-packageman-1.900.86"/>
+      <bundle id="machination-client-worker-usergroup-1.900.86"/>
+      <bundle id="machination-client-worker-environment-1.900.86"/>
+      <bundle id="machination-client-worker-firewall-1.900.86"/>
+      <bundle id="machination-client-worker-shortcut-1.900.86"/>
+      <bundle id="machination-client-worker-time-1.900.86"/>
   </worker>
   <worker id="__machination__">
     <installedVersion>
-      <machinationFetcherBundle id="machination-client-core-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-__machination__-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-fetcher-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-packageman-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-usergroup-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-environment-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-firewall-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-shortcut-1.900.56"/>
-      <machinationFetcherBundle id="machination-client-worker-time-1.900.56"/>
+      <machinationFetcherBundle id="machination-client-core-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-__machination__-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-fetcher-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-packageman-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-usergroup-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-environment-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-firewall-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-shortcut-1.900.86"/>
+      <machinationFetcherBundle id="machination-client-worker-time-1.900.86"/>
     </installedVersion>
   </worker>
 </status>

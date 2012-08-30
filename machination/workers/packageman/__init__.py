@@ -64,7 +64,7 @@ class Worker(object):
                                                self.s_elt,
                                                prefix=pref_mrx)
             result.append(res)
-        self.write_status()
+        self._write_status()
         return result
 
     def _add(self, work):
@@ -77,9 +77,6 @@ class Worker(object):
             res.attrib["status"] = "error"
             res.attrib["message"] = "Installation failed: " + back
         else:
-            # Write status element to file.
-            with open(self.config_file, 'a') as f:
-                f.write(etree.tostring(work[0], pretty_print=True).decode())
             res.attrib["status"] = "success"
         return res
 
@@ -205,7 +202,7 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
-            except WindowsError:
+            except WindowsError as e:
                 out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
@@ -238,7 +235,7 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
-            except WindowsError:
+            except WindowsError as e:
                 out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
@@ -271,7 +268,7 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
-            except WindowsError:
+            except WindowsError as e:
                 out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
@@ -319,7 +316,7 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
-            except WindowsError:
+            except WindowsError as e:
                 out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 

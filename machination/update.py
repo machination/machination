@@ -141,7 +141,7 @@ class Update(object):
             if i == 1:
                 # this is the fake workunit '' we put in above
                 continue
-            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 6)
+            l.dmsg('xpaths for level {}:\n'.format(i) + pprint.pformat(lev), 10)
             wus, working_elt = generate_wus(set(lev), comp)
 
 #            l.dmsg(pstring(self.initial_status(),10))

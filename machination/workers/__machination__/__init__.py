@@ -176,16 +176,17 @@ class Worker(object):
         for b in self.generated_iv:
             name, version = self.get_version(b.get('id'), name_too = True)
             curver[name] = version
-        for b in wu[0]:
+        curxpath = 'installedVersion[@version="current"]/machinationFetcherBundle'
+        for b in iv.xpath(curxpath):
             name, version = self.get_version(b.get('id'), name_too = True)
             if name not in curver:
                 # pkg remove
                 continue
-            if version < curver:
+            if version < curver[name]:
                 l.wmsg('Refusing to downgrade ' + name)
                 l.wmsg(
                     'desired-status asks for version {} ' +
-                    'but {} is installed'.format(version, curver)
+                    'but {} is installed'.format(version, curver[name])
                     )
                 # Can't remove b while we're iterating - remember it
                 # for later.
@@ -196,7 +197,7 @@ class Worker(object):
             wu[0].add(
                 etree.Element(
                     'machinationFetcherBundle',
-                    id = '{}-{}'.format(name, curever[name])
+                    id = '{}-{}'.format(name, curver[name])
                     )
                 )
 

@@ -5,6 +5,7 @@
 
 from lxml import etree
 from machination import context
+from machination.xmltools import MRXpath
 from machination import xmltools
 from machination import platutils
 import os
@@ -204,6 +205,8 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
+            except WindowsError:
+                out = "Error running " + cmd + ": " + sys.exc_info()[1]
             os.chdir(a)
 
         return out
@@ -235,6 +238,8 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
+            except WindowsError:
+                out = "Error running " + cmd + ": " + sys.exc_info()[1]
             os.chdir(a)
 
         return out
@@ -266,6 +271,8 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
+            except WindowsError:
+                out = "Error running " + cmd + ": " + sys.exc_info()[1]
             os.chdir(a)
 
         return out
@@ -312,6 +319,8 @@ class Worker(object):
                 subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
+            except WindowsError:
+                out = "Error running " + cmd + ": " + sys.exc_info()[1]
             os.chdir(a)
 
         return out

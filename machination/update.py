@@ -53,7 +53,7 @@ class Update(object):
         if iv_mrx.to_xpath() in comp.find_work():
             # installedVersion has changed somehow
             wus, working = generate_wus({iv_mrx.to_xpath()}, comp)
-            wu = wus[0]
+            wu = wus[0] if wus else etree.Element('wu', op='nothing')
             if wu.get('op') == 'add' or wu.get('op') == 'deepmod':
                 # Definitely updating
                 l.lmsg(

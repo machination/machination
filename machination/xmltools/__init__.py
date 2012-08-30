@@ -284,8 +284,14 @@ def generate_wus(todo, comp, orderstyle="move"):
                 prevwe = closest_shared_previous(working,
                                                  template,
                                                  se_mrx)
-                parent = se.getparent()
-                e_to_move[se_mrx.to_xpath] = [se, parent.index(prevwe)+1]
+                if prevwe is None:
+                    parent_mrx = MRXpath(ste.getparent())
+                    parent = working.xpath(parent_mrx.to_xpath())[0]
+                    index = 0
+                else:
+                    parent = se.getparent()
+                    index = parent.index(prevwe) + 1
+                e_to_move[se_mrx.to_xpath] = [se, index]
 
         for xp in e_to_remove:
             rem = e.xpath(xp)[0]

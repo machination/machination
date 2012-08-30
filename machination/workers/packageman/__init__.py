@@ -206,7 +206,7 @@ class Worker(object):
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
             except WindowsError:
-                out = "Error running " + cmd + ": " + sys.exc_info()[1]
+                out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
         return out
@@ -239,7 +239,7 @@ class Worker(object):
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
             except WindowsError:
-                out = "Error running " + cmd + ": " + sys.exc_info()[1]
+                out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
         return out
@@ -272,7 +272,7 @@ class Worker(object):
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
             except WindowsError:
-                out = "Error running " + cmd + ": " + sys.exc_info()[1]
+                out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
         return out
@@ -320,7 +320,7 @@ class Worker(object):
             except subprocess.CalledProcessError as e:
                 out = "Error running " + e.output.decode()
             except WindowsError:
-                out = "Error running " + cmd + ": " + sys.exc_info()[1]
+                out = "Error running " + cmd + ": " + e.strerror
             os.chdir(a)
 
         return out

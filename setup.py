@@ -147,7 +147,7 @@ if __name__ == "__main__":
     top = wsx.getroot()
     for elt in top.iter(tag=etree.Element):
         for att in elt.attrib:
-            if elt.get(att) == 'REP-FULLNAME': elt.set(att, version)
+            if elt.get(att) == 'REP-FULLNAME': elt.set(att, fullname)
             if elt.get(att) == 'REP-VERSION': elt.set(att, version)
             if elt.get(att) == 'REP-GUID': elt.set(att, msilib.gen_uuid())
     # Write a .wsx files for candle to process

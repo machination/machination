@@ -154,7 +154,7 @@ def generate_wus(todo, comp, orderstyle="move"):
         for e in working.xpath(rx.to_xpath()):
             e.getparent().remove(e)
         # <wu op="remove" id="rx"/>
-        l.dmsg('generating remove for {}'.format(rx.to_xpath()))
+        l.dmsg('generating remove for {}'.format(rx.to_xpath()), 10)
         wus.append(E.wu(op="remove", id=rx.to_xpath()))
 
     # data only modified
@@ -279,8 +279,12 @@ def generate_wus(todo, comp, orderstyle="move"):
                     and e != se:
                 # sub element in wrong order - change
 
-                context.logger.dmsg('moving {} subelement {}'.
-                                    format(mx.to_xpath(), se_mrx.to_xpath()))
+                context.logger.dmsg(
+                    'moving {} subelement {}'.format(
+                        mx.to_xpath(), se_mrx.to_xpath()
+                        ),
+                    10
+                    )
                 prevwe = closest_shared_previous(working,
                                                  template,
                                                  se_mrx)

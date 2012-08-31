@@ -1,7 +1,7 @@
 <?xml version='1.0'?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <Product Id='REP-GUID'
-	   Name='Python machination-client-core-extras'
+	   Name='REP-FULLNAME'
 	   Language='1033' 
            Version='REP-VERSION'
 	   Manufacturer='Machination Team'

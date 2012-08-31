@@ -139,12 +139,15 @@ if __name__ == "__main__":
     light = os.path.join(wixdir, 'light.exe')
     version = get_git_version()
     name = 'machination-client-core-extras'
+    # Keep the MSI name in the same format as bdist_msi
+    fullname = 'Python {}-{}'.format(name, version)
     out = 'build\\{}-{}.wsx'.format(name, version)
     # Parse template and change REP-* to something appropriate
     wsx = etree.parse('packaging/{}-template.xml'.format(name))
     top = wsx.getroot()
     for elt in top.iter(tag=etree.Element):
         for att in elt.attrib:
+            if elt.get(att) == 'REP-FULLNAME': elt.set(att, version)
             if elt.get(att) == 'REP-VERSION': elt.set(att, version)
             if elt.get(att) == 'REP-GUID': elt.set(att, msilib.gen_uuid())
     # Write a .wsx files for candle to process

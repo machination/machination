@@ -6,7 +6,7 @@
            Version='REP-VERSION'
 	   Manufacturer='Machination Team'
 	   UpgradeCode='REP-GUID' >
-    <Package Description='Machination Core files not python modules'
+    <Package Description='Machination Core files which are not python modules'
              Comments='Files for ProgramData and ProgramFiles'
              Manufacturer='Machination Team'
 	     InstallerVersion='300'

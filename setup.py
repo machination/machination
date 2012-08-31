@@ -7,7 +7,8 @@ import os
 import errno
 import subprocess
 import sys
-
+import msilib
+from lxml import etree
 
 def git_describe():
     return subprocess.check_output(
@@ -138,7 +139,16 @@ if __name__ == "__main__":
     light = os.path.join(wixdir, 'light.exe')
     version = get_git_version()
     out = 'build\\machination-core-extras-{}.wsx'.format(version)
+    # Parse template and change REP-* to something appropriate
     wsx = etree.parse('packaging/machination-core-extras-template.xml')
+    top = wsx.getroot()
+    for elt in top.iter(tag=etree.Element):
+        for att in elt.attrib:
+            if elt.get(att) == 'REP-VERSION': elt.set(att, version)
+            if elt.get(att) == 'REP-GUID': elt.set(att, msilib.gen_uuid())
+    # Write a .wsx files for candle to process
+    with open(out, "w") as f:
+        f.write(etree.tostring(wsx).decode())
     subprocess.check_call(
         [candle,
          '-out', 'build\\machination-core-extras-{}.wixobj'.format(version),
@@ -146,9 +156,10 @@ if __name__ == "__main__":
         )
     subprocess.check_call(
         [light,
-         '-out', 'dist\\machination-core-extras-{}.x64.msi',
-         'build\\machination-core-extras-{}.wixobj']
+         '-out', 'dist\\machination-core-extras-{}.x64.msi'.format(version),
+         'build\\machination-core-extras-{}.wixobj'.format(version)]
         )
+    sys.exit(0)
 
     # Build machination core (without workers or tests)
     core_pkgs = find_packages(

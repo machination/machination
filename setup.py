@@ -121,9 +121,9 @@ if __name__ == "__main__":
             (os.path.join(appdata_dir, 'status'),[]),
             (os.path.join(appdata_dir,'cache'),[]),
             (os.path.join(prog_dir,'bin'),
-             ['bin/join-service.py',
-              'bin/machination-self-update.py',
-              'bin/update-to-latest.py']),
+             ['bin\\join-service.py',
+              'bin\\machination-self-update.py',
+              'bin\\update-to-latest.py']),
             (os.path.join(appdata_dir,'log'),[]),
             (os.path.join(appdata_dir, 'services'),[]),
             ]
@@ -131,6 +131,24 @@ if __name__ == "__main__":
         scripts = []
         scriptargs = []
         data_files = []
+
+    # Build core extras
+    wixdir = r'c:\Program Files (x86)\Windows Installer XML v3.6\bin'
+    candle = os.path.join(wixdir, 'candle.exe')
+    light = os.path.join(wixdir, 'light.exe')
+    version = get_git_version()
+    out = 'build\\machination-core-extras-{}.wsx'.format(version)
+    wsx = etree.parse('packaging/machination-core-extras-template.xml')
+    subprocess.check_call(
+        [candle,
+         '-out', 'build\\machination-core-extras-{}.wixobj'.format(version),
+         'build\\machination-core-extras-{}.wsx'.format(version)]
+        )
+    subprocess.check_call(
+        [light,
+         '-out', 'dist\\machination-core-extras-{}.x64.msi',
+         'build\\machination-core-extras-{}.wixobj']
+        )
 
     # Build machination core (without workers or tests)
     core_pkgs = find_packages(
@@ -158,6 +176,7 @@ if __name__ == "__main__":
 
     # Build each worker package
     basedir = "machination/workers"
+    sys.exit(0)
     for item in os.listdir(basedir):
         # exceptions
         if item in ('__pycache__'):

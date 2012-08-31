@@ -1,0 +1,98 @@
+<?xml version='1.0'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product Id='REP-GUID'
+	   Name='Python machination-client-core-extras'
+	   Language='1033' 
+           Version='REP-VERSION'
+	   Manufacturer='Machination Team'
+	   UpgradeCode='REP-GUID' >
+    <Package Description='Machination Core files not python modules'
+             Comments='Files for ProgramData and ProgramFiles'
+             Manufacturer='Machination Team'
+	     InstallerVersion='300'
+	     Compressed='yes' />
+    <Media Id='1' Cabinet='mach.cab' EmbedCab='yes' />
+
+      <Directory Id='TARGETDIR' Name='SourceDir'>
+	<Directory Id="ProgramFiles64Folder" Name="PFiles">
+	  <Directory Id="MACHPROGS" Name="Machination">
+	    <Directory Id="MachBinDir" Name="bin"/>
+	  </Directory>
+	</Directory>
+	<Directory Id="CommonAppDataFolder" Name="AppDataFiles">
+	  <Directory Id="MACHDATA" Name="Machination">
+	    <Directory Id="MachStatusDir" Name="status"/>
+	    <Directory Id="MachCacheDir" Name="cache"/>
+	    <Directory Id="MachLogDir" Name="log"/>
+	  </Directory>
+	</Directory>
+      </Directory>
+
+      <DirectoryRef Id="MACHDATA">
+	<Component Id="MACHDATA" Guid="REP-GUID">
+	  <RegistryKey Key="MACHDATA" Root="HKCU">
+	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
+	  </RegistryKey>
+	  <CreateFolder/>
+	  <RemoveFolder Id="DeleteMACHDATA"
+			Directory="MACHDATA"
+			On="uninstall"/>
+	</Component>
+      </DirectoryRef>
+      <DirectoryRef Id="MachStatusDir">
+	<Component Id="MachStatusDir" Guid="REP-GUID">
+	  <RegistryKey Key="MachStatusDir" Root="HKCU">
+	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
+	  </RegistryKey>
+	  <CreateFolder/>
+	  <RemoveFolder Id="DeleteMachStatusDir"
+			Directory="MachStatusDir"
+			On="uninstall"/>
+	</Component>
+      </DirectoryRef>
+      <DirectoryRef Id="MachCacheDir">
+	<Component Id="MachCacheDir" Guid="REP-GUID">
+	  <RegistryKey Key="MachCacheDir" Root="HKCU">
+	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
+	  </RegistryKey>
+	  <CreateFolder/>
+	  <RemoveFolder Id="DeleteMachCacheDir"
+			Directory="MachCacheDir"
+			On="uninstall"/>
+	</Component>
+      </DirectoryRef>
+      <DirectoryRef Id="MachLogDir">
+	<Component Id="MachLogDir" Guid="REP-GUID">
+	  <RegistryKey Key="MachLogDir" Root="HKCU">
+	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
+	  </RegistryKey>
+	  <CreateFolder/>
+	  <RemoveFolder Id="DeleteMachLogDir"
+			Directory="MachLogDir"
+			On="uninstall"/>
+	</Component>
+      </DirectoryRef>
+
+      <DirectoryRef Id="MachBinDir">
+	<Component Id="join_service.py" Guid="REP-GUID">
+	  <File Id="join_service.py" Source="bin\join-service.py"/>
+	</Component>
+	<Component Id="machination_self_update.py" Guid="REP-GUID">
+	  <File Id="machination_self_update.py"
+		Source="bin\machination-self-update.py"/>
+	</Component>
+	<Component Id="update_to_latest.py" Guid="REP-GUID">
+	  <File Id="update_to_latest.py" Source="bin\update_to_latest.py"/>
+	</Component>
+      </DirectoryRef>
+
+      <Feature Id='MachCoreExtra' Title='Machination Core Extras' Level='1'>
+	<ComponentRef Id="MACHDATA"/>
+	<ComponentRef Id="MachStatusDir"/>
+	<ComponentRef Id="MachCacheDir"/>
+	<ComponentRef Id="MachLogDir"/>
+	<ComponentRef Id="join_service.py"/>
+      </Feature>
+
+   </Product>
+</Wix>

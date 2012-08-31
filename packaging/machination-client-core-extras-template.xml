@@ -82,7 +82,7 @@
 		Source="bin\machination-self-update.py"/>
 	</Component>
 	<Component Id="update_to_latest.py" Guid="REP-GUID">
-	  <File Id="update_to_latest.py" Source="bin\update_to_latest.py"/>
+	  <File Id="update_to_latest.py" Source="bin\update-to-latest.py"/>
 	</Component>
       </DirectoryRef>
 
@@ -92,6 +92,8 @@
 	<ComponentRef Id="MachCacheDir"/>
 	<ComponentRef Id="MachLogDir"/>
 	<ComponentRef Id="join_service.py"/>
+	<ComponentRef Id="machination_self_update.py"/>
+	<ComponentRef Id="update_to_latest.py"/>
       </Feature>
 
    </Product>

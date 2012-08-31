@@ -48,7 +48,7 @@ pkg_version = None
 for f in os.listdir(distdir):
     fpath = os.path.join(distdir, f)
     if os.path.isfile(fpath):
-        m = re.match(r'machination-client-core-(\d+\.\d+\.\d+)', f)
+        m = re.match(r'machination-client-core-(\d+\.\d+\.\d+).*\.msi$', f)
         if m:
             pkg_version = m.group(1)
             break
@@ -88,6 +88,7 @@ if version != pkg_version:
 # Make bundles
 pkgids = []
 for f in os.listdir(distdir):
+    if not f.endswith('.msi'): continue
     fpath = os.path.join(distdir, f)
     logging.debug('testing {} for pkgid'.format(f))
     m = re.match(r'(machination-client-.*)-{}'.format(version), f)

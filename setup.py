@@ -138,9 +138,10 @@ if __name__ == "__main__":
     candle = os.path.join(wixdir, 'candle.exe')
     light = os.path.join(wixdir, 'light.exe')
     version = get_git_version()
-    out = 'build\\machination-core-extras-{}.wsx'.format(version)
+    name = 'machination-client-core-extras'
+    out = 'build\\{}-{}.wsx'.format(name, version)
     # Parse template and change REP-* to something appropriate
-    wsx = etree.parse('packaging/machination-core-extras-template.xml')
+    wsx = etree.parse('packaging/{}-template.xml'.format(name))
     top = wsx.getroot()
     for elt in top.iter(tag=etree.Element):
         for att in elt.attrib:
@@ -151,15 +152,16 @@ if __name__ == "__main__":
         f.write(etree.tostring(wsx).decode())
     subprocess.check_call(
         [candle,
-         '-out', 'build\\machination-core-extras-{}.wixobj'.format(version),
-         'build\\machination-core-extras-{}.wsx'.format(version)]
+         '-arch', 'x64',
+         '-out', 'build\\{}-{}.wixobj'.format(name, version),
+         'build\\{}-{}.wsx'.format(name, version)]
         )
     subprocess.check_call(
         [light,
-         '-out', 'dist\\machination-core-extras-{}.x64.msi'.format(version),
-         'build\\machination-core-extras-{}.wixobj'.format(version)]
+         '-out', 'dist\\{}-{}.x64.msi'.format(name, version),
+         'build\\{}-{}.wixobj'.format(name, version)]
         )
-    sys.exit(0)
+    os.unlink('dist/{}-{}.x64.wixpdb'.format(name, version))
 
     # Build machination core (without workers or tests)
     core_pkgs = find_packages(
@@ -187,7 +189,6 @@ if __name__ == "__main__":
 
     # Build each worker package
     basedir = "machination/workers"
-    sys.exit(0)
     for item in os.listdir(basedir):
         # exceptions
         if item in ('__pycache__'):

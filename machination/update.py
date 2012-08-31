@@ -245,7 +245,7 @@ class Update(object):
                             ]
 
         # Report failures.
-        l.lmsg(
+        l.wmsg(
             'The following work units reported failure:\n{}'.format(
                 pprint.pformat(failures)
                 )

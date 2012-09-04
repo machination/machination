@@ -37,6 +37,13 @@ class Worker(object):
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.config_elt = self._get_config()
+        self.cache_dir = os.path.join(context.cache_dir(), "bundles")
+        try:
+            os.mkdir(self.cache_dir)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                # don't worry about it
+                pass
         self.cache_maint()
 
     def list_bundles(self):
@@ -137,14 +144,6 @@ class Worker(object):
             c_elt = etree.parse(config_file).getroot()
         except:
             c_elt = etree.Element("config")
-
-        self.cache_dir = os.path.join(context.cache_dir(), "bundles")
-        try:
-            os.mkdir(self.cache_dir)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                # don't worry about it
-                pass
 
         return c_elt
 

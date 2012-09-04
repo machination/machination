@@ -159,7 +159,6 @@ class Worker(object):
 
         # Setup
         result = []
-        flag = False
         pref_mrx = MRXpath("/status/worker[@id='fetcher']")
 
         for wu in work_list:
@@ -175,12 +174,6 @@ class Worker(object):
                     continue
             wu_mrx = MRXpath(wu.attrib["id"])
             if wu_mrx.name() == "config":
-                self.config_elt = xmltools.apply_wu(
-                    wu,
-                    self.config_elt,
-                    prefix=pref_mrx
-                    )
-                flag = True
                 res = etree.Element("wu",
                                     id=wu.attrib["id"],
                                     status="success")
@@ -190,8 +183,6 @@ class Worker(object):
             result.append(res)
 
         # Finished all work. Write config file if changed
-        if flag:
-            self.write_config()
 
         return result
 

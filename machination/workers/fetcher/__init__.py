@@ -35,7 +35,7 @@ class Worker(object):
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
-        self.config_elt = self.read_config()
+        self.config_elt = self._get_config()
         self.cache_maint()
 
     def list_bundles(self):
@@ -462,7 +462,8 @@ class Worker(object):
         w_elt.set("id", self.name)
 
         # First subelement is config
-        w_elt.append(self.config_elt)
+        if len(self.config_elt):
+            w_elt.append(self.config_elt)
 
         # Loop through bundle elements.
 
@@ -479,3 +480,16 @@ class Worker(object):
                 b_elt.attrib["cleaned"] = "1"
 
         return w_elt
+
+    def _get_config(self):
+        """Get the fetcher config element from desired_status
+        """
+        # The config element for the fetcher is just what desired
+        # status says it is.
+        ds_elt = copy.deepcopy(context.get_worker_elt(self.name))
+
+        c_elt = ds_elt.find("config")
+        if c_elt is None:
+            c_elt = etree.Element("config")
+
+        return c_elt

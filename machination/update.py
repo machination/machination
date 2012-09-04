@@ -135,7 +135,7 @@ class Update(object):
         wu_updated_status = copy.deepcopy(self.initial_status())
 
         i = 0
-        failures = []
+#        failures = []
         for lev in iter(topsort.topsort_levels(wudeps)):
             i += 1
             if i == 1:
@@ -149,14 +149,12 @@ class Update(object):
             for wu in wus:
                 l.dmsg(pstring(wu), 10)
 
-
-            # collect workunits by worker
-            byworker = {}
             add_map = {}
             for wu in wus:
                 # If it's an add for a worker, add the worker element
                 wu_mrx = MRXpath(wu.get('id'))
                 if wu_mrx.to_noid_path() == '/status/worker' and wu.get('op') == 'add':
+                    l.lmsg('Adding worker element ' + wu_mrx.to_xpath())
                     wu_updated_status.xpath('/status')[0].append(
                         etree.Element(
                             'worker',
@@ -169,9 +167,8 @@ class Update(object):
                 # that adds still function properly if they get out of
                 # order or previous adds have failed.
                 if wu.get('op') == 'add':
-#                    print('adding {} to add_map'.format(wu.get('id')))
                     add_map[wu.get('id')] = get_fullpos(
-                        wu.get('pos'), 
+                        wu.get('pos'),
                         MRXpath(wu.get('id')).parent()
                         )
 
@@ -180,75 +177,81 @@ class Update(object):
                 if not check[0]:
                     l.wmsg("Failing {}: dep {} failed".format(wu.get('id'), check[1]))
                     work_status[wu.get('id')] = [
-                        False, "Dependency '{}' failed".format(check[1])]
+                        False, "Dependency '{}' failed".format(check[1])
+                        ]
                     # don't include this wu in work to be done
                     continue
-                workername = MRXpath(wu.get('id')).workername(prefix='/status')
-                if workername not in byworker:
-                    byworker[workername] = E.wus(worker=workername)
-                byworker[workername].append(wu)
+
+                wname = MRXpath(wu.get('id')).workername(prefix='/status')
+                worker = self.worker(wname)
+                l.lmsg('dispatching to ' + wname)
+                l.dmsg('work:\n' + pstring(bigworkelt))
+                if worker:
+                    # need to wrap the wu in a wus element
+                    workelt = etree.Element('wus',worker=wname)
+                    workelt.append(copy.deepcopy(wu))
+                    try:
+                        results = worker.do_work(workelt)
+                    except Exception as e:
+                        exc_type, exc_value, exc_tb = sys.exc_info()
+                        # There's only one, but in future there might
+                        # be more - loop over them.
+                        for curwu in workelt:
+                            work_status[curwu.get('id')] = [
+                                False,
+                                "Exception in worker {}\n{}".format(
+                                    wname, str(e)
+                                    )
+                                ]
+                            l.emsg(
+                                "Exception during {} - failing it\n{}".format(
+                                        curwu.get('id'),
+                                        ''.join(traceback.format_tb(exc_tb)) +
+                                        repr(e)
+                                        )
+                                    )
+                    else:
+                        self.process_results(
+                            results,
+                            workelt,
+                            work_status
+                            )
+                        wid = wu.get('id')
+                        completed = work_status.get(wid)
+                        if completed[0]:
+                            # Apply successes to wu_updated_status
+                            l.dmsg('Marking {} succeeded.'.format(wid))
+                            wu_updated_status = apply_wu(
+                                completed[1],
+                                wu_updated_status,
+                                add_map = add_map)
+                        else:
+                            l.dmsg('Marking {} failed.'.format(wid))
+#                            failures.append([wid, completed[1]])
+
+                else:
+                    # No worker: fail this set of work
+                    work_status[wu.get('id')] = [
+                        False,
+                        "No worker '{}'".format(wname)
+                        ]
 
             # TODO(colin): parallelise downloads and other work
 
-            # do the work
-            for wname, bigworkelt in byworker.items():
-                l.lmsg('dispatching to ' + wname)
-                l.dmsg('work:\n' + pstring(bigworkelt))
-                worker = self.worker(wname)
-                if worker:
-                    for bigwu in bigworkelt:
-                        # go back to sending wus one at a time for now
-                        workelt = etree.Element('wus',worker=wname)
-                        workelt.append(copy.deepcopy(bigwu))
-                        try:
-                            results = self.worker(wname).do_work(workelt)
-                        except Exception as e:
-                            exc_type, exc_value, exc_tb = sys.exc_info()
-                            for wu in workelt:
-                                work_status[wu.get('id')] = [
-                                    False,
-                                    "Exception in worker {}\n{}".format(
-                                        wname, str(e)
-                                        )
-                                    ]
-                                l.emsg(
-                                    "Exception from worker {} - failing its work\n{}".format(
-                                        wname,
-                                        ''.join(traceback.format_tb(exc_tb)) + repr(e)
-                                        )
-                                    )
-                        else:
-                            self.process_results(
-                                results,
-                                workelt,
-                                work_status
-                                )
-                            wid = bigwu.get('id')
-                            completed = work_status.get(wid)
-                            if completed[0]:
-                                # Apply successes to wu_updated_status
-                                l.dmsg('Marking {} succeeded.'.format(wid))
-                                wu_updated_status = apply_wu(
-                                    completed[1],
-                                    wu_updated_status,
-                                    add_map = add_map)
-                            else:
-                                l.dmsg('Marking {} failed.'.format(wid))
-                                failures.append([wid, completed[1]])
-                            
-                            
-                else:
-                    # No worker: fail this set of work
-                    for wu in bigworkelt:
-                        work_status[wu.get('id')] = [
-                            False,
-                            "No worker '{}'".format(wname)
-                            ]
-
+        # Report successes
+        l.lmsg(
+            'The following work units reported success:\n{}'.format(
+                pprint.pformat(
+                    [k for k, v in work_status.items() if v[0]]
+                    )
+                )
+            )
         # Report failures.
         l.wmsg(
             'The following work units reported failure:\n{}'.format(
-                pprint.pformat(failures)
+                pprint.pformat(
+                    [[k, v[1]] for k, v in work_status.items() if not v[0]]
+                    )
                 )
             )
         # write calculated status to file

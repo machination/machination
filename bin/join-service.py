@@ -172,7 +172,7 @@ if __name__ == '__main__':
         )
     # make sure service_dir exists
     if not os.path.exists(service_dir):
-        os.mkdir(service_dir)
+        os.makedirs(service_dir)
     # generate the key
     cmd = []
     cmd.extend([openssl,'genpkey'])

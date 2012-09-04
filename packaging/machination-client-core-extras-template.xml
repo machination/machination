@@ -34,9 +34,6 @@
 	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
 	  </RegistryKey>
 	  <CreateFolder/>
-	  <RemoveFolder Id="DeleteMACHDATA"
-			Directory="MACHDATA"
-			On="uninstall"/>
 	</Component>
       </DirectoryRef>
       <DirectoryRef Id="MachStatusDir">
@@ -45,9 +42,6 @@
 	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
 	  </RegistryKey>
 	  <CreateFolder/>
-	  <RemoveFolder Id="DeleteMachStatusDir"
-			Directory="MachStatusDir"
-			On="uninstall"/>
 	</Component>
       </DirectoryRef>
       <DirectoryRef Id="MachCacheDir">
@@ -56,9 +50,6 @@
 	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
 	  </RegistryKey>
 	  <CreateFolder/>
-	  <RemoveFolder Id="DeleteMachCacheDir"
-			Directory="MachCacheDir"
-			On="uninstall"/>
 	</Component>
       </DirectoryRef>
       <DirectoryRef Id="MachLogDir">
@@ -67,9 +58,6 @@
 	    <RegistryValue Type="integer" Value="1" KeyPath="yes"/>
 	  </RegistryKey>
 	  <CreateFolder/>
-	  <RemoveFolder Id="DeleteMachLogDir"
-			Directory="MachLogDir"
-			On="uninstall"/>
 	</Component>
       </DirectoryRef>
 

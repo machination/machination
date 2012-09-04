@@ -154,7 +154,7 @@ def generate_wus(todo, comp, orderstyle="move"):
         for e in working.xpath(rx.to_xpath()):
             e.getparent().remove(e)
         # <wu op="remove" id="rx"/>
-        l.dmsg('generating remove for {}'.format(rx.to_xpath()), 10)
+        l.dmsg('generating remove for {}'.format(rx.to_xpath()))
         wus.append(E.wu(op="remove", id=rx.to_xpath()))
 
     # data only modified
@@ -211,8 +211,10 @@ def generate_wus(todo, comp, orderstyle="move"):
                             % mx.to_xpath())
         # alter the working XML
         # find the element to modify
+        # We might reject the mod, so we need to work on a copy of working
+        w2 = copy.deepcopy(working)
         try:
-            e = working.xpath(mx.to_xpath())[0]
+            e = w2.xpath(mx.to_xpath())[0]
             te = template.xpath(mx.to_xpath())[0]
         except IndexError:
             # no results
@@ -278,19 +280,15 @@ def generate_wus(todo, comp, orderstyle="move"):
             if se_mrx.to_xpath() in comp.bystate['orderdiff']\
                     and e != se:
                 # sub element in wrong order - change
-
-                context.logger.dmsg(
-                    'moving {} subelement {}'.format(
-                        mx.to_xpath(), se_mrx.to_xpath()
-                        ),
-                    10
-                    )
-                prevwe = closest_shared_previous(working,
+                elts_changed = True
+                context.logger.dmsg('moving {} subelement {}'.
+                                    format(mx.to_xpath(), se_mrx.to_xpath()))
+                prevwe = closest_shared_previous(w2,
                                                  template,
                                                  se_mrx)
                 if prevwe is None:
                     parent_mrx = MRXpath(ste.getparent())
-                    parent = working.xpath(parent_mrx.to_xpath())[0]
+                    parent = w2.xpath(parent_mrx.to_xpath())[0]
                     index = 0
                 else:
                     parent = se.getparent()
@@ -310,7 +308,7 @@ def generate_wus(todo, comp, orderstyle="move"):
         for ste in te.iter(tag=etree.Element):
             ste_mrx = MRXpath(ste)
             try:
-                se = working.xpath(ste_mrx.to_xpath())[0]
+                se = w2.xpath(ste_mrx.to_xpath())[0]
             except IndexError:
                 # ste doesn't exist in working.
 
@@ -329,7 +327,7 @@ def generate_wus(todo, comp, orderstyle="move"):
 
                 # find the first previous xpath that also exists
                 # in working
-                prevwe = closest_shared_previous(working,
+                prevwe = closest_shared_previous(w2,
                                                  template,
                                                  MRXpath(ste))
 
@@ -337,18 +335,23 @@ def generate_wus(todo, comp, orderstyle="move"):
                 # iterating over part of it
                 if prevwe is None:
                     parent_mrx = MRXpath(ste.getparent())
-                    wep = working.xpath(parent_mrx.to_xpath())[0]
+                    wep = w2.xpath(parent_mrx.to_xpath())[0]
                     index = 0
                 else:
                     wep = prevwe.getparent()
                     index = wep.index(prevwe) + 1
+                elts_changed = True
                 wep.insert(index, add)
             else:
                 continue
 
         # generate wu
-        l.dmsg('Adding deepmod for {}'.format(mx.to_xpath()), 10)
+        l.dmsg('Checking changes for deepmod {}'.format(mx.to_xpath()), 10)
         if elts_changed or atts_changed or text_changed:
+            l.dmsg('Adding deepmod {}'.format(mx.to_xpath()), 10)
+            old_elt = working.xpath(mx.to_xpath())[0]
+            new_elt = w2.xpath(mx.to_xpath())[0]
+            old_elt.getparent().replace(old_elt, new_elt)
             wus.append(
                 E.wu(copy.deepcopy(e), op="deepmod", id=mx.to_xpath())
                 )

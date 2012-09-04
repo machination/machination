@@ -146,8 +146,8 @@ class Update(object):
 
 #            l.dmsg(pstring(self.initial_status(),10))
 #            l.dmsg(pstring(self.desired_status(),10))
-#            for wu in wus:
-#                l.dmsg(pstring(wu), 10)
+            for wu in wus:
+                l.dmsg(pstring(wu), 10)
 
 
             # collect workunits by worker
@@ -178,6 +178,7 @@ class Update(object):
                 # check to make sure any dependencies have been done
                 check = self.check_deps(wu, work_depends, work_status)
                 if not check[0]:
+                    l.wmsg("Failing {}: dep {} failed".format(wu.get('id'), check[1]))
                     work_status[wu.get('id')] = [
                         False, "Dependency '{}' failed".format(check[1])]
                     # don't include this wu in work to be done

@@ -18,6 +18,7 @@ import sys
 import hashlib
 import platform
 import glob
+import copy
 
 l = context.logger
 

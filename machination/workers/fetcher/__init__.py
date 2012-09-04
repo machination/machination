@@ -180,6 +180,9 @@ class Worker(object):
             else:
                 operator = "_{}".format(wu.attrib["op"])
                 res = getattr(self, operator)(wu)
+                msg = "Bundle processed: " + wu.attrib["id"]
+                msg += " result: " + res.attrib["status"]
+                l.dmsg(msg)
             result.append(res)
 
         # Finished all work. Write config file if changed

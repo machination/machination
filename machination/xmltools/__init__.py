@@ -432,28 +432,28 @@ def generate_wus(todo, comp, orderstyle="move"):
             wparent = None
             pmrx = tmrx.parent()
             create = []
-            while wparent is None:
-                try:
-                    wparent = working.xpath(pmrx.to_xpath())[0]
-                except IndexError:
-                    create.append([pmrx.name(), pmrx.id()])
-                    pmrx = pmrx.parent()
-                    if pmrx is None:
-                        raise Exception("Couldn't find any parent of {} while adding".format(tmrx.to_xpath()))
-            create.reverse()
-            for create_elt in create:
-                child = etree.Element(create_elt[0])
-                wparent.append(child)
-                if create_elt[1] is not None:
-                    child.set('id', create_elt[1])
-                wparent = child
+#            while wparent is None:
+#                try:
+#                    wparent = working.xpath(pmrx.to_xpath())[0]
+#                except IndexError:
+#                    create.append([pmrx.name(), pmrx.id()])
+#                    pmrx = pmrx.parent()
+#                    if pmrx is None:
+#                        raise Exception("Couldn't find any parent of {} while adding".format(tmrx.to_xpath()))
+#            create.reverse()
+#            for create_elt in create:
+#                child = etree.Element(create_elt[0])
+#                wparent.append(child)
+#                if create_elt[1] is not None:
+#                    child.set('id', create_elt[1])
+#                wparent = child
 
             # can't add to a parent that doesn't exist
-#            try:
-#                wparent = working.xpath(tmrx.parent().to_xpath())[0]
-#            except IndexError:
-#                raise Exception("trying to add " + tmrx.to_xpath() +
-#                                " but its parent does not exist")
+            try:
+                wparent = working.xpath(tmrx.parent().to_xpath())[0]
+            except IndexError:
+                raise Exception("trying to add " + tmrx.to_xpath() +
+                                " but its parent does not exist")
 
             # make a copy of the element to add
             add_elt = copy.deepcopy(te)

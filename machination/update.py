@@ -185,7 +185,7 @@ class Update(object):
                 wname = MRXpath(wu.get('id')).workername(prefix='/status')
                 worker = self.worker(wname)
                 l.lmsg('dispatching to ' + wname)
-                l.dmsg('work:\n' + pstring(bigworkelt))
+                l.dmsg('work:\n' + pstring(wu))
                 if worker:
                     # need to wrap the wu in a wus element
                     workelt = etree.Element('wus',worker=wname)

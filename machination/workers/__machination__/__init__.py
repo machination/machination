@@ -50,16 +50,43 @@ class Worker(object):
 
         # Copy the __machination__ worker element as our starting point.
         w_elt = copy.deepcopy(context.get_worker_elt(self.name))
+        print(xmltools.pstring(w_elt))
 
-        # Delete any installedVersion elements
-        for e in w_elt.xpath('installedVersion'):
-            w_elt.remove(e)
+        # Grab the installedVersion element.
+        try:
+            desiv = w_elt.xpath('installedVersion')[0]
+            print(xmltools.pstring(desiv))
+        except IndexError:
+            # No installedVersion, create an empty one for the rest of
+            # the algorithm.
+            desiv = etree.Element('installedVersion')
+        else:
+            w_elt.remove(desiv)
 
         # Find installedVersion information
-        self.generated_iv = getattr(self, self.get_installed_func())()
+        geniv = getattr(self, self.get_installed_func())()
+        # Use geniv as a template to build new element. We do this so
+        # that the installedVersion element's children are in the same
+        # order.
+        self.generated_iv = etree.Element('installedVersion')
+        for desb in desiv.xpath('machinationFetcherBundle'):
+            try:
+                genb = geniv.xpath(
+                    'machinationFetcherBundle[@id="{}"]'.format(desb.get('id'))
+                    )[0]
+            except IndexError:
+                # No counterpart.
+                pass
+            else:
+                # Found counterpart in geniv, add to generated_iv.
+                self.generated_iv.append(genb)
+        # Now add any elements left in geniv to generated_iv
+        for genb in geniv:
+            self.generated_iv.append(genb)
+        
         w_elt.append(self.generated_iv)
 
-        return w_elt
+        return xmltools.mc14n(w_elt)
 
     def get_installed_func(self):
         """Return the name of the correct function to generate installedVersion.

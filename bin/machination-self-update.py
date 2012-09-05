@@ -206,6 +206,8 @@ for bundle in desired:
                 if(rpid.startswith(name)):
                     oldid = rpid
                     break
+            if oldid is None:
+                continue
             remove.remove(oldid)
             update[name] = [oldid, bundle.get('id')]
             update_names.add(name)

@@ -11,6 +11,7 @@ import sys
 import copy
 import re
 import shutil
+import pprint
 
 class Worker(object):
     """Operate on Machination configuration
@@ -24,6 +25,7 @@ class Worker(object):
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.mrx = MRXpath("/status/worker[@id='{}']".format(self.name))
+        self.generated_iv = None
 
         tmp_dispatch = [
             [r'^Windows$', r'^7$', r'.*', r'.*', '_gen_installed_win7'],
@@ -50,12 +52,10 @@ class Worker(object):
 
         # Copy the __machination__ worker element as our starting point.
         w_elt = copy.deepcopy(context.get_worker_elt(self.name))
-        print(xmltools.pstring(w_elt))
 
         # Grab the installedVersion element.
         try:
             desiv = w_elt.xpath('installedVersion')[0]
-            print(xmltools.pstring(desiv))
         except IndexError:
             # No installedVersion, create an empty one for the rest of
             # the algorithm.
@@ -141,7 +141,26 @@ class Worker(object):
             wumrx = MRXpath(wu.get('id'))
             if wumrx.name() == 'installedVersion':
                 if wu.get('op') == 'add' or wu.get('op') == 'deepmod':
-                    self.self_update(wu)
+                    # Ignore ordering differences
+                    if self.generated_iv is None:
+                        self.generate_status()
+                    topleft = etree.Element('top')
+                    topright = etree.Element('top')
+                    topleft.append(copy.deepcopy(wu[0]))
+                    topright.append(copy.deepcopy(self.generated_iv))
+                    comp = xmltools.XMLCompare(topleft, topright)
+                    if comp.bystate['left'] | comp.bystate['right']:
+                        # Something material changed
+                        self.self_update(wu)
+                    else:
+                        # Just an order change - pretend success
+                        results.append(
+                            etree.Element(
+                                'wu',
+                                id=wu.get('id'),
+                                status='success')
+                            )
+
                 elif wu.get('op') == 'remove':
                     # pretend success
                     results.append(

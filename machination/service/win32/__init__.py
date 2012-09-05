@@ -6,6 +6,7 @@ import socket
 import sys
 import os
 import pkgutil
+import subprocess
 from machination import context
 
 

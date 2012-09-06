@@ -1,0 +1,41 @@
+<?xml version='1.0'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product Id='REP-GUID'
+	   Name='REP-FULLNAME'
+	   Language='1033' 
+           Version='REP-VERSION'
+	   Manufacturer='Machination Team'
+	   UpgradeCode='REP-GUID' >
+    <Package Description='Machination Core files which are not python modules'
+             Comments='Files for ProgramData and ProgramFiles'
+             Manufacturer='Machination Team'
+	     InstallerVersion='300'
+	     Compressed='yes' />
+    <Media Id='1' Cabinet='worker.cab' EmbedCab='yes' />
+
+      <Directory Id='TARGETDIR' Name='SourceDir'>
+	<Directory Id="PYTHONDIR" Name="Python32">
+	  <Directory Id="PythonLib" Name="Lib">
+	    <Directory Id="PythonSite" Name="site-packages">
+	      <Directory Id="PythonMachination" Name="machination">
+		<Directory Id="WORKERSDIR" Name="workers">
+		  <Directory Id="THEWORKERDIR" Name="REP-WORKERNAME"/>
+		</Directory>
+	      </Directory>
+	    </Directory>
+	  </Directory>
+	</Directory>
+      </Directory>
+
+      <DirectoryRef Id="THEWORKERDIR">
+	<Component Id="THEWORKERDIR" Guid="REP-GUID">
+	  <CreateFolder/>
+	</Component>
+      </DirectoryRef>
+
+      <Feature Id='MachWorker' Title='Machination Worker' Level='1'>
+	<ComponentRef Id="THEWORKERDIR"/>
+      </Feature>
+
+   </Product>
+</Wix>

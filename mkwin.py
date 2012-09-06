@@ -10,6 +10,7 @@ import subprocess
 import sys
 import msilib
 import re
+import glob
 from lxml import etree
 
 logging.basicConfig(level=logging.DEBUG)
@@ -68,8 +69,11 @@ def clean_all():
     """Call setup.py clean --all"""
 
     # HACK!
-    setup(script_name="setup.py", script_args=["clean", "--all"])
-
+    setup(script_name="mkwin.py", script_args=["clean", "--all"])
+    for f in glob.iglob('build/*.wsx'):
+        os.unlink(f)
+    for f in glob.iglob('build/*.wixobj'):
+        os.unlink(f)
 
 def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
               scriptargs=sys.argv[1:], data_files=[]):
@@ -184,8 +188,6 @@ if __name__ == "__main__":
             continue
         if os.path.isdir(os.path.join(basedir, item)):
             make_worker_msi(basedir, item)
-
-    sys.exit(0)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'bdist_msi':
         scriptdir = "machination/service/win32/"

@@ -74,7 +74,7 @@ if version != pkg_version:
     # Make new packages
     subprocess.check_call(
         [sys.executable,
-         os.path.join(args.gitdir, 'setup.py'),
+         os.path.join(args.gitdir, 'mkwin.py'),
          bdist_cmd]
         )
 

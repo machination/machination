@@ -80,6 +80,24 @@ class Logger(object):
             logger.addHandler(hdlr)
             self.loggers.append([logger, int(dest.attrib["loglevel"])])
 
+        elif dest.tag == "trfile":
+            when = dest.get('when', 'd')
+            interval = int(dest.get('interval', 1))
+            backupCount = int(dest.get('backupCount', 5))
+            logger = logging.Logger(dest.attrib["id"])
+            filepath = os.path.join(self.log_dir,
+                                    dest.attrib["id"])
+            hdlr = logging.handlers.TimedRotatingFileHandler(
+                filepath,
+                when = when,
+                interval = interval, 
+                backupCount = backupCount
+                )
+            fmt = logging.Formatter(self.fmtstring)
+            hdlr.setFormatter(fmt)
+            logger.addHandler(hdlr)
+            self.loggers.append([logger, int(dest.attrib["loglevel"])])
+
         elif dest.tag == 'stream':
             logger = logging.Logger(dest.attrib['id'])
             hdlr = logging.StreamHandler(getattr(sys,

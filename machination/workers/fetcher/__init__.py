@@ -61,6 +61,8 @@ class Worker(object):
         else:
             size = cache_elt[0].attrib["size"]
 
+        l.dmsg("Desired cache size:" + size, 4)
+
         # List all the bundle directories in order of mtime
         bdl = [os.path.join(self.cache_dir, f) for f in self.list_bundles]
         bdl.sort(key=lambda x: os.path.getmtime(x))
@@ -80,6 +82,7 @@ class Worker(object):
                 continue
             if not os.path.exists(os.path.join(a, '.done')):
                 continue
+            l.dmsg("Removing: " + files, 4)
             shutil.rmtree(os.path.join(a, 'files'))
         return None
 
@@ -93,12 +96,16 @@ class Worker(object):
 
     def cache_over_limit(self, size):
         cache_size = size(self.cache_dir)
+        l.dmsg("Current cache size: " + cache_size, 4)
         if size[-1] == '%':
             op = 'space_' + platform.system()
             disk_size = getattr(self, op)(self.cache_dir, 'total')
+            l.dmsg("Total space available on disk: " + disk_size, 4)
             percent = int(size[:-1])
             left = (cache_size / disk_size) * 100
             right = percent
+            l.dmsg("Percent of disk used: " + left +
+                   " vs allowed cache % "+ right, 4)
         else:
             # Size in bytes has either B/K/M/G/T as final character indicating
             # bytes, kb, mb, gb, etc.

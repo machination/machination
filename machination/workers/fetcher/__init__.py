@@ -487,10 +487,10 @@ class Worker(object):
         """
         # The config element for the fetcher is just what desired
         # status says it is.
-        ds_elt = copy.deepcopy(context.get_worker_elt(self.name))
-        if ds_elt is None:
-            c_elt = etree.Element("config")
-        else:
+        try:
+            ds_elt = copy.deepcopy(context.get_worker_elt(self.name))
             c_elt = ds_elt.find("config")
+        except:
+            c_elt = etree.Element("config")
 
         return c_elt

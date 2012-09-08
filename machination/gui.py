@@ -29,9 +29,9 @@ class MGUI(QtGui.QWidget):
         self.setWindowTitle('Machination GUI')
         self.show()
 
-class HItem(object, wc, obj_type_id = None, obj_id = None):
+class HItem(object):
 
-    def __init__(self, wc):
+    def __init__(self, wc, obj_type_id = None, obj_id = None):
         self.wc = wc
         # lastsync needs to be before any possible modifications
         self.lastsync = 0
@@ -78,6 +78,60 @@ class HierarchyModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent = None):
         super().__init__(parent = parent)
+
+class FakeWc(object):
+    '''Pretend to be a WebClient connected to a hierarchy
+
+    For debugging purposes'''
+
+    def __init__(self):
+        self.type_info = {
+            'machination:hc': {'name': 'hc'},
+            '1': {'name': 'set'},
+            '2': {'name': 'os_instance'}
+            }
+        self.data = {
+            'machination:hc': {
+                '1': {
+                    'contents': [
+                        ['machination:hc', '2'],
+                        ['1', '1'],
+                        ['2', '1']
+                        ],
+                    'attachments': [],
+                    'fields': {
+                        'name': 'machination:root'
+                        }
+                    },
+                '2': {
+                    'contents': [],
+                    'attachments': [],
+                    'fields': {
+                        'name': 'system'
+                        }
+                    }
+                },
+            '1': {
+                '1': {
+                    'name': 'universal'
+                    },
+                },
+            '2': {
+                '1': {
+                    'name': 'win7-test1'
+                    }
+                }
+            }
+
+    def call(self, fname, *args):
+        return getattr(self, '_' + fname)(*args)
+
+    def _GetObject(self, tid, oid):
+        print(self)
+        print('{} {}'.format(tid, oid))
+        oftype = self.data.get(str(tid))
+        if oftype is None: return None
+        return oftype.get(str(oid))
 
 
 def main():

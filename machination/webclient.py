@@ -43,9 +43,9 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id, obj_type, cred=None, service_elt=None):
+    def __init__(self, service_id = None, obj_type, cred=None, service_elt=None):
         self.service_id = service_id
-        if service_elt is None and not self.service_id:
+        if service_elt is not None and not self.service_id:
             self.service_id = service_elt.get('id')
         self.obj_type = obj_type
         self.cred = cred

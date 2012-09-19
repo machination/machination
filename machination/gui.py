@@ -3,7 +3,7 @@ import time
 import copy
 from PyQt4 import QtGui
 from PyQt4 import QtCore
-#from machination.webclient import WebClient
+from machination.webclient import WebClient
 
 class MGUI(QtGui.QWidget):
 
@@ -34,15 +34,35 @@ class MGUI(QtGui.QWidget):
     def refresh_type_info(self):
         self.type_info = self.wc.call('TypeInfo')
 
+class WCProxy(WebClient):
+
+    def get_object(self, type_id, obj_id):
+        # Create obj_map if it doesn't exist
+        try:
+            obj_map = self.obj_map
+        except AttributeError:
+            self.obj_map = obj_map = {}
+        index = '{},{}'.format(type_id, obj_id)
+
+        # Find any object in the map
+        obj = obj_map.get(index)
+
+        # Get object if not in map
+        if obj is None:
+            obj = HObject(self, type_id, obj_id)
+            obj_map[index] = obj
+
+        return obj
+
 class HObject(object):
 
-    def __init__(self, wc, obj_type_id = None, obj_id = None):
-        self.wc = wc
+    def __init__(self, wcp, type_id = None, obj_id = None):
+        self.wcp = wcp
         # lastsync needs to be before any possible modifications
         self.lastsync = 0
-        self.obj_type_id = obj_type_id
+        self.type_id = type_id
         self.obj_id = obj_id
-        if self.obj_type_id and self.obj_id:
+        if self.type_id and self.obj_id:
             self.sync()
 
     data_changed = QtCore.pyqtSignal()
@@ -77,9 +97,9 @@ class HObject(object):
         if timestamp is None:
             timestamp = time.time()
         if not changes:
-            changes = wc.call(
+            changes = self.wcp.call(
                 'ChangesSince',
-                self.obj_type_id,
+                self.type_id,
                 self.obj_id,
                 self.lastsync
                 )
@@ -112,9 +132,19 @@ class HObject(object):
                 '_sync_obj should never be called with remove change type'
                 )
         self.lastsync = timestamp
-        self.data = changes.get('fields')
+        self.data = copy.copy(changes.get('fields'))
 
-class HContainer(HItem):
+class HContainer(HObject):
+    '''Data structure representing hcs
+
+    self.data as HObject
+    self.contents as {
+      ord1: hitem1,
+      ord2: hitem2,
+      ...
+    }
+    self.attachments same form as self.contents
+    '''
 
     def _sync_obj(self, changes, timestamp):
         '''Changes in the form:
@@ -122,34 +152,61 @@ class HContainer(HItem):
         {
          'changetype': 'add' | 'remove' | 'update',
          'fields': {field_name: field_value, ... },
-         'contents': [
-           {
-             'type_id': tid,
-             'id': oid,
-             'changetype': 'addafter' | 'moveafter' | 'remove',
-             'old_ordinal': ord,
-             'new_ordinal': ord
-           },
-           ...
+         'contents': {
+           'remove' : [
+             {
+               'type_id': tid,
+               'id': oid,
+               'ordinal': ord,
+             },
+             ...
+           ],
+           'move': [
+             {
+               'type_id': tid,
+               'id': oid,
+               'old_ordinal': ord,
+               'new_ordinal': ord,
+             },
+             ...
+           ],
+           'add' : [
+             {
+               'type_id': tid,
+               'id': oid,
+               'ordinal': ord,
+             },
+             ...
+           ],
          ],
-         'attachments': [
-           {
-             'type_id': tid,
-             'id': oid,
-             'changetype': 'addafter' | 'moveafter' | 'remove',
-             'old_ordinal': ord,
-             'new_ordinal': ord
-           },
-           ...
-         ]
+         'attachments': same form as contents
         }
         '''
         # Call _sync_obj from HObject to capture changes to data
         super()._sync_obj(changes, timestamp)
 
         # Apply changes to contents
+        self.apply_collection_changes(self.contents, changes)
 
-        # Apply changes to contents
+        # Apply changes to attachments
+        self.apply_collection_changes(self.attachments, changes)
+
+    def apply_collection_changes(self, col, changes):
+
+        # Removes.
+        for change in changes.get('remove', []):
+            del col[change.get('ordinal')]
+
+        # Moves.
+        for change in changes.get('move', []):
+            oldord = change.get('old_ordinal')
+            item = col.get(oldord)
+            del col[oldord]
+            col[change.get('new_ordinal')] = item
+
+        # Adds.
+        for change in changes.get('add', []):
+            col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
 
 
 class HierarchyModel(QtCore.QAbstractItemModel):

@@ -211,8 +211,15 @@ class HContainer(HObject):
 
 class HierarchyModel(QtCore.QAbstractItemModel):
 
-    def __init__(self, parent = None):
+    def __init__(self, parent = None, wcp = None):
         super().__init__(parent = parent)
+        if wcp is not None: self.setwcp(wcp)
+
+    def setwcp(self, wcp):
+        self.wcp = wcp
+
+    def index(self, row, column, parent):
+        pass
 
 class FakeWc(object):
     '''Pretend to be a WebClient connected to a hierarchy

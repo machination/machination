@@ -1,5 +1,7 @@
 #! /usr/bin/python3
 
+#Force sip to use API version 2. Should just work on Python3, but let's not
+#take any chances
 import sip
 sip.setapi("QString",2)
 sip.setapi("QVariant",2)
@@ -304,7 +306,7 @@ class FakeWc(object):
         obj['type_id'] = tid
         if tid == 'machination:hc':
             changed = False
-                new = {
+            new = {
                     'id': oid,
                     'type_id': tid,
                     'contents': [],

@@ -35,7 +35,7 @@ class MGUI(QtGui.QWidget):
 
         self.setLayout(self.hbox)
 
-        self.setGeometry(300, 300, 600, 400)
+        self.setGeometry(300, 300, 720, 480)
         self.setWindowTitle('Machination GUI')
         self.show()
 

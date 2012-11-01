@@ -304,7 +304,7 @@ class FakeWc(object):
         obj['type_id'] = tid
         if tid == 'machination:hc':
             changed = False
-                new = {
+            new = {
                     'id': oid,
                     'type_id': tid,
                     'contents': [],

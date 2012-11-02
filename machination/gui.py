@@ -25,9 +25,28 @@ class MGUI(QtGui.QWidget):
 
         self.hmodel = HierarchyModel()
 
+	# Generate worker buttons
+        # FIXME: Automate getting a worker list
+        self.wkb = QtGui.QTButtonGroup()
+	wkrs = {1: "New",
+		2: "Environment",
+		3: "Fetcher",
+		4: "Firewall",
+		5: "Packageman",
+		6: "Shortcut",
+		7: "Time",
+		8: "Usergroup"}
+	for wkr in wkrs:
+	    b = QtGui.QPushButton(wkrbtn[wkr])
+            b.setCheckable(True)
+            self.wkb.addButton(b, wkr)
+
+        self.wbbox = QtGui.QVBoxLayout(self)
+        self.wbbox.addWidget(self.wkb)
         self.hbox = QtGui.QHBoxLayout(self)
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
+        self.hbox.addWidget(self.wbbox)
         self.view.setModel(self.model)
         self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
         self.view.sizePolicy().setHorizontalStretch(1)

@@ -23,19 +23,19 @@ class MGUI(QtGui.QWidget):
 
         self.hmodel = HierarchyModel()
 
-	# Generate worker buttons
+    # Generate worker buttons
         # FIXME: Automate getting a worker list
         self.wkb = QtGui.QTButtonGroup()
-	wkrs = {1: "New",
-		2: "Environment",
-		3: "Fetcher",
-		4: "Firewall",
-		5: "Packageman",
-		6: "Shortcut",
-		7: "Time",
-		8: "Usergroup"}
-	for wkr in wkrs:
-	    b = QtGui.QPushButton(wkrbtn[wkr])
+        wkrs = {1: "New",
+                2: "Environment",
+                3: "Fetcher",
+                4: "Firewall",
+                5: "Packageman",
+                6: "Shortcut",
+                7: "Time",
+                8: "Usergroup"}
+        for wkr in wkrs:
+            b = QtGui.QPushButton(wkrbtn[wkr])
             b.setCheckable(True)
             self.wkb.addButton(b, wkr)
 

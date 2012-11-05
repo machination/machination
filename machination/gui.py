@@ -28,6 +28,8 @@ class MGUI(QtGui.QWidget):
         # Generate worker buttons
         # FIXME: Automate getting a worker list
         self.wbbox = QtGui.QVBoxLayout()
+        self.label = QtGui.QLabel()
+        self.wbbox.addWidget(self.label)
         self.wkb = QtGui.QButtonGroup()
         wkrs = {1: "New",
                 2: "Environment",
@@ -43,6 +45,11 @@ class MGUI(QtGui.QWidget):
             self.wkb.addButton(b, wkr)
             self.wbbox.addWidget(b)
 
+        self.wkb.buttonClicked.connect(self.worker_button_clicked)
+
+        self.vbox = QtGui.QVBoxLayout()
+        self.librarylist = QtGui.QListWidget()
+        self.vbox.addWidget(self.librarylist)
         self.hbox = QtGui.QHBoxLayout(self)
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
@@ -51,12 +58,24 @@ class MGUI(QtGui.QWidget):
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
         self.hbox.addLayout(self.wbbox)
-
+        self.hbox.addLayout(self.vbox)
         self.setLayout(self.hbox)
 
         self.setGeometry(300, 300, 720, 480)
         self.setWindowTitle('Machination GUI')
         self.show()
+
+    def worker_button_clicked(self):
+        btn = self.wkb.checkedButton()
+        self.librarylist.clear()
+        if btn.text() == "New":
+            self.librarylist.addItem("Environment")
+            self.librarylist.addItem("Fetcher")
+            self.librarylist.addItem("Firewall")
+            self.librarylist.addItem("Packageman")
+            self.librarylist.addItem("Shortcut")
+            self.librarylist.addItem("Time")
+            self.librarylist.addItem("Usergroup")
 
     def refresh_type_info(self):
         self.type_info = self.wc.call('TypeInfo')

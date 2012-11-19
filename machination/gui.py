@@ -58,6 +58,9 @@ class MGUI(QtGui.QWidget):
         self.setLayout(self.hbox)
         self.contents = QtGui.QVBoxLayout(self)
         self.hbox.addLayout(self.contents)
+        self.ctitle = QtGui.QLabel(self)
+        self.ctitle.setText("Please Select a Worker")
+        self.contents.addWidget(self.ctitle)
 
         self.setGeometry(300, 300, 1080, 520)
         self.setWindowTitle('Machination GUI')
@@ -65,23 +68,23 @@ class MGUI(QtGui.QWidget):
 
     def worker_button_clicked(self):
         btn = self.wkb.checkedButton()
-        self.wk_list.clear()
+        self.librarylist.clear()
         if btn.text() == "New":
             self.addnew = True
-            self.wk_list.addItem("Environment")
-            self.wk_list.addItem("Fetcher")
-            self.wk_list.addItem("Firewall")
-            self.wk_list.addItem("Packageman")
-            self.wk_list.addItem("Shortcut")
-            self.wk_list.addItem("Time")
-            self.wk_list.addItem("Usergroup")
+            self.librarylist.addItem("Environment")
+            self.librarylist.addItem("Fetcher")
+            self.librarylist.addItem("Firewall")
+            self.librarylist.addItem("Packageman")
+            self.librarylist.addItem("Shortcut")
+            self.librarylist.addItem("Time")
+            self.librarylist.addItem("Usergroup")
         else:
             self.addnew = False
             for li in self.get_li(btn.text()):
-                self.wk_list.addItem(li["Name"])
+                self.librarylist.addItem(li["Name"])
 
     def worker_list_changed(self):
-        itm = self.wk_list.selectedItems()
+        itm = self.librarylist.selectedItems()
         if itm is None:
             #Clear contents of c_frame except buttons
             pass

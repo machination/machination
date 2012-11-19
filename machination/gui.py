@@ -28,8 +28,6 @@ class MGUI(QtGui.QWidget):
         # Generate worker buttons
         # FIXME: Automate getting a worker list
         self.wbbox = QtGui.QVBoxLayout()
-        self.label = QtGui.QLabel()
-        self.wbbox.addWidget(self.label)
         self.wkb = QtGui.QButtonGroup()
         wkrs = {1: "New",
                 2: "Environment",
@@ -47,9 +45,7 @@ class MGUI(QtGui.QWidget):
 
         self.wkb.buttonClicked.connect(self.worker_button_clicked)
 
-        self.vbox = QtGui.QVBoxLayout()
         self.librarylist = QtGui.QListWidget()
-        self.vbox.addWidget(self.librarylist)
         self.hbox = QtGui.QHBoxLayout(self)
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
@@ -58,24 +54,43 @@ class MGUI(QtGui.QWidget):
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
         self.hbox.addLayout(self.wbbox)
-        self.hbox.addLayout(self.vbox)
+        self.hbox.addWidget(self.librarylist)
         self.setLayout(self.hbox)
+        self.contents = QtGui.QVBoxLayout(self)
+        self.hbox.addLayout(self.contents)
 
-        self.setGeometry(300, 300, 720, 480)
+        self.setGeometry(300, 300, 1080, 520)
         self.setWindowTitle('Machination GUI')
         self.show()
 
     def worker_button_clicked(self):
         btn = self.wkb.checkedButton()
-        self.librarylist.clear()
+        self.wk_list.clear()
         if btn.text() == "New":
-            self.librarylist.addItem("Environment")
-            self.librarylist.addItem("Fetcher")
-            self.librarylist.addItem("Firewall")
-            self.librarylist.addItem("Packageman")
-            self.librarylist.addItem("Shortcut")
-            self.librarylist.addItem("Time")
-            self.librarylist.addItem("Usergroup")
+            self.addnew = True
+            self.wk_list.addItem("Environment")
+            self.wk_list.addItem("Fetcher")
+            self.wk_list.addItem("Firewall")
+            self.wk_list.addItem("Packageman")
+            self.wk_list.addItem("Shortcut")
+            self.wk_list.addItem("Time")
+            self.wk_list.addItem("Usergroup")
+        else:
+            self.addnew = False
+            for li in self.get_li(btn.text()):
+                self.wk_list.addItem(li["Name"])
+
+    def worker_list_changed(self):
+        itm = self.wk_list.selectedItems()
+        if itm is None:
+            #Clear contents of c_frame except buttons
+            pass
+        elif self.addnew == True:
+            #Display entry fields
+            pass
+        else:
+            #Display info fields
+            pass
 
     def refresh_type_info(self):
         self.type_info = self.wc.call('TypeInfo')

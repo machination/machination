@@ -57,6 +57,7 @@ class MGUI(QtGui.QWidget):
         self.hbox.addWidget(self.librarylist)
         self.setLayout(self.hbox)
         self.contents = QtGui.QVBoxLayout(self)
+        self.contents.setGeometry(0, 0, 600, 520)
         self.hbox.addLayout(self.contents)
         self.ctitle = QtGui.QLabel(self)
         self.ctitle.setText("Please Select a Worker")

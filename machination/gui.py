@@ -25,9 +25,12 @@ class MGUI(QtGui.QWidget):
 
         self.hmodel = HierarchyModel()
 
+        self.wtitle = QtGui.QLabel()
+        self.wtitle.setText("Workers")
         # Generate worker buttons
         # FIXME: Automate getting a worker list
         self.wbbox = QtGui.QVBoxLayout()
+        #self.wbbox.addWidget(self.wtitle)
         self.wkb = QtGui.QButtonGroup()
         wkrs = {1: "New",
                 2: "Environment",
@@ -46,6 +49,10 @@ class MGUI(QtGui.QWidget):
         self.wkb.buttonClicked.connect(self.worker_button_clicked)
 
         self.librarylist = QtGui.QListWidget()
+        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, 
+                                 QtGui.QSizePolicy.Expanding)
+        self.librarylist.setSizePolicy(sPol)
+        self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
         self.hbox = QtGui.QHBoxLayout(self)
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
@@ -57,11 +64,18 @@ class MGUI(QtGui.QWidget):
         self.hbox.addWidget(self.librarylist)
         self.setLayout(self.hbox)
         self.contents = QtGui.QVBoxLayout(self)
-        self.contents.setGeometry(0, 0, 600, 520)
         self.hbox.addLayout(self.contents)
-        self.ctitle = QtGui.QLabel(self)
+        self.cframe = QtGui.QFrame(self)
+        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, 
+                                 QtGui.QSizePolicy.Expanding)
+        sPol.setHorizontalStretch(0)
+        sPol.setVerticalStretch(0)
+        self.cframe.setSizePolicy(sPol)
+        self.cframe.setFrameShape(QtGui.QFrame.StyledPanel)
+        self.cframe.setFrameShadow(QtGui.QFrame.Sunken)
+        self.contents.addWidget(self.cframe)
+        self.ctitle = QtGui.QLabel(self.cframe)
         self.ctitle.setText("Please Select a Worker")
-        self.contents.addWidget(self.ctitle)
 
         self.setGeometry(300, 300, 1080, 520)
         self.setWindowTitle('Machination GUI')

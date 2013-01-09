@@ -23,7 +23,7 @@ class MGUI(QtGui.QWidget):
         self.model = QtGui.QFileSystemModel()
         self.model.setRootPath('/')
 
-        self.hmodel = HierarchyModel()
+#        self.model = HModel()
 
         self.wtitle = QtGui.QLabel()
         self.wtitle.setText("Workers")
@@ -49,7 +49,7 @@ class MGUI(QtGui.QWidget):
         self.wkb.buttonClicked.connect(self.worker_button_clicked)
 
         self.librarylist = QtGui.QListWidget()
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, 
+        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
                                  QtGui.QSizePolicy.Expanding)
         self.librarylist.setSizePolicy(sPol)
         self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
@@ -66,7 +66,7 @@ class MGUI(QtGui.QWidget):
         self.contents = QtGui.QVBoxLayout(self)
         self.hbox.addLayout(self.contents)
         self.cframe = QtGui.QFrame(self)
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, 
+        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
                                  QtGui.QSizePolicy.Expanding)
         sPol.setHorizontalStretch(0)
         sPol.setVerticalStretch(0)
@@ -287,7 +287,27 @@ class HContainer(HObject):
         for change in changes.get('add', []):
             col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
 
+class HModel(QtGui.QStandardItemModel):
+    '''Model Machination hierarchy for QTreeView
+    '''
 
+    def __init__(self, wc = None):
+        super().__init__()
+        if wc is not None: self.wc = wc
+        root = self.invisibleRootItem()
+        for i in range(4):
+            root.appendRow(QtGui.QStandardItem("splat {}".format(i)))
+
+    def on_expand(self, index):
+        '''Slot for 'expanded' signal.'''
+        self.refresh(index)
+
+    def refresh(self, index):
+        '''Refresh a node from the hierarchy'''
+        item = self.itemFromIndex(index)
+
+# Later we'll make a better model based on QAbstractItemModel. Right
+# now, see HModel -- based on QStandardItemModel
 class HierarchyModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent = None, wcp = None):

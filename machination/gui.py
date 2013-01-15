@@ -13,17 +13,71 @@ from PyQt4 import QtGui
 from PyQt4 import QtCore
 from machination.webclient import WebClient
 
+class CredentialsDialog(QtGui.QInputDialog):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setMethodsList(["cosign", "cert", "debug"])
+        self.textValueChanged.connect(self.method_chosen)
+
+    def setMethodsList(self, methods):
+        self.setComboBoxItems(
+            methods
+            )
+
+    def method_chosen(self, method):
+        print("method now {}".format(method))
+
 class MGUI(QtGui.QWidget):
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
+    def menu_service_connect(self):
+        '''Handler for Service.connect menu item
+        '''
+        d = QtGui.QInputDialog(self)
+        d.setLabelText("Service URL:")
+        d.setComboBoxItems(
+            ["https://mach2.see.ed.ac.uk/machination/hierarchy",
+             "--new--"]
+            )
+        ok = d.exec_()
+        if ok:
+            self.connect_to_service(d.textValue())
+
+    def connect_to_service(self, url):
+        '''Connect to a machination hierarchy service.
+        '''
+        print("connecting to " + url)
+        d = CredentialsDialog(self)
+        d.setLabelText("Authentication Method:")
+        d.exec_()
+
     def init_ui(self):
         self.model = QtGui.QFileSystemModel()
         self.model.setRootPath('/')
 
-#        self.model = HModel()
+        self.model = HModel()
+
+        # The main layout
+        self.vbox = QtGui.QVBoxLayout(self)
+        self.setLayout(self.vbox)
+
+        # Menus
+        self.menubar = QtGui.QMenuBar()
+        self.layout().setMenuBar(self.menubar)
+
+        # Service menu
+        self.service_menu = QtGui.QMenu("&Service", self)
+        self.menubar.addMenu(self.service_menu)
+        # Connect to a new service
+        action = self.service_menu.addAction(
+            "connect...",
+            self.menu_service_connect
+            )
+
 
         self.wtitle = QtGui.QLabel()
         self.wtitle.setText("Workers")
@@ -54,15 +108,19 @@ class MGUI(QtGui.QWidget):
         self.librarylist.setSizePolicy(sPol)
         self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
         self.hbox = QtGui.QHBoxLayout(self)
+        self.vbox.addLayout(self.hbox)
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
         self.view.setModel(self.model)
+        # TODO: hide these after coding/debugging is finished
+#        self.view.hideColumn(1)
+#        self.view.hideColumn(2)
         self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
         self.hbox.addLayout(self.wbbox)
         self.hbox.addWidget(self.librarylist)
-        self.setLayout(self.hbox)
+#        self.setLayout(self.hbox)
         self.contents = QtGui.QVBoxLayout(self)
         self.hbox.addLayout(self.contents)
         self.cframe = QtGui.QFrame(self)
@@ -292,11 +350,26 @@ class HModel(QtGui.QStandardItemModel):
     '''
 
     def __init__(self, wc = None):
-        super().__init__()
+        super().__init__(0,3)
         if wc is not None: self.wc = wc
-        root = self.invisibleRootItem()
+        self.setHorizontalHeaderLabels(['name','type','id'])
+        self.invisibleRootItem().appendRow(
+            [
+                QtGui.QStandardItem('machination:root'),
+                QtGui.QStandardItem('machination:hc'),
+                QtGui.QStandardItem('0'),
+                ]
+            )
+        root = self.item(0,0)
         for i in range(4):
-            root.appendRow(QtGui.QStandardItem("splat {}".format(i)))
+            name = "splat {}".format(i)
+            root.appendRow(
+                [
+                    QtGui.QStandardItem(name),
+                    QtGui.QStandardItem('1'),
+                    QtGui.QStandardItem('{}'.format(i)),
+                    ]
+                )
 
     def on_expand(self, index):
         '''Slot for 'expanded' signal.'''

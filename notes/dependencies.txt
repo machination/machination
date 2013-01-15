@@ -1,4 +1,4 @@
-From an email aiming to crystalise thinking about dependencies:
+ From an email aiming to crystalise thinking about dependencies:
 
 Expanding (1), a topological sort relies on the dependencies all having
 the form "A depends on B", which turns into "B must come before A".
@@ -45,7 +45,7 @@ notably:
 def topsort_levels(pairlist):
     """Topologically sort a list of (parent, child) pairs into depth levels.
 
-    This returns a generator. 
+    This returns a generator.
     Turn this into a an iterator using the iter built-in function.
     (if you iterate over the iterator, each element gets generated when
     it is asked for, rather than generating the whole list up-front.)

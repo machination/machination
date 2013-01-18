@@ -171,14 +171,16 @@ sub handler {
   my $uri_base = URI->new($uri)->path;
   my $ruri = substr($r->uri,length($uri_base));
   $ruri =~ s/^\///;
+  # When using the 'debug' authentication type the remote user in the uri.
   my ($authen_type, $rem_user) = split(/\//, $ruri);
+  # For all other authentication types Apache should tell us.
+  $rem_user = $r->user unless $authen_type eq "debug";
   my $haccess_conf_node = $ha->conf->doc->getElementById("subconfig.haccess");
   my @authen_nodes = $haccess_conf_node->findnodes("authentication/type[\@id='$authen_type']");
   unless(@authen_nodes) {
     error("Unsupported authentication type '$authen_type'");
     return Apache2::Const::OK;
   }
-  $rem_user = $r->user unless $authen_type eq "debug";
   $log->dmsg($cat, "original remote user: $rem_user", 4);
   $orig_rem_user = $rem_user;
   my $obj_type;

@@ -60,12 +60,15 @@ class WebClient(object):
             'authentication[@id="{}"]'.format(self.obj_type)
             )
         if not tmp_auth:
+            # Some default authentication types
             tmp_elt = etree.Element('authentication')
-            tmp_elt.set('id', self.obj_type)
+            tmp_elt.set('id', str(self.obj_type))
             if self.obj_type == 'person':
                 tmp_elt.set("type", "basic")
             elif self.obj_type == 'os_instance':
                 tmp_elt.set("type", "cert")
+            elif self.obj_type is None:
+                tmp_elt.set("type", "public")
             tmp_auth=[tmp_elt]
         self.authen_elt = tmp_auth[0]
         self.authen_type = self.authen_elt.get("type")

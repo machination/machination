@@ -9,6 +9,7 @@ sip.setapi("QVariant",2)
 import sys
 import time
 import copy
+from lxml import etree
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 from machination.webclient import WebClient
@@ -52,7 +53,13 @@ class MGUI(QtGui.QWidget):
         '''
         print("connecting to " + url)
         d = CredentialsDialog(self)
-        d.setLabelText("Authentication Method:")
+        selt = etree.fromstring(
+            "<service><hierarchy id='{}'/></service>".format(url)
+            )
+        tmpwc = WebClient(service_elt = selt)
+        istr = tmpwc.call('ServiceInfo')
+        info = etree.fromstring(istr)
+        d.setLabelText("Authentication (method = {}):".format(istr))
         d.exec_()
 
     def init_ui(self):

@@ -351,6 +351,18 @@ sub call_ServiceInfo {
   return $service_elt->toString(1);
 }
 
+=item B<AbbrevSubconfig>
+
+=cut
+
+sub call_AbbrevHaccessSubconfig {
+  my $han = $ha->conf->doc->getElementById("subconfig.haccess");
+  my $ret = XML::LibXML::Element->new('subconfig');
+  $ret->setAttribute('xml:id', "subconfig.haccess");
+  $ret->setAttribute('serviceId', $han->getAttribute('serviceId'));
+
+}
+
 
 =item B<Help>
 

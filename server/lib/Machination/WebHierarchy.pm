@@ -66,6 +66,7 @@ my %calls =
    CertInfo => undef,
    OsId => undef,
    ServiceInfo => undef,
+   ServiceInfo2 => undef,
 
    # types
    TypeInfo => undef,
@@ -351,16 +352,30 @@ sub call_ServiceInfo {
   return $service_elt->toString(1);
 }
 
-=item B<AbbrevSubconfig>
+=item B<ServiceInfo2>
+
+Return service info in the form of the server's config file. Not all
+information is transferred.
 
 =cut
 
-sub call_AbbrevHaccessSubconfig {
+sub call_ServiceInfo2 {
   my $han = $ha->conf->doc->getElementById("subconfig.haccess");
   my $ret = XML::LibXML::Element->new('subconfig');
+  my $auth = $ret->appendChild(XML::LibXML::Element->new("authentication"));
   $ret->setAttribute('xml:id', "subconfig.haccess");
   $ret->setAttribute('serviceId', $han->getAttribute('serviceId'));
-
+  $ret->setAttribute('URI', $han->getAttribute('URI'));
+  foreach my $elt ($han->findnodes('authentication/entityDefault')) {
+    $auth->appendChild($elt->cloneNode(1));
+  }
+  foreach my $elt ($han->findnodes('authentication/type')) {
+    $auth->appendChild($elt->cloneNode(1));
+  }
+  foreach my $elt ($han->findnodes('authentication/certSign')) {
+    $auth->appendChild($elt->cloneNode(1));
+  }
+  return $ret->toString(1);
 }
 
 

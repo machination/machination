@@ -70,31 +70,65 @@
     <defaultUser>{}@COSIGN.REALM</defaultUser>
   </subconfig>
 
-<!-- no longer used
-  <subconfig xml:id="subconfig.hierarchy">
-    <file xml:id="file.hierarchy.BOOTSTRAP"
-	  dir="dir.DATABASE" name="bootstrap_hierarchy.xml"/>
-    <file xml:id="file.hierarchy2.BOOTSTRAP"
-	  dir="dir.DATABASE" name="bootstrap_hierarchy2.xml"/>
-    <hc id="/system" hpath="/system"/>
-    <hc id="/system/sets" hpath="/system/sets"/>
-    <hc id="/system/sets/universal" hpath="/system/sets/universal"/>
-    <hc id="/system/sets/empty" hpath="/system/sets/empty"/>
-  </subconfig>
--->
-
   <subconfig xml:id="subconfig.haccess"
              serviceId="your.service.id"
              URI="https://your.server.name/machination/hierarchy">
     <authentication>
-      <entityDefault id="person"
-                     type="cosign"
-                     cosignLoginPage="https://your.cosign.login.page/"/>
-      <entityDefault id="os_instance" type="cert"/>
-      <type id="public"/>
-      <type id="basic"/>
-      <type id="cosign" entityNamePattern="^(.*?)@"/>
-      <type id="cert" entityNamePattern="^.*CN=.*?:(.*)$"/>
+
+      <!-- Default authentication type for each object type -->
+      <objType id="person" defaultAuth="cosign"/>
+      <objType id="os_instance" defaultAuth="cert"/>
+
+      <!-- Authentication types:
+
+           <type id="public|debug|cert|cosign|basic"
+                 defaultObjectType="entity object type"
+                 entityPattern="optional pattern">
+
+             ...all the object types allowed to use this kind of auth
+             <objType id="obj_type"/>
+             ...
+
+           </type>
+
+           defaultObjectType = object type to assume if not specified
+             in remote_user
+
+           entityPattern = perl regex used to find object name and
+             type. in remote_user Use the named capture buffers 'name'
+             and 'type'. Evaluated with /x (whitespace and comments
+             allowed) mode. Remember to quote xml chars (&lt; &gt; etc.)
+
+           default entityPattern is:
+           (?(?=:)) # does entity have a ":" in it
+             # yes: interpret as type:name
+             ^(?<type>.*?):(?<name>.*)$ |
+             # no: interpret as just name
+             ^(?<name>.*)$
+        -->
+      <type id="public" defaultObjType="person">
+        <objType id="person"/>
+      </type>
+      <type id="debug" defaultObjType="person">
+        <!-- allowed object types for this auth method -->
+        <objType id="person" defaultName="eggy"/>
+        <objType id="os_instance"/>
+      </type>
+      <type id="cert" defaultObjType="os_instance"
+            entityPattern="(?(?=^.*CN=.*?:))
+                           ^.*CN=(?&lt;type&gt;.*?):(?&lt;name&gt;.*)$ |
+                           ^.*CN=(?&lt;name&gt;.*)$">
+        <objType id="os_instance"/>
+        <objType id="person"/>
+      </type>
+      <type id="cosign" defaultObjType="person"
+            cosignLoginPage="https://www.ease.ed.ac.uk/">
+        <objType id="person"/>
+      </type>
+      <type id="basic" defaultObjType="person">
+        <objType id="person"/>
+      </type>
+
       <certSign lifetime="3650">
         <ca certfile="ca.crt"
             keyfile="secrets/ca.key"/>
@@ -112,6 +146,7 @@
           <node id='CN' check='re' value='^.+?:.+$'/>
         </clientDNForm>
       </certSign>
+
     </authentication>
     <dir xml:id="dir.SHM">
       <component value="/dev/shm/machination"/>

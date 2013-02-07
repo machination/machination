@@ -191,7 +191,7 @@ sub handler {
       # yes: interpret as type:name
       ^(?<type>.*?):(?<name>.*)$ |
       # no: interpret as just name
-      ^(?<type>.*)$
+      ^(?<name>.*)$
     ';
   $entity_pattern = $authen_nodes[0]->getAttribute("entityPattern")
     if($authen_nodes[0]->hasAttribute("entityPattern"));

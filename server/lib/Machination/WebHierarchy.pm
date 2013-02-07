@@ -66,7 +66,7 @@ my %calls =
    CertInfo => undef,
    OsId => undef,
    ServiceInfo => undef,
-   ServiceInfo2 => undef,
+   ServiceConfig => undef,
 
    # types
    TypeInfo => undef,
@@ -184,23 +184,34 @@ sub handler {
   }
   $log->dmsg($cat, "original remote user: $rem_user", 4);
   $orig_rem_user = $rem_user;
-  my $obj_type;
-  if(my $pat = $authen_nodes[0]->getAttribute("entityNamePattern")) {
-    my @cap = $rem_user =~ /$pat/;
-    my $obj_buf = $authen_nodes[0]->getAttribute("objBuffer");
-    my $name_buf;
-    if($obj_buf == 1) {
-      $name_buf = 2;
-    } else {
-      $name_buf = 1;
-    }
-    $obj_type = $cap[$obj_buf - 1];
-    $rem_user = $cap[$name_buf - 1];
+
+  my $entity_pattern =
+    '
+    (?(?=:)) # does entity have a : in it?
+      # yes: interpret as type:name
+      ^(?<type>.*?):(?<name>.*)$ |
+      # no: interpret as just name
+      ^(?<type>.*)$
+    ';
+  $entity_pattern = $authen_nodes[0]->getAttribute("entityPattern")
+    if($authen_nodes[0]->hasAttribute("entityPattern"));
+  # set type and name from named groups
+  $rem_user =~ /$entity_pattern/x;
+  my $obj_type = $+{type};
+  my $obj_name = $+{name};
+  # get defaults if name or type not set
+  $obj_type = $authen_nodes[0]->getAttribute("defaultObjType")
+    if ($authen_nodes[0]->hasAttribute("defaultObjType")  &&
+        (!defined $obj_type || $obj_type eq ""));
+  $obj_name = $authen_nodes[0]->getAttribute("defaultName")
+    if ($authen_nodes[0]->hasAttribute("defaultName")  &&
+        (!defined $obj_name || $obj_name eq ""));
+  # check that $obj_type can use this auth method
+  unless($authen_nodes[0]->findnodes("objType\[\@id='$obj_type'\]")) {
+    error("Object type '$obj_type' may not use authentication type '$authen_type'");
+    return Apache2::Const::OK;
   }
-  $log->dmsg($cat, "transformed remote user: $rem_user", 4);
-  if($authen_nodes[0]->hasAttribute("objType")) {
-    $obj_type = $authen_nodes[0]->getAttribute("objType");
-  }
+  $rem_user = $obj_name;
 
   unless($r->method eq "POST") {
     error("HTTP method must be POST");
@@ -335,18 +346,38 @@ sub call_OsId {
 
 =item B<ServiceInfo>
 
+Return old style service config element.
+
 =cut
 
 sub call_ServiceInfo {
   my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
+
+  # Start with a brand new service element
   my $service_elt = XML::LibXML::Element->new('service');
+
+  # Add some stuff directle from server config
   $service_elt->setAttribute('id', $haccess_node->getAttribute('serviceId'));
   my $helt = XML::LibXML::Element->new('hierarchy');
   $helt->setAttribute('id', $haccess_node->getAttribute('URI'));
   $service_elt->appendChild($helt);
-  foreach my $aelt ($haccess_node->findnodes("authentication/entityDefault")) {
-    my $newa = $aelt->cloneNode(1);
-    $newa->setNodeName('authentication');
+
+  # Transform new style authentication type definitions to old client side ones
+  foreach my $aelt ($haccess_node->findnodes("authentication/objType")) {
+#    my $newa = $aelt->cloneNode(1);
+#    $newa->setNodeName('authentication');
+    my $newa = XML::LibXML::Element->new('authentication');
+    my $obj_type = $aelt->getAttribute('id');
+    my $auth_type = $aelt->getAttribute('defaultAuth');
+    $newa->setAttribute('id', $obj_type);
+    $newa->setAttribute('type', $auth_type);
+    if($aelt->getAttribute('defaultAuth') eq 'debug') {
+      my @nodes = $haccess_node->
+        findnodes("authentication/type\[\@id='debug']/objType\[\@id='$obj_type'\]");
+      if(@nodes) {
+        $newa->setAttribute('username', $nodes[0]->getAttribute('defaultName'));
+      }
+    }
     $service_elt->appendChild($newa);
   }
   return $service_elt->toString(1);
@@ -359,7 +390,7 @@ information is transferred.
 
 =cut
 
-sub call_ServiceInfo2 {
+sub call_ServiceConfig {
   my $han = $ha->conf->doc->getElementById("subconfig.haccess");
   my $ret = XML::LibXML::Element->new('subconfig');
   my $auth = $ret->appendChild(XML::LibXML::Element->new("authentication"));

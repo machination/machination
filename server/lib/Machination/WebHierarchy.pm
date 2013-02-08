@@ -211,7 +211,7 @@ sub handler {
     error("Object type '$obj_type' may not use authentication type '$authen_type'");
     return Apache2::Const::OK;
   }
-  $rem_user = $obj_name;
+  $rem_user = $obj_type . ":" . $obj_name;
 
   unless($r->method eq "POST") {
     error("HTTP method must be POST");
@@ -722,6 +722,7 @@ sub call_GetAssertionList {
   my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);
   $authorised = 1 if($own_type_id == $obj_type_id &&
                      $own_id == $obj_id);
+
   die "$owner is not allowed to view the assertion list for $type_name:$obj_name"
     unless $authorised;
 

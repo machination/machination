@@ -309,7 +309,7 @@ class Update(object):
             l.lmsg('Connecting to service "{}"'.format(service_id))
             # find the machination id for this service
             mid = context.get_id(service_id)
-            wc = WebClient(service_id, 'os_instance', 'cert')
+            wc = WebClient.from_service_id(service_id, 'os_instance')
 #            channel = wc.call("ProfChannel", 'os_instance')
             try:
                 data = wc.call('GetAssertionList',

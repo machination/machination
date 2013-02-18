@@ -94,15 +94,7 @@ if __name__ == '__main__':
     if not hierarchy:
         hierarchy = input('hierarchy url: ')
 
-    pub_elt = etree.fromstring(
-        '''
-<service>
-  <hierarchy id="{}"/>
-  <authentication id="person" type="public"/>
-</service>
-'''.format(hierarchy)
-        )
-    pubwc = WebClient(None, 'person', service_elt=pub_elt)
+    pubwc = WebClient(hierarchy, 'public', 'os_instance')
     if service_elt is None:
         service_elt = etree.fromstring(pubwc.call('ServiceInfo'))
         service_elt.set('fromServiceInfo', '1')
@@ -194,7 +186,7 @@ if __name__ == '__main__':
         cmd.extend(['-config',opensslcfg])
     cmd.extend(['-key', pending_keyfile])
     # Find the base DN for certs for this service.
-    wc = WebClient(service_id, 'person', service_elt = service_elt)
+    wc = WebClient.from_service_elt(service_elt, 'person')
     dnform = wc.call('CertInfo').get('dnform', {})
     # Fill in any blanks.
     required = ['C','ST','L','O','OU','CN']

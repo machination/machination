@@ -7,6 +7,7 @@ class CosignPasswordMgr(object):
 
     """
 
+    @staticmethod
     def newcred(self):
         """Default callback.
 
@@ -14,7 +15,7 @@ class CosignPasswordMgr(object):
         return {'login': input('username: '),
                 'password': getpass.getpass()}
 
-    def __init__(self, cred=None, max_tries=5, callback=newcred):
+    def __init__(self, cred=None, max_tries=5, callback=None):
         """Create a new CosignPasswordMgr.
 
         Args:
@@ -33,6 +34,8 @@ class CosignPasswordMgr(object):
         self.set_cred(cred)
         self.try_count = 1
         self.max_tries = max_tries
+        if callback is None:
+            callback = self.newcred
         self.callback = callback
 
     def set_cred(self, cred):

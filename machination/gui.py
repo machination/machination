@@ -25,9 +25,10 @@ class CredentialsDialog(QtGui.QInputDialog):
         self.setComboBoxItems(
             methods
             )
+        self.default_method = methods[0]
 
     def method_chosen(self, method):
-        print("method now {}".format(method))
+        self.setLabelText("Authentication method (default = {}, current = {}):".format(self.default_method, method))
 
 class MGUI(QtGui.QWidget):
 
@@ -56,11 +57,18 @@ class MGUI(QtGui.QWidget):
         selt = etree.fromstring(
             "<service><hierarchy id='{}'/></service>".format(url)
             )
-        tmpwc = WebClient(service_elt = selt)
-        istr = tmpwc.call('ServiceInfo')
+        tmpwc = WebClient(url, 'public', 'person')
+        istr = tmpwc.call('ServiceConfig')
         info = etree.fromstring(istr)
-        d.setLabelText("Authentication (method = {}):".format(istr))
-        d.exec_()
+        auth_type_elts = info.xpath('authentication/type')
+        authtypes = [x.get("id") for x in auth_type_elts]
+        d.setMethodsList(authtypes)
+        default_method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
+        d.default_method = default_method
+        d.setTextValue(default_method)
+        ok = d.exec_()
+        if ok:
+            self.wc = WebClient(url, d.textValue(), 'person')
 
     def init_ui(self):
         self.model = QtGui.QFileSystemModel()

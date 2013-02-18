@@ -43,21 +43,121 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
 class WebClient(object):
     """Machination WebClient"""
 
-    def __init__(self, service_id=None, obj_type=None, cred=None, service_elt=None):
-        self.service_id = service_id
-        if service_elt is not None and not self.service_id:
-            self.service_id = service_elt.get('id')
+#    def __init__(self, service_id=None, obj_type=None, cred=None, service_elt=None):
+    def __init__(self, hierarchy_url, authen_type, obj_type,
+                 credentials=None, service_id=None):
+        '''Create a new WebClient
+
+        hierarchy_url: URL on which to contact hierarchy
+
+        authen_type: Type of authentication to use (cosign, cert, public)
+
+        obj_type: Type of entity making the request (os_instance, person, ...)
+
+        credentials (=None): A dictionary of credential information or
+          a callable that will return such.
+
+        service_id (=None): Used by the 'cert' method to look up
+         certificate locations if they are not specified.
+
+        '''
+
+        self.hierarchy_url = hierarchy_url
+        self.authen_type = authen_type
         self.obj_type = obj_type
-        self.cred = cred
-        if service_id and not service_elt:
+        self.url = '{}/{}'.format(
+            self.hierarchy_url,
+            self.authen_type
+            )
+        self.encoding = 'utf-8'
+        self.l = context.logger
+        self.cookie_file = os.path.join(context.status_dir(), 'cookies.txt')
+        self.cookie_jar = None
+        handlers = []
+
+        if self.authen_type == 'cosign':
+            self.l.lmsg('building cosign handlers')
+            self.cookie_jar = http.cookiejar.MozillaCookieJar(
+                self.cookie_file
+                )
+            handlers.append(
+                urllib_request.HTTPCookieProcessor(
+                    self.cookie_jar
+                    )
+                )
+            if (not hasattr(credentials, '__call__')) and (credentials is not None):
+                values = credentials
+                credentials = lambda x: values
+            handlers.append(
+                CosignHandler(
+                    self.authen_elt.get('cosignLoginPage'),
+                    self.cookie_jar,
+                    CosignPasswordMgr(callback = credentials),
+                    save_cookies = True
+                    )
+                )
+
+        elif self.authen_type == 'cert':
+            # Get the cert and key locations from credentials
             try:
-                service_elt = context.machination_worker_elt.xpath(
-                    'services/service[@id="{}"]'.format(service_id)
-                    )[0]
-            except IndexError:
-                raise Exception("service id '{}' not found in desired_status".format(service_id))
+                # See if credentials is callable
+                cred = credentials()
+            except TypeError:
+                # It should be a dictionary
+                if credentials is None:
+                    cred = {}
+                else:
+                    cred = credentials
+
+            keyfile = cred.get('key')
+            if keyfile is None and service_id is not None:
+                keyfile = os.path.join(context.conf_dir(),
+                                       'services',
+                                       service_id,
+                                       'myself.key')
+
+            certfile = cred.get('cert')
+            if certfile is None and service_id is not None:
+                certfile = os.path.join(context.conf_dir(),
+                                        'services',
+                                        service_id,
+                                        'myself.crt')
+
+            handlers.append(
+                HTTPSClientAuthHandler(keyfile,certfile)
+                )
+
+        elif self.authen_type == 'debug':
+            try:
+                # See if credentials is callable
+                cred = credentials()
+            except TypeError:
+                # It should be a dictionary
+                cred = credentials
+            if cred is None:
+                # Still not set: raise exception
+                raise ValueError('"name" not set for debug authentication')
+
+            self.url = '{}/{}:{}'.format(self.url,
+                                         self.obj_type,
+                                         cred.get('name'))
+
+        elif self.authen_type == 'public':
+            # Nothing to be done - just need it to be in the list of
+            # auth types.
+            pass
+        else:
+            raise ValueError(
+                'Invalid authentication type "{}"'.format(self.authen_type)
+                )
+
+        self.opener = urllib_request.build_opener(*handlers)
+
+    # Convenience method for constructing wc from an etree element.
+    @classmethod
+    def from_service_elt(cls, elt, obj_type, credentials=None):
         tmp_auth = service_elt.xpath(
-            'authentication[@id="{}"]'.format(self.obj_type)
+            'authentication[@id="{}"]'.format(obj_type)
             )
         if not tmp_auth:
             # Some default authentication types
@@ -69,68 +169,35 @@ class WebClient(object):
                 tmp_elt.set("type", "cert")
             elif self.obj_type is None:
                 tmp_elt.set("type", "public")
+            else:
+                raise ValueError(
+                    "Can't find authentication type for object type '{}'".format(obj_type)
+                    )
             tmp_auth=[tmp_elt]
-        self.authen_elt = tmp_auth[0]
-        self.authen_type = self.authen_elt.get("type")
-        self.url = '{}/{}'.format(
-            service_elt.xpath('hierarchy/@id')[0],
-            self.authen_type
-            )
-        self.encoding = 'utf-8'
-        self.l = context.logger
-        self.cookie_file = os.path.join(context.status_dir(), 'cookies.txt')
-        self.cookie_jar = None
-        handlers = []
-        if self.authen_type == 'cosign':
-            self.l.lmsg('building cosign handlers')
-            self.cookie_jar = http.cookiejar.MozillaCookieJar(
-                self.cookie_file
-                )
-            handlers.append(
-                urllib_request.HTTPCookieProcessor(
-                    self.cookie_jar
-                    )
-                )
-            handlers.append(
-                CosignHandler(
-                    self.authen_elt.get('cosignLoginPage'),
-                    self.cookie_jar,
-                    CosignPasswordMgr(),
-                    save_cookies = True
-                    )
-                )
-        elif self.authen_type == 'cert':
-            handlers.append(
-                HTTPSClientAuthHandler(
-                    os.path.join(context.conf_dir(),
-                                 'services',
-                                 self.service_id,
-                                 'myself.key'),
-                    os.path.join(context.conf_dir(),
-                                 'services',
-                                 self.service_id,
-                                 'myself.crt')
-                    )
-                )
-        elif self.authen_type == 'debug':
-            if not self.cred:
-                username = self.authen_elt.get('username')
-                if username is None:
-                    username = input('username: ')
-                self.cred = {'username': username}
-            self.url = '{}/{}:{}'.format(self.url,
-                                         self.obj_type,
-                                         self.cred.get('username'))
-        elif self.authen_type == 'public':
-            # Nothing to be done - just need it to be in the list of
-            # auth types.
-            pass
-        else:
-            raise ValueError(
-                'Invalid authentication type "{}"'.format(self.authen_type)
-                )
+        authen_elt = tmp_auth[0]
+        authen_type = authen_elt.get("type")
+        if authen_type == 'debug' and credentials is None:
+            credentials = {'name': authen_elt['username']}
+        service_id = service_elt.get('id')
+        hierarchy_url = service_elt.xpath('hierarchy/@id')[0]
+        return cls(hierarchy_url = hierarchy_url,
+                   authen_type = authen_type,
+                   obj_type = obj_type,
+                   credentials = credentials,
+                   service_id = service_id)
 
-        self.opener = urllib_request.build_opener(*handlers)
+
+    # Convenience method: construct wc from element in config matching
+    # service_id.
+    @classmethod
+    def from_service_id(cls, service_id, obj_type, credentials=None):
+        try:
+            service_elt = context.machination_worker_elt.xpath(
+                'services/service[@id="{}"]'.format(service_id)
+                )[0]
+        except IndexError:
+            raise Exception("service id '{}' not found in desired_status".format(service_id))
+        return cls.from_service_elt(service_elt, obj_type, credentials)
 
     def call(self, name, *args):
         l.lmsg("calling " + name + " on " + self.url)

@@ -397,7 +397,7 @@ sub call_ServiceConfig {
   $ret->setAttribute('xml:id', "subconfig.haccess");
   $ret->setAttribute('serviceId', $han->getAttribute('serviceId'));
   $ret->setAttribute('URI', $han->getAttribute('URI'));
-  foreach my $elt ($han->findnodes('authentication/entityDefault')) {
+  foreach my $elt ($han->findnodes('authentication/objType')) {
     $auth->appendChild($elt->cloneNode(1));
   }
   foreach my $elt ($han->findnodes('authentication/type')) {

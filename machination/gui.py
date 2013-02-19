@@ -13,22 +13,145 @@ from lxml import etree
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 from machination.webclient import WebClient
+from collections import OrderedDict
 
-class CredentialsDialog(QtGui.QInputDialog):
+class CredentialsDialog(QtGui.QDialog):
 
-    def __init__(self, parent):
+    def __init__(self, parent, url):
         super().__init__(parent)
-        self.setMethodsList(["cosign", "cert", "debug"])
-        self.textValueChanged.connect(self.method_chosen)
+        self.url = url
 
-    def setMethodsList(self, methods):
-        self.setComboBoxItems(
-            methods
+        self.setWindowTitle('Connecting to {}'.format(url))
+
+        # Precreated text entry widgets for credentials
+        self.cred_inputs = OrderedDict(
+            [
+                ('public', OrderedDict()),
+                ('cosign', OrderedDict(
+                        [
+                            ('login', {
+                                    'label': QtGui.QLabel('Login Name'),
+                                    'widget': QtGui.QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QtGui.QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             ),
+                            ]
+                        )
+                 ),
+                ('cert', OrderedDict(
+                        [
+                            ('key', {
+                                    'label': QtGui.QLabel('Key File'),
+                                    'widget': QtGui.QLineEdit()
+                                    }
+                             ),
+                            ('cert', {
+                                    'label': QtGui.QLabel('Certificate File'),
+                                    'widget': QtGui.QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('basic', OrderedDict(
+                        [
+                            ('username', {
+                                    'label': QtGui.QLabel('User Name'),
+                                    'widget': QtGui.QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QtGui.QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('debug', OrderedDict(
+                        [
+                            ('name', {
+                                    'label': QtGui.QLabel('Name'),
+                                    'widget': QtGui.QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ]
             )
-        self.default_method = methods[0]
 
-    def method_chosen(self, method):
-        self.setLabelText("Authentication method (default = {}, current = {}):".format(self.default_method, method))
+        # A combobox for the different authentication methods
+        self.auth_method_label = QtGui.QLabel('Authentication Method:')
+        self.auth_methods = QtGui.QComboBox()
+
+        # The button box along the bottom
+        self.button_box = QtGui.QDialogButtonBox(
+            QtGui.QDialogButtonBox.Ok |
+            QtGui.QDialogButtonBox.Cancel
+            )
+
+        # Lay out the main widgets
+        self.main_layout = QtGui.QVBoxLayout()
+        self.cred_layout = QtGui.QVBoxLayout()
+        self.main_layout.addLayout(self.cred_layout)
+        self.main_layout.addWidget(QtGui.QLabel(url))
+        self.main_layout.addWidget(self.auth_method_label)
+        self.main_layout.addWidget(self.auth_methods)
+        self.main_layout.addWidget(self.button_box)
+        self.setLayout(self.main_layout)
+
+        # Populate the authentication combobox
+        self.setAuthMethodsList([x for x in self.cred_inputs.keys()])
+
+        # Connect signals and slots
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.auth_methods.currentIndexChanged.connect(self.method_chosen)
+
+    def makePasswordBox(self):
+        box = QtGui.QLineEdit()
+        box.setEchoMode(QtGui.QLineEdit.Password)
+        return box
+
+    def setAuthMethodsList(self, methods):
+        self.auth_methods.clear()
+        self.auth_methods.addItems(methods)
+        self.default_auth_method = methods[0]
+
+    def setAuthMethod(self, method):
+        self.auth_methods.setCurrentIndex(
+            self.auth_methods.findText(method, QtCore.Qt.MatchExactly)
+            )
+
+    def method_chosen(self, idx):
+        if idx < 0: return
+        print('choosing index {}'.format(idx))
+        method = self.auth_methods.itemText(idx)
+        print('choosing method {}'.format(method))
+        self.current_auth_method = method
+        self.auth_method_label.setText("(default = {}, current = {}):".format(self.default_auth_method, self.current_auth_method))
+        # Clear cred_layout
+        for i in range(self.cred_layout.count()):
+            self.cred_layout.itemAt(0).itemAt(0).widget().hide()
+            self.cred_layout.itemAt(0).itemAt(1).widget().hide()
+            self.cred_layout.removeItem(self.cred_layout.itemAt(0))
+        # Add entry fields
+        for key, data in (self.cred_inputs.get(method).items()):
+            layout = QtGui.QHBoxLayout()
+            data.get('label').show()
+            data.get('widget').show()
+            layout.addWidget(data.get('label'))
+            layout.addWidget(data.get('widget'))
+            self.cred_layout.addLayout(layout)
+
+    def getCred(self):
+        cred_tmp = self.cred_inputs.get(self.current_auth_method)
+        return {x:y.get('widget').text() for x,y in cred_tmp.items()}
 
 class MGUI(QtGui.QWidget):
 
@@ -36,24 +159,27 @@ class MGUI(QtGui.QWidget):
         super().__init__()
         self.init_ui()
 
-    def menu_service_connect(self):
-        '''Handler for Service.connect menu item
-        '''
-        d = QtGui.QInputDialog(self)
-        d.setLabelText("Service URL:")
-        d.setComboBoxItems(
+        ### Dialogs ####################
+        # service_url
+        self.d_service_url = QtGui.QInputDialog(self)
+        self.d_service_url.setLabelText("Service URL:")
+        self.d_service_url.setComboBoxItems(
             ["https://mach2.see.ed.ac.uk/machination/hierarchy",
              "--new--"]
             )
-        ok = d.exec_()
+        # credentials
+
+    def menu_service_connect(self):
+        '''Handler for Service.connect menu item
+        '''
+        ok = self.d_service_url.exec_()
         if ok:
-            self.connect_to_service(d.textValue())
+            self.connect_to_service(self.d_service_url.textValue())
 
     def connect_to_service(self, url):
         '''Connect to a machination hierarchy service.
         '''
-        print("connecting to " + url)
-        d = CredentialsDialog(self)
+        d = CredentialsDialog(self, url)
         selt = etree.fromstring(
             "<service><hierarchy id='{}'/></service>".format(url)
             )
@@ -62,13 +188,15 @@ class MGUI(QtGui.QWidget):
         info = etree.fromstring(istr)
         auth_type_elts = info.xpath('authentication/type')
         authtypes = [x.get("id") for x in auth_type_elts]
-        d.setMethodsList(authtypes)
+        d.setAuthMethodsList(authtypes)
         default_method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
-        d.default_method = default_method
-        d.setTextValue(default_method)
+        d.default_auth_method = default_method
+        d.setAuthMethod(default_method)
         ok = d.exec_()
+        cred = d.getCred()
+        print(cred)
         if ok:
-            self.wc = WebClient(url, d.textValue(), 'person')
+            self.wc = WebClient(url, d.current_auth_method, 'person', credentials = cred)
 
     def init_ui(self):
         self.model = QtGui.QFileSystemModel()

@@ -159,6 +159,8 @@ class MGUI(QtGui.QWidget):
         super().__init__()
         self.init_ui()
 
+        self.wcs = {}
+
         ### Dialogs ####################
         # service_url
         self.d_service_url = QtGui.QInputDialog(self)
@@ -193,10 +195,10 @@ class MGUI(QtGui.QWidget):
         d.default_auth_method = default_method
         d.setAuthMethod(default_method)
         ok = d.exec_()
-        cred = d.getCred()
-        print(cred)
         if ok:
-            self.wc = WebClient(url, d.current_auth_method, 'person', credentials = cred)
+            cred = d.getCred()
+            self.wcs[url] = WebClient(url, d.current_auth_method, 'person', credentials = cred)
+            self.model.add_service(self.wcs[url])
 
     def init_ui(self):
         self.model = QtGui.QFileSystemModel()
@@ -494,25 +496,71 @@ class HModel(QtGui.QStandardItemModel):
 
     def __init__(self, wc = None):
         super().__init__(0,3)
-        if wc is not None: self.wc = wc
+        self.wcs = {}
+        if wc is not None:
+            self.add_service(wc)
+
         self.setHorizontalHeaderLabels(['name','type','id'])
-        self.invisibleRootItem().appendRow(
+
+    def add_service(self, wc):
+        '''Add a new service at the root of the tree.'''
+        self.wcs[wc.url] = wc
+        self.add_object(
+            self.invisibleRootItem(),
+            {'name': wc.url,
+             'type': 'machination:hc',
+             'id': '0',
+             },
+            wc = wc
+            )
+
+    def add_object(self, parent, obj, wc=None, get_children=True):
+        '''Add an object to parent in tree'''
+        name_item = QtGui.QStandardItem(obj.get('name'))
+        parent.appendRow(
             [
-                QtGui.QStandardItem('machination:root'),
-                QtGui.QStandardItem('machination:hc'),
-                QtGui.QStandardItem('0'),
+                name_item,
+                QtGui.QStandardItem(obj.get('type')),
+                QtGui.QStandardItem(obj.get('id')),
                 ]
             )
-        root = self.item(0,0)
-        for i in range(4):
-            name = "splat {}".format(i)
-            root.appendRow(
-                [
-                    QtGui.QStandardItem(name),
-                    QtGui.QStandardItem('1'),
-                    QtGui.QStandardItem('{}'.format(i)),
-                    ]
+        if obj.get('type') == 'machination:hc' and get_children:
+            if wc is None:
+                wc = self.get_wc(name_item)
+            contents = wc.call(
+                'ListContents', self.get_path(name_item)
                 )
+            for newobj in contents:
+                self.add_object(name_item, newobj, wc=wc, get_children=True)
+
+    def get_wc(self, thing):
+        '''Find the webclient for an item or index'''
+        obj_path = self.get_obj_path(thing)
+        return self.wcs.get(obj_path[0].text())
+
+    def get_obj_path(self, thing):
+        '''Return list of StandardItem objects from index or item to root.'''
+        if isinstance(thing, QtGui.QStandardItem):
+            index = thing.index()
+        else:
+            index = thing
+
+        if not index.isValid():
+            return []
+
+        path =  self.get_obj_path(index.parent())
+        path.append(self.itemFromIndex(index))
+        return path
+
+    def get_path(self, thing):
+        '''Return a string path to an index or StandardItem'''
+        obj_path = self.get_obj_path(thing)
+        path = ['']
+        for obj in obj_path[1:]:
+            path.append(obj.text())
+        if len(path) == 1:
+            return '/'
+        return '/'.join(path)
 
     def on_expand(self, index):
         '''Slot for 'expanded' signal.'''

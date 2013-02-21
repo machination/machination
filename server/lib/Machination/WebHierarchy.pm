@@ -527,6 +527,7 @@ List the contents of $hc.
  $opts = hash of options {
     types => [types,to,list], # (all types if this is not specified)
     fetch_names => 0 or 1 (whether to fetch object names as well)
+    max_objects => max number of objects to return
  }
 
 returns:
@@ -549,6 +550,7 @@ you always get the ids, names are optional.
 sub call_ListContents {
   my ($owner,$approval,$hc,$opts) = @_;
 
+  $opts->{max_objects} = undef unless exists $opts->{max_objects};
   $ha->log->dmsg("WebHierarchy.ListContents",
                  "owner: $owner, approval: $approval, hc: $hc, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
@@ -568,8 +570,6 @@ sub call_ListContents {
   die "could not get listcontents permission for " . $req->{mpath}
     unless($ha->action_allowed($req,$hp->id));
 
-  $ha->log->dmsg("WebHierarchy.ListContents","after action_allowed",9);
-
   my $pass_opts = {};
   $pass_opts->{fields} = ["name"] if($opts->{fetch_names});
 
@@ -577,7 +577,7 @@ sub call_ListContents {
   $types = ['machination:hc', keys %{$ha->all_types_info}]
     unless defined($types);
   my $contents = $ha->get_contents_handle($hp->id, $types)->
-    fetchall_arrayref({});
+    fetchall_arrayref({}, $opts->{max_objects});
 
 
   return $contents;

@@ -201,8 +201,8 @@ class MGUI(QtGui.QWidget):
             self.model.add_service(self.wcs[url])
 
     def init_ui(self):
-        self.model = QtGui.QFileSystemModel()
-        self.model.setRootPath('/')
+#        self.model = QtGui.QFileSystemModel()
+#        self.model.setRootPath('/')
 
         self.model = HModel()
 
@@ -257,6 +257,7 @@ class MGUI(QtGui.QWidget):
         self.view = QtGui.QTreeView()
         self.hbox.addWidget(self.view)
         self.view.setModel(self.model)
+        self.view.expanded.connect(self.model.on_expand)
         # TODO: hide these after coding/debugging is finished
 #        self.view.hideColumn(1)
 #        self.view.hideColumn(2)
@@ -505,7 +506,7 @@ class HModel(QtGui.QStandardItemModel):
     def add_service(self, wc):
         '''Add a new service at the root of the tree.'''
         self.wcs[wc.url] = wc
-        self.add_object(
+        name_index = self.add_object(
             self.invisibleRootItem(),
             {'name': wc.url,
              'type': 'machination:hc',
@@ -513,9 +514,14 @@ class HModel(QtGui.QStandardItemModel):
              },
             wc = wc
             )
+        self.itemFromIndex(name_index).setEditable(False)
 
     def add_object(self, parent, obj, wc=None, get_children=True):
         '''Add an object to parent in tree'''
+        if not isinstance(parent, QtGui.QStandardItem):
+            # Assume parent is an index
+            parent = self.itemFromIndex(parent)
+
         name_item = QtGui.QStandardItem(obj.get('name'))
         parent.appendRow(
             [
@@ -531,7 +537,8 @@ class HModel(QtGui.QStandardItemModel):
                 'ListContents', self.get_path(name_item)
                 )
             for newobj in contents:
-                self.add_object(name_item, newobj, wc=wc, get_children=True)
+                self.add_object(name_item, newobj, wc=wc, get_children=False)
+        return self.indexFromItem(name_item)
 
     def get_wc(self, thing):
         '''Find the webclient for an item or index'''
@@ -568,7 +575,14 @@ class HModel(QtGui.QStandardItemModel):
 
     def refresh(self, index):
         '''Refresh a node from the hierarchy'''
-        item = self.itemFromIndex(index)
+        print('refreshing {}'.format(self.get_path(index)))
+        self.removeRows(0,self.rowCount(index),index)
+        wc = self.get_wc(index)
+        contents = wc.call(
+            'ListContents', self.get_path(index)
+            )
+        for newobj in contents:
+            self.add_object(index, newobj, wc=wc)
 
 # Later we'll make a better model based on QAbstractItemModel. Right
 # now, see HModel -- based on QStandardItemModel

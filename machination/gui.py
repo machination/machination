@@ -16,6 +16,7 @@ from machination.webclient import WebClient
 from collections import OrderedDict
 
 class CredentialsDialog(QtGui.QDialog):
+    '''Capture the correct credentials to authenticate to a service'''
 
     def __init__(self, parent, url):
         super().__init__(parent)
@@ -114,21 +115,25 @@ class CredentialsDialog(QtGui.QDialog):
         self.auth_methods.currentIndexChanged.connect(self.method_chosen)
 
     def makePasswordBox(self):
+        '''Make a QLineEdit widget with the 'Password' echo mode.'''
         box = QtGui.QLineEdit()
         box.setEchoMode(QtGui.QLineEdit.Password)
         return box
 
     def setAuthMethodsList(self, methods):
+        '''Set the list of authentication methods to choose from.'''
         self.auth_methods.clear()
         self.auth_methods.addItems(methods)
         self.default_auth_method = methods[0]
 
     def setAuthMethod(self, method):
+        '''Set the current choice of authentication method.'''
         self.auth_methods.setCurrentIndex(
             self.auth_methods.findText(method, QtCore.Qt.MatchExactly)
             )
 
     def method_chosen(self, idx):
+        '''Slot called when an authentication method is chosen.'''
         if idx < 0: return
         print('choosing index {}'.format(idx))
         method = self.auth_methods.itemText(idx)
@@ -150,6 +155,7 @@ class CredentialsDialog(QtGui.QDialog):
             self.cred_layout.addLayout(layout)
 
     def getCred(self):
+        '''Get the captured credentials for the current authentication method.'''
         cred_tmp = self.cred_inputs.get(self.current_auth_method)
         return {x:y.get('widget').text() for x,y in cred_tmp.items()}
 
@@ -516,7 +522,9 @@ class HModel(QtGui.QStandardItemModel):
             )
         self.itemFromIndex(name_index).setEditable(False)
 
-    def add_object(self, parent, obj, wc=None, get_children=True):
+    def add_object(self, parent, obj, wc=None,
+                   get_children=True,
+                   is_attachment=False):
         '''Add an object to parent in tree'''
         if not isinstance(parent, QtGui.QStandardItem):
             # Assume parent is an index
@@ -534,10 +542,10 @@ class HModel(QtGui.QStandardItemModel):
             if wc is None:
                 wc = self.get_wc(name_item)
             contents = wc.call(
-                'ListContents', self.get_path(name_item)
+                'ListContents', self.get_path(name_item), {'max_objects': 1}
                 )
-            for newobj in contents:
-                self.add_object(name_item, newobj, wc=wc, get_children=False)
+            if contents:
+                self.add_object(name_item, contents[0], wc=wc, get_children=False)
         return self.indexFromItem(name_item)
 
     def get_wc(self, thing):

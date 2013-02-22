@@ -82,6 +82,7 @@ my %calls =
    GetListContentsIterator => undef,
    IteratorNext => undef,
    IteratorFinish => undef,
+   ListAttachments => undef,
 
    # objects
    FetchObject => undef,
@@ -561,13 +562,13 @@ sub call_ListContents {
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
-             op=>"listcontents",
+             op=>"listchildren",
              mpath=>"/contents",
              owner=>$owner,
              approval=>$approval};
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
-  die "could not get listcontents permission for " . $req->{mpath}
+  die "could not get listchildren permission for " . $req->{mpath}
     unless($ha->action_allowed($req,$hp->id));
 
   my $pass_opts = {};
@@ -598,11 +599,11 @@ sub call_GetListContentsIterator {
   die "hc $hc does not exist" unless(defined $hp->id);
 
   my $req = {channel_id=>hierarchy_channel(),
-             op=>"listcontents",
+             op=>"listchildren",
              mpath=>"/contents",
              owner=>$owner,
              approval=>$approval};
-  die "could not get listcontents permission for " . $req->{mpath}
+  die "could not get listchildren permission for " . $req->{mpath}
     unless($ha->action_allowed($req,$hp->id));
 
   my $q = Thread::Queue->new();
@@ -647,6 +648,44 @@ sub _writer_thread {
   $itw->start;
 }
 
+sub call_ListAttachments {
+  my ($owner,$approval,$hc,$opts) = @_;
+
+  $opts->{max_objects} = undef unless exists $opts->{max_objects};
+  $ha->log->dmsg("WebHierarchy.ListAttachments",
+                 "owner: $owner, approval: $approval, hc: $hc, " .
+                 "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
+
+  my $hp = Machination::HPath->new($ha,$hc);
+
+  die "hc $hc does not exist" unless(defined $hp->id);
+
+  $ha->log->dmsg("WebHierarchy.ListAttachments","hp: " . $hp->id,9);
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"listchildren",
+             mpath=>"/attachments",
+             owner=>$owner,
+             approval=>$approval};
+#  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
+
+  die "could not get listchildren permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$hp->id));
+
+  my $types = $opts->{types};
+  unless (defined $types) {
+    $types = [];
+    my $type_info = $ha->all_types_info;
+    foreach my $tid (keys %$type_info) {
+      push @$types, $tid if($type_info->{$tid}->{is_attachable});
+    }
+  }
+  my $channels = $ha->channels_info(undef);
+  my $contents = $ha->get_contents_handle($hp->id, $types)->
+    fetchall_arrayref({}, $opts->{max_objects});
+
+
+  return $contents;
+}
 
 =item B<IteratorNext>
 

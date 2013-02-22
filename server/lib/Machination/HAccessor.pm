@@ -983,7 +983,6 @@ sub os_id {
 	}
 }
 
-
 =item B<channel_id>
 
 $id = $ha->channel_id($name,$opts)
@@ -1032,6 +1031,27 @@ sub channel_info {
 
 	return $self->fetch("valid_channels",
                       {params=>[$cid],revision=>$opts->{revision}});
+}
+
+=item B<channels_info>
+
+$info_hash = $ha->channels_info($cidlist,$opts)
+
+return info for channels in list $cidlist, or all if $cidlist is undef
+
+=cut
+
+sub channels_info {
+	my ($self,$cidlist,$opts) = @_;
+
+  unless(defined $cidlist) {
+    $cidlist = $self->read_dbh->select_all_arrayref("select id from valid_channels");
+  }
+  my $all_info = {};
+  foreach my $cid (@$cidlist) {
+    $all_info->{$cid} = $self->channel_info($cid, $opts);
+  }
+  return $all_info;
 }
 
 

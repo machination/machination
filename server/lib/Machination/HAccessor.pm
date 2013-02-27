@@ -1045,12 +1045,20 @@ sub channels_info {
 	my ($self,$cidlist,$opts) = @_;
 
   unless(defined $cidlist) {
-    $cidlist = $self->read_dbh->select_all_arrayref("select id from valid_channels");
+    my $tmplist = $self->read_dbh->selectall_arrayref("select id from valid_channels");
+
+    my @cidlist;
+    for my $item (@$tmplist) {
+      push @cidlist, $item->[0];
+    }
+    $cidlist = \@cidlist;
   }
+
   my $all_info = {};
   foreach my $cid (@$cidlist) {
     $all_info->{$cid} = $self->channel_info($cid, $opts);
   }
+
   return $all_info;
 }
 

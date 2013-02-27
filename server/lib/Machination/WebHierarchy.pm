@@ -679,12 +679,12 @@ sub call_ListAttachments {
       push @$types, $tid if($type_info->{$tid}->{is_attachable});
     }
   }
-  my $channels = $ha->channels_info(undef);
-  my $contents = $ha->get_contents_handle($hp->id, $types)->
+  my @channels = keys %{$ha->channels_info(undef)};
+  my $attachments = $ha->get_attached_handle($hp->id, \@channels, $types)->
     fetchall_arrayref({}, $opts->{max_objects});
 
 
-  return $contents;
+  return $attachments;
 }
 
 =item B<IteratorNext>
@@ -1295,7 +1295,7 @@ sub call_Attach {
 
 =cut
 
-sub call_ListAttachments {
+sub call_ListAttachmentsOld {
     my ($ent,$hc,$opts) = @_;
 
     if($hc =~ /^\//) {

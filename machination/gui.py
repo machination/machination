@@ -323,25 +323,133 @@ class MGUI(QtGui.QWidget):
     def refresh_type_info(self):
         self.type_info = self.wc.call('TypeInfo')
 
-class WCProxy(WebClient):
+class HModel(QtGui.QStandardItemModel):
+    '''Model Machination hierarchy for QTreeView
+    '''
 
-    def get_object(self, type_id, obj_id):
-        # Create obj_map if it doesn't exist
-        try:
-            obj_map = self.obj_map
-        except AttributeError:
-            self.obj_map = obj_map = {}
-        index = '{},{}'.format(type_id, obj_id)
+    def __init__(self, wc = None):
+        super().__init__(0,4)
+        self.wcs = {}
+        if wc is not None:
+            self.add_service(wc)
 
-        # Find any object in the map
-        obj = obj_map.get(index)
+        self.setHorizontalHeaderLabels(['name','type','id','channel'])
 
-        # Get object if not in map
-        if obj is None:
-            obj = HObject(self, type_id, obj_id)
-            obj_map[index] = obj
+    def add_service(self, wc):
+        '''Add a new service at the root of the tree.'''
+        self.wcs[wc.url] = wc
+        name_index = self.add_object(
+            self.invisibleRootItem(),
+            {'name': wc.url,
+             'type_id': 'machination:hc',
+             'obj_id': '0',
+             },
+            wc = wc
+            )
+        self.itemFromIndex(name_index).setEditable(False)
 
-        return obj
+    def add_object(self, parent, obj, wc=None,
+                   peek_children=True):
+        '''Add an object to parent in tree'''
+        if not isinstance(parent, QtGui.QStandardItem):
+            # Assume parent is an index
+            parent = self.itemFromIndex(parent)
+        if wc is None:
+            wc = self.get_wc(name_item)
+
+        name_item = QtGui.QStandardItem(obj.get('name'))
+        row = [
+            name_item,
+            QtGui.QStandardItem(obj.get('type_id')),
+            QtGui.QStandardItem(obj.get('obj_id')),
+            QtGui.QStandardItem(obj.get('channel_id')),
+            ]
+        parent.appendRow(row)
+        if obj.get('type_id') == 'machination:hc' and peek_children:
+            attachments = wc.call(
+                'ListAttachments',
+                self.get_path(name_item),
+                {'max_objects': 1}
+                )
+            if attachments:
+                self.add_object(name_item, attachments[0], wc=wc, peek_children=False)
+            contents = wc.call(
+                'ListContents', self.get_path(name_item), {'max_objects': 1}
+                )
+            if contents:
+                self.add_object(name_item, contents[0], wc=wc, peek_children=False)
+
+        return self.indexFromItem(name_item)
+
+    def get_wc(self, thing):
+        '''Find the webclient for an item or index'''
+        obj_path = self.get_obj_path(thing)
+        return self.wcs.get(obj_path[0].text())
+
+    def get_obj_path(self, thing):
+        '''Return list of StandardItem objects from index or item to root.'''
+        if isinstance(thing, QtGui.QStandardItem):
+            index = thing.index()
+        else:
+            index = thing
+
+        if not index.isValid():
+            return []
+
+        path =  self.get_obj_path(index.parent())
+        path.append(self.itemFromIndex(index))
+        return path
+
+    def get_path(self, thing):
+        '''Return a string path to an index or StandardItem'''
+        obj_path = self.get_obj_path(thing)
+        path = ['']
+        for obj in obj_path[1:]:
+            path.append(obj.text())
+        if len(path) == 1:
+            return '/'
+        return '/'.join(path)
+
+    def on_expand(self, index):
+        '''Slot for 'expanded' signal.'''
+        self.refresh(index)
+
+    def refresh(self, index):
+        '''Refresh a node from the hierarchy'''
+        print('refreshing {}'.format(self.get_path(index)))
+        self.removeRows(0,self.rowCount(index),index)
+        wc = self.get_wc(index)
+        type_id = self.itemFromIndex(index.sibling(0,1)).text()
+        channel_id = self.itemFromIndex(index.sibling(0,3)).text()
+        if  type_id == 'machination:hc':
+            attachments = wc.call(
+                'ListAttachments', self.get_path(index)
+                )
+            for newatt in attachments:
+                print('adding att {}'.format(newatt))
+#                self.add_object(index, newatt, wc=wc)
+            contents = wc.call(
+                'ListContents', self.get_path(index)
+                )
+            for newobj in contents:
+                self.add_object(index, newobj, wc=wc)
+        else:
+            raise Exception("Don't know how to refresh {}".format(type_id))
+
+# Later we'll make a better model based on QAbstractItemModel. Right
+# now, see HModel -- based on QStandardItemModel
+class HierarchyModel(QtCore.QAbstractItemModel):
+
+    def __init__(self, parent = None, wcp = None):
+        super().__init__(parent = parent)
+        if wcp is not None: self.setwcp(wcp)
+
+    def setwcp(self, wcp):
+        self.wcp = wcp
+
+    def index(self, row, column, parent):
+        pass
+
 
 class HObject(object):
 
@@ -496,214 +604,6 @@ class HContainer(HObject):
         # Adds.
         for change in changes.get('add', []):
             col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
-
-class HModel(QtGui.QStandardItemModel):
-    '''Model Machination hierarchy for QTreeView
-    '''
-
-    def __init__(self, wc = None):
-        super().__init__(0,3)
-        self.wcs = {}
-        if wc is not None:
-            self.add_service(wc)
-
-        self.setHorizontalHeaderLabels(['name','type','id'])
-
-    def add_service(self, wc):
-        '''Add a new service at the root of the tree.'''
-        self.wcs[wc.url] = wc
-        name_index = self.add_object(
-            self.invisibleRootItem(),
-            {'name': wc.url,
-             'type': 'machination:hc',
-             'id': '0',
-             },
-            wc = wc
-            )
-        self.itemFromIndex(name_index).setEditable(False)
-
-    def add_object(self, parent, obj, wc=None,
-                   get_children=True,
-                   is_attachment=False):
-        '''Add an object to parent in tree'''
-        if not isinstance(parent, QtGui.QStandardItem):
-            # Assume parent is an index
-            parent = self.itemFromIndex(parent)
-
-        name_item = QtGui.QStandardItem(obj.get('name'))
-        parent.appendRow(
-            [
-                name_item,
-                QtGui.QStandardItem(obj.get('type')),
-                QtGui.QStandardItem(obj.get('id')),
-                ]
-            )
-        if obj.get('type') == 'machination:hc' and get_children:
-            if wc is None:
-                wc = self.get_wc(name_item)
-            contents = wc.call(
-                'ListContents', self.get_path(name_item), {'max_objects': 1}
-                )
-            if contents:
-                self.add_object(name_item, contents[0], wc=wc, get_children=False)
-        return self.indexFromItem(name_item)
-
-    def get_wc(self, thing):
-        '''Find the webclient for an item or index'''
-        obj_path = self.get_obj_path(thing)
-        return self.wcs.get(obj_path[0].text())
-
-    def get_obj_path(self, thing):
-        '''Return list of StandardItem objects from index or item to root.'''
-        if isinstance(thing, QtGui.QStandardItem):
-            index = thing.index()
-        else:
-            index = thing
-
-        if not index.isValid():
-            return []
-
-        path =  self.get_obj_path(index.parent())
-        path.append(self.itemFromIndex(index))
-        return path
-
-    def get_path(self, thing):
-        '''Return a string path to an index or StandardItem'''
-        obj_path = self.get_obj_path(thing)
-        path = ['']
-        for obj in obj_path[1:]:
-            path.append(obj.text())
-        if len(path) == 1:
-            return '/'
-        return '/'.join(path)
-
-    def on_expand(self, index):
-        '''Slot for 'expanded' signal.'''
-        self.refresh(index)
-
-    def refresh(self, index):
-        '''Refresh a node from the hierarchy'''
-        print('refreshing {}'.format(self.get_path(index)))
-        self.removeRows(0,self.rowCount(index),index)
-        wc = self.get_wc(index)
-        contents = wc.call(
-            'ListContents', self.get_path(index)
-            )
-        for newobj in contents:
-            self.add_object(index, newobj, wc=wc)
-
-# Later we'll make a better model based on QAbstractItemModel. Right
-# now, see HModel -- based on QStandardItemModel
-class HierarchyModel(QtCore.QAbstractItemModel):
-
-    def __init__(self, parent = None, wcp = None):
-        super().__init__(parent = parent)
-        if wcp is not None: self.setwcp(wcp)
-
-    def setwcp(self, wcp):
-        self.wcp = wcp
-
-    def index(self, row, column, parent):
-        pass
-
-class FakeWc(object):
-    '''Pretend to be a WebClient connected to a hierarchy
-
-    For debugging purposes'''
-
-    def __init__(self, lastchanged = None):
-        self.lastchanged = lastchanged
-        if self.lastchanged is None:
-            self.lastchanged = time.time()
-        self.type_info = {
-            'machination:hc': {'name': 'hc'},
-            '1': {'name': 'set'},
-            '2': {'name': 'os_instance'}
-            }
-        self.data = {
-            'machination:hc': {
-                '1': {
-                    'lastchanged': self.lastchanged,
-                    'contents': [
-                        ['machination:hc', '2'],
-                        ['1', '1'],
-                        ['2', '1']
-                        ],
-                    'attachments': [],
-                    'fields': {
-                        'name': 'machination:root'
-                        }
-                    },
-                '2': {
-                    'lastchanged': self.lastchanged,
-                    'contents': [],
-                    'attachments': [],
-                    'fields': {
-                        'name': 'system'
-                        }
-                    }
-                },
-            '1': {
-                '1': {
-                    'lastchanged': self.lastchanged,
-                    'fields': {
-                        'name': 'universal'
-                        },
-                    },
-                },
-            '2': {
-                '1': {
-                    'lastchanged': self.lastchanged,
-                    'fields': {
-                        'name': 'win7-test1'
-                        },
-                    },
-                }
-            }
-
-    def call(self, fname, *args):
-        return getattr(self, '_' + fname)(*args)
-
-    def _GetObject(self, tid, oid):
-        oftype = self.data.get(str(tid))
-        if oftype is None: return None
-        return oftype.get(str(oid))
-
-    def _LastChanged(self, tid, oid):
-        obj = self._GetObject(tid, oid)
-        if obj: return obj.get('lastchanged')
-        return None
-
-    def _ChangesSince(self, tid, oid, tstamp,
-                      contents = True,
-                      attachments = True):
-        obj = self._getObject(tid, oid)
-        if obj is None: return []
-        obj['id'] = oid
-        obj['type_id'] = tid
-        if tid == 'machination:hc':
-            changed = False
-            new = {
-                    'id': oid,
-                    'type_id': tid,
-                    'contents': [],
-                    'attachments': []
-                    }
-            if obj.get('lastchanged') < tstamp:
-                new['fields'] = copy.copy(obj.get('fields'))
-                changed = True
-            if contents:
-                for thing in obj.get('contents'):
-                    newthing = self._ChangesSince(
-                        thin.get('type_id')
-                        )
-
-        else:
-            if obj.get('lastchanged') < tstamp:
-                return copy.deepcopy(obj)
-
-        # No changes.
-        return None
 
 def main():
     app = QtGui.QApplication(sys.argv)

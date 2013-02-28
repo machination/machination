@@ -1843,6 +1843,7 @@ sub get_attached_handle {
     }
     $sq .= "from hcatt_$tid as a, objs_$tid as o " .
       "where a.hc_id=?";
+    $sq .= " and a.hc_id=o.id";
     push @params, $hp->id;
     unless($tid == $self->type_id("set")) {
       $sq .= " and o.channel_id in (" . join(",",('?') x @$channels) . ")";

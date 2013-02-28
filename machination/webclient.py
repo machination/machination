@@ -2,6 +2,7 @@ import pprint
 import sys
 import os
 import errno
+import functools
 from lxml import etree
 from machination.xmldata import from_xml, to_xml
 from machination import context
@@ -10,12 +11,23 @@ from machination.cosign import CosignPasswordMgr, CosignHandler
 
 l = context.logger
 
+# Try to make this work on python 2.x or python 3.x
+#
+# url and http request handling
 try:
     import urllib.request as urllib_request
     import http.client as http_client
 except ImportError:
     import urllib2 as urllib_request
     import httplib as http_client
+#
+# memoisation
+try:
+    getattr(functools, 'lru_cache')
+except AttributeError:
+    from machination import threebits
+    functools.lru_cache = threebits.lru_cache
+
 
 import http.cookiejar
 
@@ -156,6 +168,8 @@ class WebClient(object):
     # Convenience method for constructing wc from an etree element.
     @classmethod
     def from_service_elt(cls, elt, obj_type, credentials=None):
+        '''Class method: construct a WebClient from an etree element.
+        '''
         tmp_auth = service_elt.xpath(
             'authentication[@id="{}"]'.format(obj_type)
             )
@@ -191,6 +205,8 @@ class WebClient(object):
     # service_id.
     @classmethod
     def from_service_id(cls, service_id, obj_type, credentials=None):
+        '''Class method: construct a WebClient from element in config.xml.
+        '''
         try:
             service_elt = context.machination_worker_elt.xpath(
                 'services/service[@id="{}"]'.format(service_id)
@@ -200,6 +216,8 @@ class WebClient(object):
         return cls.from_service_elt(service_elt, obj_type, credentials)
 
     def call(self, name, *args):
+        '''Invoke method name in hierarchy with arguments *args.
+        '''
         l.lmsg("calling " + name + " on " + self.url)
         call_elt = etree.Element("r", call=name)
         for arg in args:
@@ -222,6 +240,12 @@ class WebClient(object):
             raise Exception('error at the server end:\n' + elt[0].text)
         ret = from_xml(elt)
         return ret
+
+    @functools.lru_cache(maxsize=None)
+    def memo(self, name, *args):
+        '''Invoke method name in hierarchy and memoise results.
+        '''
+        return self.call(name, args)
 
     def help(self):
         return self.call("Help")

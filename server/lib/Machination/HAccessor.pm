@@ -1537,14 +1537,15 @@ sub get_contents_handle {
   my @params;
   foreach my $type (@$types) {
     if($type eq "machination:hc") {
-      my $subq = "(select id,name,?::text as stype,?::text as type " .
+      my $subq = "(select id as obj_id, " .
+        "name, ?::text as ntype_id, ?::text as type_id " .
         "from hcs where parent=?)";
 #      push @subqs, [$subq,"hc",$self->id];
       push @subqs, $subq;
       push @params, 0, "machination:hc", $hc_id;
     } else {
-      my $subq = "(select objs_$type.id,name," .
-        "?::text as stype, ?::text as type " .
+      my $subq = "(select objs_$type.id as obj_id, name, " .
+        "?::text as ntype_id, ?::text as type_id " .
         "from objs_$type,hccont_$type " .
         "where hccont_$type.hc_id=? and objs_$type.id=hccont_$type.obj_id)";
 #      push @subqs, [$subq,$type,$self->id];
@@ -1552,7 +1553,7 @@ sub get_contents_handle {
       push @params, $type, $type, $hc_id;
     }
   }
-  my $sql = join(" union ", @subqs) . " order by stype";
+  my $sql = join(" union ", @subqs) . " order by ntype_id";
   my $sth = $dbh->prepare($sql);
   $sth->execute(@params);
   return $sth;
@@ -1833,7 +1834,7 @@ sub get_attached_handle {
   my @subqs;
   foreach my $tid (@$type_ids) {
     my $sq = "(select ${tid}::text as type_id, " .
-      "a.obj_id, a.ordinal, ";
+      "a.obj_id, a.ordinal, o.name, ";
     if ($tid == $self->type_id("set")) {
       $sq .= $self->channel_id("machination:hierarchy") . " as channel_id";
       $sq .= ", false as is_mandatory ";
@@ -2782,7 +2783,7 @@ sub get_library_item {
     # look for the first item which contains an assertion that will
     # satisfy our condition
     my $ag_sth = $self->get_ag_member_handle
-      ($item->{type_id}, $item->{id});
+      ($item->{type_id}, $item->{obj_id});
     while(my $item_ass = $ag_sth->fetchrow_hashref) {
       my $item_ass_mp = Machination::MPath($item_ass->{mpath});
       if($ass->{ass_op} eq "exists") {
@@ -2799,7 +2800,7 @@ sub get_library_item {
           ) {
           $ag_sth->finish;
           $sth->finish;
-          return $item->{id};
+          return $item->{obj_id};
         }
       } elsif($ass->{ass_op} =~ /^hastext/) {
         # satisfied when item action_op is settext or choosetext and
@@ -2819,7 +2820,7 @@ sub get_library_item {
           ) {
           $ag_sth->finish;
           $sth->finish;
-          return $item->{id};
+          return $item->{obj_id};
         }
       } elsif($ass->{ass_op} eq "notexists") {
         # satisfied when item action_op is delete and ass mpath is item
@@ -2828,7 +2829,7 @@ sub get_library_item {
            $item_ass_mp->could_be_parent_of($ass_mp)) {
           $ag_sth->finish;
           $sth->finish;
-          return $item->{id};
+          return $item->{obj_id};
         }
       } else {
         MachinationException->throw
@@ -2842,7 +2843,7 @@ sub get_library_item {
   my $cont = $self->get_contents_handle($hid, ['machination:hc'])->
     fetchall_arrayref({});
   foreach my $hc (@$cont) {
-    my $libitem = $self->get_library_item($ass, $hc->{id});
+    my $libitem = $self->get_library_item($ass, $hc->{obj_id});
     return $libitem if defined $libitem;
   }
 
@@ -4466,21 +4467,21 @@ sub op_delete_obj {
                 "it contains children and recursive is not set");
       }
       do {
-#        print "deleting child " . $row->{type} . ":" . $row->{id} . "\n";
-        if($row->{type} eq "machination:hc") {
+#        print "deleting child " . $row->{type_id} . ":" . $row->{obj_id} . "\n";
+        if($row->{type_id} eq "machination:hc") {
           # a child hc, delete it
           $self->do_op("delete_obj",{actor=>$actor,parent=>$rev,},
-                       $row->{type}, $row->{id}, $opts);
+                       $row->{type_id}, $row->{obj_id}, $opts);
         } else {
           # not an hc, remove_from_hc from this one
           $self->do_op("remove_from_hc",{actor=>$actor,parent=>$rev},
-                       $row->{type}, $row->{id}, $obj_id);
+                       $row->{type_id}, $row->{obj_id}, $obj_id);
           # delete_obj if no longer contained anywhere and
           # $opts->{delete_obj:delete_orphans} is set
           if($opts->{'delete_obj:delete_orphans'} &&
-             ! $self->fetch_parents($row->{type}, $row->{id})) {
+             ! $self->fetch_parents($row->{type_id}, $row->{obj_id})) {
             $self->do_op("delete_obj",{actor=>$actor,parent=>$rev},
-                         $row->{type}, $row->{id});
+                         $row->{type_id}, $row->{obj_id});
           }
         }
         $row = $ch->fetchrow_hashref;

@@ -652,6 +652,7 @@ sub call_ListAttachments {
   my ($owner,$approval,$hc,$opts) = @_;
 
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
+  $opts->{get_members} = 1 unless exists $opts->{get_members};
   $ha->log->dmsg("WebHierarchy.ListAttachments",
                  "owner: $owner, approval: $approval, hc: $hc, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
@@ -680,11 +681,21 @@ sub call_ListAttachments {
     }
   }
   my @channels = keys %{$ha->channels_info(undef)};
-  my $attachments = $ha->get_attached_handle($hp->id, \@channels, $types)->
+  my $direct = $ha->get_attached_handle($hp->id, \@channels, $types)->
     fetchall_arrayref({}, $opts->{max_objects});
 
+  my @attachments;
+  foreach my $att (@$direct) {
+    push @attachments, $att;
+    if($ha->is_agroup($att->{type_id}) && $opts->{get_members}) {
+      my $members = $ha->
+        get_ag_member_handle($att->{type_id}, $att->{obj_id})->
+          fetchall_arrayref({});
+      push @attachments, @$members;
+    }
+  }
 
-  return $attachments;
+  return \@attachments;
 }
 
 =item B<IteratorNext>

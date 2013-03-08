@@ -1773,6 +1773,28 @@ sub fetch_mtree_hcs {
 	return @hcs;
 }
 
+=item B<is_agroup>
+
+$bool = $ha->is_agroup($type_id)
+
+=cut
+
+sub is_agroup {
+  my $self = shift;
+  my ($type_id) = @_;
+  my $rows = $self->read_dbh->selectall_arrayref
+    (
+     "select o1.id from object_types as o1, object_types as o2 " .
+     "where o1.id = o2.agroup and o1.id=?",
+     {},
+     $type_id
+     );
+  if($rows) {
+    return 1;
+  }
+  return 0;
+}
+
 =item B<type_from_agroup_type>
 
 $ha->type_from_agroup_type($agroup_type_id,$opts)

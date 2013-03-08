@@ -245,7 +245,7 @@ class WebClient(object):
     def memo(self, name, *args):
         '''Invoke method name in hierarchy and memoise results.
         '''
-        return self.call(name, args)
+        return self.call(name, *args)
 
     def help(self):
         return self.call("Help")

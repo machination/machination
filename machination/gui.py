@@ -327,13 +327,15 @@ class HModel(QtGui.QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
     '''
 
+    columns = ['name', 'type_id', 'obj_id', 'channel_id']
+
     def __init__(self, wc = None):
         super().__init__(0,4)
         self.wcs = {}
         if wc is not None:
             self.add_service(wc)
 
-        self.setHorizontalHeaderLabels(['name','type','id','channel'])
+        self.setHorizontalHeaderLabels(HModel.columns)
 
     def add_service(self, wc):
         '''Add a new service at the root of the tree.'''
@@ -372,12 +374,21 @@ class HModel(QtGui.QStandardItemModel):
                 {'max_objects': 1}
                 )
             if attachments:
-                self.add_object(name_item, attachments[0], wc=wc, peek_children=False)
+                self.add_object(name_item,
+                                attachments[0],
+                                wc=wc,
+                                peek_children=False)
             contents = wc.call(
                 'ListContents', self.get_path(name_item), {'max_objects': 1}
                 )
             if contents:
-                self.add_object(name_item, contents[0], wc=wc, peek_children=False)
+                self.add_object(name_item,
+                                contents[0],
+                                wc=wc,
+                                peek_children=False)
+        elif obj.get('channel_id'):
+            pass
+
 
         return self.indexFromItem(name_item)
 
@@ -410,6 +421,20 @@ class HModel(QtGui.QStandardItemModel):
             return '/'
         return '/'.join(path)
 
+    def get_item(self, index, col_name):
+        '''Return QStandardItem given column name and any index in row'''
+        return self.itemFromIndex(
+            self.index(
+                index.row(),
+                HModel.columns.index(col_name),
+                index.parent()
+                )
+            )
+
+    def get_value(self, index, col_name):
+        '''Return the text stored in column col_name given a row or index'''
+        return self.get_item(index, col_name).text()
+
     def on_expand(self, index):
         '''Slot for 'expanded' signal.'''
         self.refresh(index)
@@ -417,22 +442,31 @@ class HModel(QtGui.QStandardItemModel):
     def refresh(self, index):
         '''Refresh a node from the hierarchy'''
         print('refreshing {}'.format(self.get_path(index)))
-        self.removeRows(0,self.rowCount(index),index)
         wc = self.get_wc(index)
-        type_id = self.itemFromIndex(index.sibling(0,1)).text()
-        channel_id = self.itemFromIndex(index.sibling(0,3)).text()
-        if  type_id == 'machination:hc':
+        type_id = self.get_value(index, 'type_id')
+        if type_id == 'machination:hc':
+            self.removeRows(0,self.rowCount(index),index)
             attachments = wc.call(
-                'ListAttachments', self.get_path(index)
+                'ListAttachments', self.get_path(index),
+                {'get_members':1}
                 )
+            a_parent = index
             for newatt in attachments:
-                print('adding att {}'.format(newatt))
-#                self.add_object(index, newatt, wc=wc)
+                a_type_id = newatt.get('type_id')
+                if wc.memo('TypeInfo', a_type_id).get('is_attachable') == '1':
+                    # directly attachable, add to hc
+                    a_parent = self.add_object(index, newatt, wc=wc)
+                else:
+                    # an agroup member, add to agroup
+                    self.add_object(a_parent, newatt, wc=wc)
+
             contents = wc.call(
                 'ListContents', self.get_path(index)
                 )
             for newobj in contents:
                 self.add_object(index, newobj, wc=wc)
+        elif wc.memo('TypeInfo', type_id).get('is_attachable') == '1':
+            pass
         else:
             raise Exception("Don't know how to refresh {}".format(type_id))
 

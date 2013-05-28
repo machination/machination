@@ -9,6 +9,9 @@ sip.setapi("QVariant",2)
 import sys
 import time
 import copy
+import functools
+import os
+import context
 from lxml import etree
 from PyQt4 import QtGui
 from PyQt4 import QtCore
@@ -167,6 +170,9 @@ class MGUI(QtGui.QWidget):
 
         self.wcs = {}
 
+        QtCore.QDir.addSearchPath("icons","")
+        print(QtCore.QDir.searchPaths("icons"))
+
         ### Dialogs ####################
         # service_url
         self.d_service_url = QtGui.QInputDialog(self)
@@ -261,12 +267,14 @@ class MGUI(QtGui.QWidget):
         self.hbox = QtGui.QHBoxLayout(self)
         self.vbox.addLayout(self.hbox)
         self.view = QtGui.QTreeView()
+        self.view.setIconSize(QtCore.QSize(22,22))
         self.hbox.addWidget(self.view)
         self.view.setModel(self.model)
         self.view.expanded.connect(self.model.on_expand)
         # TODO: hide these after coding/debugging is finished
-#        self.view.hideColumn(1)
-#        self.view.hideColumn(2)
+        self.view.hideColumn(1)
+        self.view.hideColumn(2)
+        self.view.hideColumn(3)
         self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
@@ -350,6 +358,12 @@ class HModel(QtGui.QStandardItemModel):
             )
         self.itemFromIndex(name_index).setEditable(False)
 
+    @functools.lru_cache(maxsize=None)
+    def get_icon(self, name):
+        '''Return the correct icon for name
+        '''
+        return QtGui.QIcon(os.path.join(context.resources_dir(),'{}.svg'.format(name)))
+
     def add_object(self, parent, obj, wc=None,
                    peek_children=True):
         '''Add an object to parent in tree'''
@@ -360,14 +374,23 @@ class HModel(QtGui.QStandardItemModel):
             wc = self.get_wc(name_item)
 
         name_item = QtGui.QStandardItem(obj.get('name'))
+        type_id = obj.get('type_id')
+        type_name = wc.memo('TypeInfo', type_id).get('name')
+
+        if  type_id == 'machination:hc':
+            name_item.setIcon(self.get_icon('folder'))
+        elif obj.get('channel_id'):
+            name_item.setIcon(self.get_icon('__attached__{}'.format(type_name)))
+        else:
+            name_item.setIcon(self.get_icon(type_name))
         row = [
             name_item,
-            QtGui.QStandardItem(obj.get('type_id')),
+            QtGui.QStandardItem(type_id),
             QtGui.QStandardItem(obj.get('obj_id')),
             QtGui.QStandardItem(obj.get('channel_id')),
             ]
         parent.appendRow(row)
-        if obj.get('type_id') == 'machination:hc' and peek_children:
+        if type_id == 'machination:hc' and peek_children:
             attachments = wc.call(
                 'ListAttachments',
                 self.get_path(name_item),

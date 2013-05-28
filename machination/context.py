@@ -82,6 +82,11 @@ def log_dir():
     """
     return _get_dir("log")
 
+def resources_dir():
+    """returns path to resources dir
+
+    usually /usr/lib/machination or C:\ProgramData\Machination\resources"""
+    return _get_dir("resources")
 
 def _get_dir(name, status_elt = None):
     dirname = name + "_dir"
@@ -128,6 +133,8 @@ def _get_dir(name, status_elt = None):
         return os.path.join(progfiles, "bin") if platname == "Win" else '/usr/bin'
     elif name == 'log':
         return os.path.join(win_machination_path(), "log") if platname == "Win" else '/var/log/machination'
+    elif name == 'resources':
+        return os.path.join(win_machination_path(), "resources") if platname == "Win" else '/usr/lib/machination'
 
 def get_id(service_id):
     """Find the os_instance id to use with service 'service_id'"""

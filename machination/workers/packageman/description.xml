@@ -26,20 +26,20 @@ gui:doc="documentation.html"
             <attribute name="id">
                 <text/>
             </attribute>
-            <zeroOrOne>
+            <optional>
                 <attribute name="interactive">
                     <choice>
                         <value>0</value>
                         <value>1</value>
                     </choice>
                 </attribute>
-            </zeroOrOne>
+            </optional>
             <element name="machinationFetcherBundle">
                 <attribute name="id">
                     <text/>
                 </attribute>
             </element>
-            <zeroOrOne>
+            <optional>
                 <element name="check">
                     <attribute name="type">
                         <choice>
@@ -51,7 +51,7 @@ gui:doc="documentation.html"
                         <text/>
                     </attribute>
                 </element>
-            </zeroOrOne>
+            </optional>
 
             <element name="pkginfo">
                 <attribute name="type">
@@ -60,16 +60,16 @@ gui:doc="documentation.html"
                         <value>simple</value>
                     </choice>
                 </attribute>
-                <zeroOrOne>
+                <optional>
                     <element name="startpoint">
                         <text/>
                     </element>
-                </zeroOrOne>
-                <zeroOrOne>
+                </optional>
+                <optional>
                     <element name="upgrade">
                         <text/>
                     </element>
-                </zeroOrOne>
+                </optional>
                 <zeroOrMore>
                     <element name="param">
                         <attribute name="name">

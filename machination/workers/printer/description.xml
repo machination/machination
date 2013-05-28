@@ -18,23 +18,30 @@
   <zeroOrMore>
     <element name="printer" wu:wu="1">
       <attribute name="id"/>
+      <optional>
+        <element name="machinationFetcherBundle">
+          <attribute name="id">
+            <text/>
+          </attribute>
+        </element>
+      </optional>
       <element name="basename">
-        <text/>    
+        <text/>
       </element>
       <element name="printer_name">
-        <text/>    
+        <text/>
       </element>
       <element name="net_addr">
-        <text/>    
+        <text/>
       </element>
       <element name="inf">
-        <text/>    
+        <text/>
       </element>
       <element name="driver">
-        <text/>    
+        <text/>
       </element>
       <element name="model">
-        <text/>    
+        <text/>
       </element>
     </element>
   </zeroOrMore>

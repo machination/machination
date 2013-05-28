@@ -74,7 +74,7 @@ class Worker(object):
         for val, protocol in self.protocols.iteritems():
             if protocol == rule["Protocol"].upper():
                 rule["Protocol"] = val
-
+        
         #Create a rule object
         ruleobj = win32com.client.gencache.EnsureDispatch("HNetCfg.FWRule", 0)
 

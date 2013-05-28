@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8:
 
-"""A worker to set shortcuts in Windows."""
+"""A worker to add printers in Windows."""
 
 from lxml import etree
 from machination import context
@@ -62,13 +62,13 @@ class Worker(object):
 
         cmdopts = { 'basename': ['/b'],
                     'printer_name': ['/x', '/n'],
-                    'net_addr': ['/r']
-                    'inf': ['/if', '/f'],
+                    'net_addr': ['/r'],
+#                    'inf': ['/if', '/f'],
                     'driver': ['/b', '/l'],
-                    'modal': ['/m']}
-        
+                    'model': ['/m']}
+
         printer = ['/PATH/TO/printerui.exe','/in','/u']
-        printer["name"] = work[0].id
+        printer["name"] = work[0].get('id')
         for property in work[0]:
             printer.extend(cmdopts[property.tag])
             printer.extend([x for x in cmdopts[property.tag]])
@@ -84,6 +84,23 @@ class Worker(object):
 #                printer.extend(['/b','/l',work[0].text])
 #            elif property.tag == 'modal':
 #                printer.extend(['/m',work[0].text])
+
+        # Handle inf path differently depending on whether it is built
+        # in or needed to be downloaded.
+        bundle_elts = work[0].xpath('machinationFetcherBundle')
+        if bundle_elts:
+            # We needed to download it.
+            printer.extend(
+                [
+                    '/if','/f',
+                    os.path.join(context.cache_dir(),
+                                 "bundles",
+                                 bundle_elts[0].get("id"),
+                                 work[0].xpath('inf')[0].text)
+                ]
+            )
+        else:
+            printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
 
         processAdd(printer) #after parsing the xml go and add that printer
 

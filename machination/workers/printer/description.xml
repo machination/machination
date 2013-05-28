@@ -1,0 +1,41 @@
+<element name="worker"
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:info="https://github.com/machination/ns/info"
+    xmlns:wu="https://github.com/machination/ns/workunit"
+    xmlns:gui="https://github.com/machination/ns/guihint"
+    xmlns:stpol="https://github.com/machination/ns/status-merge-policy"
+    xmlns:secret="https://github.com/machination/ns/secrets"
+
+    info:ordered="0"
+    >
+  <info:platforms>
+    <info:platform id="win7_32"/>
+    <info:platform id="win7_64"/>
+  </info:platforms>
+  <attribute name="id">
+    <value>printer</value>
+  </attribute>
+  <zeroOrMore>
+    <element name="printer" wu:wu="1">
+      <attribute name="id"/>
+      <element name="basename">
+        <text/>    
+      </element>
+      <element name="printer_name">
+        <text/>    
+      </element>
+      <element name="net_addr">
+        <text/>    
+      </element>
+      <element name="inf">
+        <text/>    
+      </element>
+      <element name="driver">
+        <text/>    
+      </element>
+      <element name="model">
+        <text/>    
+      </element>
+    </element>
+  </zeroOrMore>
+</element>

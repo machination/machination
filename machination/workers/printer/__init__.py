@@ -13,16 +13,6 @@ import stat
 l = context.logger
 
 class Worker(object):
-        #printer options to printui, defalt construct
-        #printer = {"printerui":(r"/in", "/u"), #check optins
-#               "base_name":(r"/b","bname"),
-#               "printer_name":(r"/x","/n","pname"),
-#               "net_addr":(r"/r","addr"),
-#               "inf":(r"/if","/f","inf"),
-#               "driver":(r"/l","driv"),
-#               "modal":(r"/m","modal")}
-
-#remove before final commit(above is refrance only)
 
     def __init__(self):
         self.name = self.__module__.split('.')[-1]
@@ -63,6 +53,7 @@ class Worker(object):
         cmdopts = { 'basename': ['/b'],
                     'printer_name': ['/x', '/n'],
                     'net_addr': ['/r'],
+#inf can be built in so not in the defalt opts
 #                    'inf': ['/if', '/f'],
                     'driver': ['/b', '/l'],
                     'model': ['/m']}
@@ -72,18 +63,6 @@ class Worker(object):
         for property in work[0]:
             printer.extend(cmdopts[property.tag])
             printer.extend([x for x in cmdopts[property.tag]])
-#            if property.tag == 'basename':
-#                printer.extend(['/b',work[0].text])
-#            elif property.tag == 'printer_name':
-#                printer.extend(['/x','/n',work[0].text])
-#            elif property.tag == 'net_addr':
-#                printer.extend(['/r',work[0].text])
-#            elif property.tag == 'inf':
-#                printer.extend(['/if','/f',work[0].text])
-#            elif property.tag == 'driver':
-#                printer.extend(['/b','/l',work[0].text])
-#            elif property.tag == 'modal':
-#                printer.extend(['/m',work[0].text])
 
         # Handle inf path differently depending on whether it is built
         # in or needed to be downloaded.
@@ -104,7 +83,7 @@ class Worker(object):
 
         processAdd(printer) #after parsing the xml go and add that printer
 
-        if return_code == "1":  #check the return code from processAdd
+        if return_code:  #check the return code from processAdd
             res.attrib["status"] = "error"
         else:
             res.attrib["status"] = "success"
@@ -136,5 +115,4 @@ class Worker(object):
     def processAdd(self, printer):
 
         proc = Popen(printer) #using the list, printer tell subprocess.Popen to run the comand printui.exe
-        return_code = proc.wait() #wait for it to finish
-        return self.return_code
+        return proc.wait() #wait for it to finish

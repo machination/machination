@@ -84,8 +84,9 @@ class Worker(object):
             )
         else:
             printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
-            #after parsing the xml go and add that printer
-            return_code = processAdd(printer)
+
+        #after parsing the xml go and add that printer
+        return_code = printUI(printer)
 
         #check the return code from processAdd
         if return_code:
@@ -114,10 +115,24 @@ class Worker(object):
         id = work[0].attrib["id"]
 
         #do removal here
+        printer = [os.path.join('%SystemRoot%', 'system32', 'printerui.exe'),
+                   '/dn']
+        printer["name"] = work[0].get('id')
+        for property in cmdopts:
+            printer.extend([x for x in work[0].xpath('bacename')[0].text])
+
+        #after parsing the xml go and remove that network printer
+        return_code = printUI(printer)
+
+        #check the return code from processAdd
+        if return_code:
+            res.attrib["status"] = "error"
+        else:
+            res.attrib["status"] = "success"
 
         return res
 
-    def processAdd(self, printer):
+    def printUI(self, printer):
         #using the list, printer tell subprocess.Popen
         #to run the comand printui.exe
         proc = subprocess.Popen(printer)

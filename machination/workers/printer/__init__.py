@@ -12,6 +12,7 @@ import stat
 
 l = context.logger
 
+
 class Worker(object):
 
     def __init__(self):
@@ -47,23 +48,25 @@ class Worker(object):
         #defins subprocsess.Popen and use it with printui.exe and the
         #options form printer{}
 
-        #pass the work unit to a methord to get the and return a list from the xml
+        #pass the work unit to a methord to get the
+        #and return a list from the xml
         #take that and stick it into subprocess.popen
 
-        cmdopts = { 'basename': ['/b'],
-                    'printer_name': ['/x', '/n'],
-                    'net_addr': ['/r'],
+        cmdopts = {'basename': ['/b'],
+                   'printer_name': ['/x', '/n'],
+                   'net_addr': ['/r'],
+                   'driver': ['/b', '/l'],
+                   'model': ['/m']}
 
-#                    'inf': ['/if', '/f'],
-                    'driver': ['/b', '/l'],
-                    'model': ['/m']}
-#inf can be built in so not in the defalt opts
+        #inf can be built in so not in the defalt opts
+        #get sysroot value from win rathere than explisetly calling it
 
-        printer = ['%SystemRoot%\\system32\\printerui.exe','/in','/u']
+        printer = [os.path.join('%SystemRoot%', 'system32', 'printerui.exe'),
+                   '/in', '/u']
         printer["name"] = work[0].get('id')
-        for property in work[0]:
-            printer.extend(cmdopts[property.tag])
-            printer.extend([x for x in cmdopts[property.tag]])
+        for property in cmdopts:
+            printer.extend(cmdopts[property])
+            printer.extend([x for x in work[0].xpath(property)[0].text])
 
         # Handle inf path differently depending on whether it is built
         # in or needed to be downloaded.
@@ -72,7 +75,7 @@ class Worker(object):
             # We needed to download it.
             printer.extend(
                 [
-                    '/if','/f',
+                    '/if', '/f',
                     os.path.join(context.cache_dir(),
                                  "bundles",
                                  bundle_elts[0].get("id"),
@@ -81,10 +84,11 @@ class Worker(object):
             )
         else:
             printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
+            #after parsing the xml go and add that printer
+            return_code = processAdd(printer)
 
-        processAdd(printer) #after parsing the xml go and add that printer
-
-        if return_code:  #check the return code from processAdd
+        #check the return code from processAdd
+        if return_code:
             res.attrib["status"] = "error"
         else:
             res.attrib["status"] = "success"
@@ -114,6 +118,7 @@ class Worker(object):
         return res
 
     def processAdd(self, printer):
-
-        proc = subprocess.Popen(printer) #using the list, printer tell subprocess.Popen to run the comand printui.exe
-        return proc.wait() #wait for it to finish
+        #using the list, printer tell subprocess.Popen
+        #to run the comand printui.exe
+        proc = subprocess.Popen(printer)
+        return proc.wait()

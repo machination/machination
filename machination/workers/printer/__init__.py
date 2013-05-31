@@ -61,8 +61,9 @@ class Worker(object):
         #inf can be built in so not in the defalt opts
         #get sysroot value from win rathere than explisetly calling it
 
-        printer = [os.path.join('%SystemRoot%', 'system32', 'printerui.exe'),
-                   '/in', '/u']
+        printer = [os.path.join(
+                   os.eviron.get('SYSTEMROOT', os.path.join('C:','Windows')),
+                   'system32', 'printerui.exe'), '/in', '/u']
         printer["name"] = work[0].get('id')
         for property in cmdopts:
             printer.extend(cmdopts[property])
@@ -115,8 +116,10 @@ class Worker(object):
         id = work[0].attrib["id"]
 
         #do removal here
-        printer = [os.path.join('%SystemRoot%', 'system32', 'printerui.exe'),
-                   '/dn']
+        printer = [os.path.join(
+                   os.eviron.get('SYSTEMROOT', os.path.join('C:','Windows')),
+                   'system32', 'printerui.exe'), '/dn']
+
         printer["name"] = work[0].get('id')
         for property in cmdopts:
             printer.extend([x for x in work[0].xpath('bacename')[0].text])

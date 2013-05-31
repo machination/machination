@@ -871,6 +871,7 @@ sub type_info {
 		$info->{'plural'} = "hcs";
 		$info->{'is_entity'}=0;
 		$info->{'is_attachable'}=0;
+    $info->{'is_agroup'}=0;
 		$info->{name} = "machination:hc";
 		$obj_table = "hcs";
 		$self->{type_info}->{$type_id} = $info;
@@ -879,6 +880,15 @@ sub type_info {
 												 {params=>[$type_id],
 													revision=>$opts->{revision},
 												 });
+    my $rows = $self->read_dbh->selectall_arrayref
+      (
+       "select true from object_types where agroup=?", {}, $type_id
+      );
+    if(@$rows) {
+      $info->{is_agroup} = 1;
+    } else {
+      $info->{is_agroup} = 0;
+    }
 		$obj_table = "objs_" . $type_id if($info);
 		$self->{type_info}->{$type_id} = $info;
 	}

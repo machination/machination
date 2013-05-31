@@ -53,12 +53,13 @@ class Worker(object):
         cmdopts = { 'basename': ['/b'],
                     'printer_name': ['/x', '/n'],
                     'net_addr': ['/r'],
-#inf can be built in so not in the defalt opts
+
 #                    'inf': ['/if', '/f'],
                     'driver': ['/b', '/l'],
                     'model': ['/m']}
+#inf can be built in so not in the defalt opts
 
-        printer = ['/PATH/TO/printerui.exe','/in','/u']
+        printer = ['%SystemRoot%\\system32\\printerui.exe','/in','/u']
         printer["name"] = work[0].get('id')
         for property in work[0]:
             printer.extend(cmdopts[property.tag])
@@ -114,5 +115,5 @@ class Worker(object):
 
     def processAdd(self, printer):
 
-        proc = Popen(printer) #using the list, printer tell subprocess.Popen to run the comand printui.exe
+        proc = subprocess.Popen(printer) #using the list, printer tell subprocess.Popen to run the comand printui.exe
         return proc.wait() #wait for it to finish

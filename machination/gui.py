@@ -275,6 +275,7 @@ class MGUI(QtGui.QWidget):
         self.view.hideColumn(1)
         self.view.hideColumn(2)
         self.view.hideColumn(3)
+#        self.view.hideColumn(4)
         self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
@@ -335,7 +336,7 @@ class HModel(QtGui.QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
     '''
 
-    columns = ['name', 'type_id', 'obj_id', 'channel_id']
+    columns = ['name', 'type_id', 'obj_id', 'channel_id', '__branch__']
 
     def __init__(self, wc = None):
         super().__init__(0,4)
@@ -371,11 +372,14 @@ class HModel(QtGui.QStandardItemModel):
             # Assume parent is an index
             parent = self.itemFromIndex(parent)
         if wc is None:
-            wc = self.get_wc(name_item)
+            wc = self.get_wc(parent)
 
         name_item = QtGui.QStandardItem(obj.get('name'))
         type_id = obj.get('type_id')
         type_name = wc.memo('TypeInfo', type_id).get('name')
+
+        if not obj.get('__branch__'):
+            obj['__branch__'] = 'contents'
 
         if  type_id == 'machination:hc':
             name_item.setIcon(self.get_icon('folder'))
@@ -388,29 +392,14 @@ class HModel(QtGui.QStandardItemModel):
             QtGui.QStandardItem(type_id),
             QtGui.QStandardItem(obj.get('obj_id')),
             QtGui.QStandardItem(obj.get('channel_id')),
+            QtGui.QStandardItem(obj.get('__branch__')),
             ]
         parent.appendRow(row)
-        if type_id == 'machination:hc' and peek_children:
-            attachments = wc.call(
-                'ListAttachments',
-                self.get_path(name_item),
-                {'max_objects': 1}
-                )
-            if attachments:
-                self.add_object(name_item,
-                                attachments[0],
-                                wc=wc,
-                                peek_children=False)
-            contents = wc.call(
-                'ListContents', self.get_path(name_item), {'max_objects': 1}
-                )
-            if contents:
-                self.add_object(name_item,
-                                contents[0],
-                                wc=wc,
-                                peek_children=False)
-        elif obj.get('channel_id'):
-            pass
+
+        if peek_children:
+            obj = self.peek_children(self.indexFromItem(name_item))
+            if obj:
+                self.add_object(name_item, obj, peek_children=False)
 
 
         return self.indexFromItem(name_item)
@@ -430,13 +419,23 @@ class HModel(QtGui.QStandardItemModel):
         if not index.isValid():
             return []
 
-        path =  self.get_obj_path(index.parent())
+        path = self.get_obj_path(index.parent())
         path.append(self.itemFromIndex(index))
+
         return path
 
     def get_path(self, thing):
         '''Return a string path to an index or StandardItem'''
         obj_path = self.get_obj_path(thing)
+
+        last_index = self.indexFromItem(obj_path[-1])
+        if self.get_value(last_index, '__branch__') != 'contents':
+            wc = self.get_wc(last_index)
+            return '{}:{}'.format(
+                wc.memo('TypeInfo', self.get_value(last_index, 'type_id')).get('name'),
+                self.get_value(last_index, 'obj_id')
+                )
+
         path = ['']
         for obj in obj_path[1:]:
             path.append(obj.text())
@@ -469,29 +468,67 @@ class HModel(QtGui.QStandardItemModel):
         type_id = self.get_value(index, 'type_id')
         if type_id == 'machination:hc':
             self.removeRows(0,self.rowCount(index),index)
-            attachments = wc.call(
-                'ListAttachments', self.get_path(index),
-                {'get_members':1}
-                )
-            a_parent = index
-            for newatt in attachments:
-                a_type_id = newatt.get('type_id')
-                if wc.memo('TypeInfo', a_type_id).get('is_attachable') == '1':
-                    # directly attachable, add to hc
-                    a_parent = self.add_object(index, newatt, wc=wc)
-                else:
-                    # an agroup member, add to agroup
-                    self.add_object(a_parent, newatt, wc=wc)
-
-            contents = wc.call(
-                'ListContents', self.get_path(index)
-                )
-            for newobj in contents:
-                self.add_object(index, newobj, wc=wc)
+            for child in self.get_children(index):
+                self.add_object(index, child)
         elif wc.memo('TypeInfo', type_id).get('is_attachable') == '1':
             pass
         else:
             raise Exception("Don't know how to refresh {}".format(type_id))
+
+    def peek_children(self, index):
+        '''Look to see if an item which could have children actually has any.'''
+        wc = self.get_wc(index)
+        type_id = self.get_value(index, 'type_id')
+        if type_id == 'machination:hc':
+            attachments = wc.call(
+                'ListAttachments',
+                self.get_path(index),
+                {'max_objects': 1}
+                )
+            if attachments:
+                attachments[0]['__branch__'] = 'attachments'
+                return attachments[0]
+            contents = wc.call(
+                'ListContents', self.get_path(index), {'max_objects': 1}
+                )
+            if contents:
+                return contents[0]
+            else:
+                return False
+        if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
+            members = wc.call('AgroupMembers', self.get_path(index))
+            if members:
+                members[0]['__branch__'] = 'members'
+                return members[0]
+            else:
+                return False
+
+    def get_children(self, index):
+        '''Fetch children from hierarchy if object has any.'''
+        wc = self.get_wc(index)
+        type_id = self.get_value(index, 'type_id')
+        if type_id == 'machination:hc':
+            return_list = []
+            attachments = wc.call(
+                'ListAttachments', self.get_path(index),
+                {'get_members':0}
+                )
+            for newatt in attachments:
+                newatt['__branch__'] = 'attachments'
+            return_list.extend(attachments)
+            contents = wc.call(
+                'ListContents', self.get_path(index)
+                )
+            for newobj in contents:
+                newobj['__branch__'] = 'contents'
+            return_list.extend(contents)
+            return return_list
+        if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
+            members = wc.call('AgroupMembers', self.get_path(index))
+            for member in members:
+                member['__branch__'] = 'members'
+            return members
+
 
 # Later we'll make a better model based on QAbstractItemModel. Right
 # now, see HModel -- based on QStandardItemModel

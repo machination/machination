@@ -26,7 +26,7 @@ setvar(everyone,/system/sets/universal/set:external::string)
 @/ /system/ag_authz_insts/agroup_authz_inst:default_deny
 
 /system/sets/authz_groups/set:global_admins is_internal=0 member_type=string
-E. getvar(_USER_) eggy
+E. cat(person:,getvar(_USER_))
 setvar(global_admins,/system/sets/authz_groups/set:global_admins)
 /system/ag_authz_insts/agroup_authz_inst:admins_allow \
     channel_id=channel_id(machination:hierarchy)

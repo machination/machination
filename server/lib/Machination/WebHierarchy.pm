@@ -84,6 +84,9 @@ my %calls =
    IteratorFinish => undef,
    ListAttachments => undef,
 
+   # agroups
+   AgroupMembers => undef,
+
    # objects
    FetchObject => undef,
    IdPair => undef,
@@ -648,6 +651,12 @@ sub _writer_thread {
   $itw->start;
 }
 
+=item B<ListAttachments>
+
+$attachments = ListAttachments($hc, $opts)
+
+=cut
+
 sub call_ListAttachments {
   my ($owner,$approval,$hc,$opts) = @_;
 
@@ -697,6 +706,34 @@ sub call_ListAttachments {
 
   return \@attachments;
 }
+
+=item B<AgroupMembers>
+
+$members = AgroupMembers($type_id, $obj_id, $opts)
+
+=cut
+
+sub call_AgroupMembers {
+  my ($owner,$approval,$path,$opts) = @_;
+
+  $opts->{max_objects} = undef unless exists $opts->{max_objects};
+  my $hp = Machination::HPath->new($ha,$path);
+
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"listchildren",
+             mpath=>"/contents/" . $hp->type . ":[" . $hp->id . "]",
+             owner=>$owner,
+             approval=>$approval};
+#  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
+
+  die "could not get listchildren permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$hp->parent));
+
+  return $ha->
+    get_ag_member_handle($hp->type_id, $hp->id)->
+      fetchall_arrayref({}, $opts->{max_objects});
+}
+
 
 =item B<IteratorNext>
 

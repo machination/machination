@@ -1,0 +1,49 @@
+=Hierarchy Representation and HPaths
+
+== Paths
+
+=== Basic Paths
+
+Like unix filesystem paths but specify the object type name of any object which is not an hc. Usually this is just the leaf object:
+
+* /myorg/by_os/win7/os_instance:bob-laptop
+* /myorg/lib/default_sw/agroup_assertion:office-v1234
+
+=== Branches
+
+Anything that can have children has those children in a _branch_. The default branch is _contents_: any other branch must be specified by enclosing the branch name in double colons. Possible branches at time of writing are _contents_, _attachments_ and _members_.
+
+* /myorg/by_os/win7/::attachments::agroup_assertion:office-v1234
+* /myorg/by_org/engineering/set:eng_managers/::members::person:bob
+* /myorg/by_org/set:managers/::members::set:eng_managers/::members::person:bob
+
+== Representation
+
+<obj typeName='machination:hc' id='myorg'>
+ <branch id='contents'>
+  <obj typeName='machination:hc' id='by_os'>
+   <branch id='contents'>
+    <obj typeName='machination:hc' id='win7'>
+     <branch id='contents'>
+      <obj typeName='os_instance' id='bob-laptop'/>
+     </branch>
+    </obj>
+   </branch>
+  </obj>
+ </branch>
+</obj>
+
+<obj typeName='machination:hc' id='myorg'>
+ <branch id='contents'>
+  <obj typeName='machination:hc' id='by_os'>
+   <branch id='contents'>
+    <obj typeName='machination:hc' id='win7'>
+     <branch id='attachments'>
+      <obj typeName='agroup_assertion' id='office-v1234'/>
+     </branch>
+    </obj>
+   </branch>
+  </obj>
+ </branch>
+</obj>
+

@@ -1,6 +1,30 @@
 Setting up a Machination Server
 -------------------------------
 
+- Install machination-server rpm.
+- Change password in /etc/machination/server/secrets/dbcred.xml
+- Change admin user in /var/lib/machination/server/database/bootstrap_hierarchy.hda
+- Run machination-bootstrap
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Old notes for when I get round to piecing together the .deb packages:
+
 0) You will need...
 
 

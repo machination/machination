@@ -2164,6 +2164,7 @@ sub action_allowed {
     croak "don't know how to authorise branch " .
       "in hierarchy channel when processing mpath " . $req->{mpath}
         unless(defined $branch);
+    $type_name =~ s/:$//;
     my $type_id;
     $type_id = $self->type_id($type_name) if(defined $type_name);
 

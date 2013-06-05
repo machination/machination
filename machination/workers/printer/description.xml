@@ -43,6 +43,9 @@
       <element name="model">
         <text/>
       </element>
+      <element name="location">
+        <text/>
+      </element>
     </element>
   </zeroOrMore>
 </element>

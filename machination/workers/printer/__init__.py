@@ -5,6 +5,8 @@
 
 from lxml import etree
 from machination import context
+from machination import xmltools
+from machination.xmltools import MRXpath
 import win32com.client
 import os
 import shutil
@@ -111,20 +113,21 @@ class Worker(object):
 
     def _remove(self, work):
         res = etree.Element("wu",
-                            id=work.attrib["id"])
+                             wuId=work.attrib["id"])
 
-        id = work[0].attrib["id"]
+        printerId = MRXpath(/prof/wu[@id='printer'].getid() #check
 
         #do removal here
         printer = [os.path.join(
-                   os.eviron.get('SYSTEMROOT', os.path.join('C:','Windows')),
+                   os.environ.get('SYSTEMROOT', os.path.join('C:','Windows')),
                    'system32', 'printerui.exe'), '/dn']
 
-        printer["name"] = work[0].get('id')
+        printer["name"] = printerId
         for property in cmdopts:
-            printer.extend([x for x in work[0].xpath('bacename')[0].text])
-
+            printer.extend([x for x in work[0].xpath('basename')[0].text])
+            #change above to only get the basename rather than listcomp
         #after parsing the xml go and remove that network printer
+
         return_code = printUI(printer)
 
         #check the return code from processAdd

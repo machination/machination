@@ -17,6 +17,22 @@ Anything that can have children has those children in a _branch_. The default br
 * /myorg/by_org/engineering/set:eng_managers/::members::person:bob
 * /myorg/by_org/set:managers/::members::set:eng_managers/::members::person:bob
 
+=== Numerical Types and IDs
+
+* person:#1
+** person with id 1
+* #2:#1
+** But don't specify types by number
+* machination:hc:#1
+** or just #1
+
+=== Escape Specials
+
+Use the a backslash (\).
+
+* person:\#1
+** person with name '#1'
+
 == Representation
 
 <obj typeName='machination:hc' id='myorg'>

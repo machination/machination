@@ -410,6 +410,107 @@ sub parent_id {
 
 =cut
 
+sub _path_item {
+  my $self = shift;
+  my $tracking = shift;
+
+  print Dumper($tracking);
+  $tracking->{branch} = 'contents' if (!exists $tracking->{branch});
+  my $type_arr;
+  if($tracking->{type_is_id}) {
+    # type sepcified as id
+    $type_arr = [undef, $tracking->{type}];
+  } else {
+    $type_arr = [$tracking->{type}, undef];
+  }
+  push @$type_arr, $tracking->{type_is_id};
+  my $name_arr;
+  if($tracking->{is_id}) {
+    # name sepcified as id
+    $name_arr = [undef, $tracking->{name}];
+  } else {
+    $name_arr = [$tracking->{name}, undef];
+  }
+  push @$name_arr, $tracking->{is_id};
+
+  return [$tracking->{branch},$type_arr, $name_arr];
+}
+
+sub sr2 {
+  my $self = shift;
+  my ($path) = @_;
+  my @path;
+  my $cat = "HPath.string_to_rep";
+
+  print "starting with: $path\n";
+
+  # Treat root differently
+  if($path =~ s/\///) {
+    push @path,
+      [
+       'machination_root',
+       [undef,undef,0],
+       ['machination:root',undef,0]
+      ]
+  }
+
+  use HOP::Lexer qw(string_lexer);
+  my @input_tokens =
+    (
+     ['QSTRING', qr/'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\"/, sub {
+        $_[1] =~ s/\\(.)/\1/g;
+        return ['NAME', substr($_[1],1,-1)]
+      }],
+     ['QCHAR', qr/\\./, sub {
+        return ['NAME', substr($_[1],1,1)]
+      }],
+     ['PATH_SEP', qr/\//],
+     ['BRANCH_SEP', qr/::/],
+     ['TYPENAME_SEP', qr/:/],
+     ['ID', qr/\#\d+/, sub {
+        return ['ID', substr($_[1],1)]
+      }],
+     ['NAME', qr/.*/],
+     );
+  my $lexer = string_lexer($path, @input_tokens);
+  my $tracking = {is_id=>0, type_is_id=>0};
+  while (my $token = $lexer->()) {
+    print join(",",@$token) . "\n";
+    if($token->[0] eq 'PATH_SEP') {
+      push @path, $self->_path_item($tracking);
+      $tracking = {is_id=>0, type_is_id=>0};
+    } elsif ($token->[0] eq 'NAME') {
+      die "attempting to add non digits to an ID" if($tracking->{is_id});
+      $tracking->{name} .= $token->[1];
+    } elsif ($token->[0] eq 'BRANCH_SEP') {
+      die "adding a second branch" if(exists $tracking->{branch});
+      $tracking->{branch} = $tracking->{name};
+      delete $tracking->{name};
+    } elsif ($token->[0] eq 'TYPENAME_SEP') {
+      die "second type/name seperator"
+        if(exists $tracking->{type});
+      $tracking->{type} = $tracking->{name};
+      delete $tracking->{name};
+    } elsif ($token->[0] eq 'ID') {
+      $tracking->{name} = $token->[1];
+      if(exists $tracking->{type}) {
+        # object specifier is an id
+        $tracking->{is_id} = 1;
+      } else {
+        # type specifier is an id
+        $tracking->{type_is_id} = 1;
+      }
+    } else {
+      die "Unrecognised token $token->[0] parsing HPath $path";
+    }
+  }
+  push @path, $self->_path_item($tracking);
+
+  return \@path;
+}
+
+
+
 sub string_to_rep {
   my $self = shift;
   my $path = shift;

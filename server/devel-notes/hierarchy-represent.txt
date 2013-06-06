@@ -11,11 +11,15 @@ Like unix filesystem paths but specify the object type name of any object which 
 
 === Branches
 
-Anything that can have children has those children in a _branch_. The default branch is _contents_: any other branch must be specified by enclosing the branch name in double colons. Possible branches at time of writing are _contents_, _attachments_ and _members_.
+Anything that can have children has those children in a _branch_. The
+default branch is _contents_: any other branch must be specified by
+writing the branch name first, followed by double colons, followed by
+the type:name specification of the object. Possible branches at time
+of writing are _contents_, _attachments_ and _members_.
 
-* /myorg/by_os/win7/::attachments::agroup_assertion:office-v1234
-* /myorg/by_org/engineering/set:eng_managers/::members::person:bob
-* /myorg/by_org/set:managers/::members::set:eng_managers/::members::person:bob
+* /myorg/by_os/win7/attachments::agroup_assertion:office-v1234
+* /myorg/by_org/engineering/set:eng_managers/members::person:bob
+* /myorg/by_org/set:managers/members::set:eng_managers/members::person:bob
 
 === Numerical Types and IDs
 

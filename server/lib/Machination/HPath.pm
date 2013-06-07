@@ -239,16 +239,28 @@ sub string_to_rep {
   return \@path;
 }
 
+=item B<is_rooted>
+
+=cut
+
 sub is_rooted {
   my $self = shift;
   return $self->rep->[0]->is_root;
 }
+
+=item B<to_string>
+
+=cut
 
 sub to_string {
   my $self = shift;
   my @path = map {$_->to_string} @{$self->rep};
   return join("/",@path)
 }
+
+=item B<slice>
+
+=cut
 
 sub slice {
   my $self = shift;
@@ -264,7 +276,25 @@ sub slice {
   } else {
     @rep = ($self->rep->[$from]);
   }
-  return __PACKAGE__->new(\@rep)
+  return $self->new(\@rep)
+}
+
+=item B<identifies_object>
+
+An HPath identifies an object if it is one of the following:
+
+- rooted
+- an hc with an id defined
+- an object with an id defined
+
+Note that the object may not exist in the hierarchy, but if it does,
+the above is enough information to find it.
+
+=cut
+
+sub identifies_object {
+  my $self = shift;
+
 }
 
 __PACKAGE__->meta->make_immutable;

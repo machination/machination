@@ -115,7 +115,7 @@ class Worker(object):
         res = etree.Element("wu",
                              wuId=work.attrib["id"])
 
-        printerId = MRXpath(/prof/wu[@id='printer'].getid() #check
+        printerId = MRXpath("/prof/wu[@id='printer'].getid()")
 
         #do removal here
         printer = [os.path.join(

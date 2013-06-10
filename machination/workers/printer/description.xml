@@ -34,12 +34,16 @@
       <element name="net_addr">
         <text/>
       </element>
-      <element name="inf">
-        <text/>
-      </element>
-      <element name="driver">
-        <text/>
-      </element>
+      <optional>
+         <element name="inf">
+           <text/>
+         </element>
+      </optional>
+      <optional>	
+          <element name="driver">
+            <text/>
+          </element>
+      </optional>
       <element name="model">
         <text/>
       </element>

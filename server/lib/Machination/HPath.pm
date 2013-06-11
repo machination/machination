@@ -71,10 +71,7 @@ Create a new Machination::HPath
 # Internal Representation
 #
 # [
-#  [ $branch,
-#   [ $type_name, $type_id, $which_specifed],
-#   [ $obj_name, $obj_id, $which_specified]
-#  ],
+#  Machination::HPathItem,
 #  ...
 # ]
 
@@ -85,6 +82,8 @@ has 'rep' => (is=>'ro',
 
 has 'ha' => (is=>'rw',
              isa => 'Machination::HAccessor',
+             clearer=>'clear_ha',
+             predicate=>'has_ha',
              required=>0);
 
 has 'revision' => (is=>'rw',
@@ -161,11 +160,7 @@ sub _path_item {
 
   my %args = (path=>$self);
   $args{branch} = $tracking->{branch} if (exists $tracking->{branch});
-  if($tracking->{type_is_id}) {
-    $args{type_id} = $tracking->{type};
-  } else {
-    $args{type_name} = $tracking->{type};
-  }
+  $args{type} = $tracking->{type};
   if($tracking->{is_id}) {
     $args{id} = $tracking->{name};
   } else {
@@ -207,7 +202,10 @@ sub string_to_rep {
   my $tracking = {is_id=>0, type_is_id=>0};
   while (my $token = $lexer->()) {
     if($token->[0] eq 'PATH_SEP') {
-      push @path, $self->_path_item($tracking);
+      $tracking->{name} = "" unless defined $tracking->{name};
+      my $item = $self->_path_item($tracking);
+      push @path, $item
+        unless($item->is_hc and $item->name eq "");
       $tracking = {is_id=>0, type_is_id=>0};
     } elsif ($token->[0] eq 'NAME') {
       die "attempting to add non digits to an ID" if($tracking->{is_id});
@@ -227,14 +225,17 @@ sub string_to_rep {
         # object specifier is an id
         $tracking->{is_id} = 1;
       } else {
-        # type specifier is an id
-        $tracking->{type_is_id} = 1;
+        # type specifier is an id - not supposed to do that.
+        die "Type specifier must not be an id."
       }
     } else {
       die "Unrecognised token $token->[0] parsing HPath $path";
     }
   }
-  push @path, $self->_path_item($tracking);
+  $tracking->{name} = "" unless defined $tracking->{name};
+  my $item = $self->_path_item($tracking);
+  push @path, $item
+    unless($item->is_hc and $item->name eq "");
 
   return \@path;
 }
@@ -295,6 +296,68 @@ the above is enough information to find it.
 sub identifies_object {
   my $self = shift;
 
+  ($self->is_rooted or $self->leaf_node->has_id) ? return 1 : return 0;
+}
+
+=item B<leaf_node>
+
+=cut
+
+sub leaf_node {
+  my $self = shift;
+  return $self->rep->[$#{$self->rep}];
+}
+
+=item B<parent>
+
+=cut
+
+sub parent {
+  my $self = shift;
+  return $self->slice(":-1");
+}
+
+=item B<populate_ids>
+
+=cut
+
+sub populate_ids {
+  my $self = shift;
+
+  die "Cannot populate_ids unless path identifies and object"
+    unless $self->identifies_object;
+
+  # If path is non rooted and still identifies an object then it has
+  # an id already.
+  return unless $self->is_rooted;
+
+  die "An ha is required to populate_ids"
+    unless $self->has_ha;
+
+  my $finished = 1;
+
+  my $parent = $self->rep->[0];
+  $parent->id($self->ha->fetch_root_id)
+    unless defined $parent->id;
+  foreach my $item (@{$self->rep}[1..$#{$self->rep}]) {
+    if($item->branch eq "contents") {
+      $item->id($self->ha->fetch_id
+                (
+                 $self->ha->type_id($item->type),
+                 $item->name,
+                 $parent->id
+                 )
+                )
+        unless defined $item->id;
+    }
+    if(!defined $item->id) {
+      $finished = 0;
+      last;
+    }
+    $parent = $item;
+  }
+
+  return $finished;
 }
 
 __PACKAGE__->meta->make_immutable;

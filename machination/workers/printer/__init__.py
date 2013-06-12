@@ -13,18 +13,20 @@ import shutil
 import stat
 import subprocess
 
-l = context.logger
-
 
 class Worker(object):
 
     def __init__(self):
+        self.log = context.logger
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.shell = win32com.client.Dispatch("WScript.Shell")
-    
-    def PrintUI(self, printer):
+
+    def print_ui(self, printer):
+        """Function to take in a list of args and tell
+        subprocess to run them. Can be any list but first
+         arg must be a valid program or command."""
         #using the list, printer tell subprocess.Popen
         #to run the comand printui.exe
         proc = subprocess.Popen(printer)
@@ -37,7 +39,7 @@ class Worker(object):
             if wu[0].tag != "printer":
                 msg = "Work unit of type: " + wu[0].tag
                 msg += " not understood by packageman. Failing."
-                l.emsg(msg)
+                self.log.emsg(msg)
                 res = etree.Element("wu",
                                     id=wu.attrib["id"],
                                     status="error",
@@ -61,7 +63,7 @@ class Worker(object):
         #and return a list from the xml
         #take that and stick it into subprocess.popen
 
-        cmdopts = {'basename': ['/u','/b'],
+        cmdopts = {'basename': ['/u', '/b'],
                    'printer_name': ['/x', '/n'],
                    'net_addr': ['/r'],
                    'model': ['/m']}
@@ -70,12 +72,12 @@ class Worker(object):
         #get sysroot value from win rathere than explisetly calling it
 
         printer = [os.path.join(
-                   os.environ.get('SYSTEMROOT', os.path.join('C:','Windows')),
+                   os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printui.exe'), '/u']
         # pendent removal : #printer.append(work[0].get('id'))
-        for property in cmdopts:
-            printer.extend(cmdopts[property])
-            printer.extend([work[0].xpath(property)[0].text])
+        for key in cmdopts:
+            printer.extend(cmdopts[key])
+            printer.extend([work[0].xpath(key)[0].text])
 
         # Handle inf path differently depending on whether it is built
         # in or needed to be downloaded.
@@ -95,14 +97,17 @@ class Worker(object):
             if work[0].xpath('inf')[0].text:
                 printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
             else:
-                printer.extend(['/if', '/f', '%windir%\inf\ntdriver.inf'])
+                printer.extend(['/if', '/f',
+                                os.path.join(
+                                    os.environ.get('windir'),
+                                    'inf', 'ntdriver.inf')])
 
         print(printer)
         #after parsing the xml go and add that printer
-        returnCode = self.PrintUI(printer)
+        return_code = self.print_ui(printer)
 
         #check the return code from processAdd
-        if returnCode:
+        if return_code:
             res.attrib["status"] = "error"
         else:
             res.attrib["status"] = "success"
@@ -122,23 +127,21 @@ class Worker(object):
         return self._add(work)
 
     def _remove(self, work):
-        res = etree.Element("wu",
-                             wuId=work.attrib["id"])
+        res = etree.Element("wu", wuId=work.attrib["id"])
 
-        printerId = MRXpath("/prof/wu[@id='printer'].getid()")
+        printer_id = MRXpath("/prof/wu[@id='printer'].getid()")
 
         #do removal here
         printer = [os.path.join(
-                   os.environ.get('SYSTEMROOT', os.path.join('C:','Windows')),
+                   os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printerui.exe'), '/dn']
 
-        printer["name"] = printerId
-        for property in cmdopts:
-            printer.extend([x for x in work[0].xpath('basename')[0].text])
+        printer["name"] = printer_id
+        printer.extend([work[0].xpath('basename')[0].text])
             #change above to only get the basename rather than listcomp
         #after parsing the xml go and remove that network printer
 
-        return_code = self.PrintUI(printer)
+        return_code = self.print_ui(printer)
 
         #check the return code from processAdd
         if return_code:

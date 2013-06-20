@@ -134,13 +134,13 @@ class Worker(object):
         #do removal here
         printer = [os.path.join(
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
-                   'system32', 'printerui.exe'), '/dn']
+                   'system32', 'printui.exe'), '/dl', '/n']
 
-        printer["name"] = printer_id
+
         printer.extend([work[0].xpath('basename')[0].text])
-            #change above to only get the basename rather than listcomp
-        #after parsing the xml go and remove that network printer
 
+        #after parsing the xml go and remove that network printer
+        print(printer)
         return_code = self.print_ui(printer)
 
         #check the return code from processAdd

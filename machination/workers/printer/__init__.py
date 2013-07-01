@@ -67,7 +67,10 @@ class Worker(object):
                    'printer_name': ['/x', '/n'],
                    'net_addr': ['/r'],
                    'model': ['/m']}
-
+        #remove base name add opts to begingin of printui
+        #add dict of name location and modal
+        #format rule "{}-{}-{}".format(**dic)
+        
         #inf can be built in so not in the defalt opts
         #get sysroot value from win rathere than explisetly calling it
 
@@ -78,6 +81,10 @@ class Worker(object):
         for key in cmdopts:
             printer.extend(cmdopts[key])
             printer.extend([work[0].xpath(key)[0].text])
+
+
+        #get context.desierd_status(this is a status xml file).getroot().xpath(/worker=printer/modal=foo)
+        #this will get the modal driver bundal and parse it for the values it neads
 
         # Handle inf path differently depending on whether it is built
         # in or needed to be downloaded.
@@ -136,7 +143,7 @@ class Worker(object):
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printui.exe'), '/dl', '/n']
 
-
+        #use the wu id to get the name of the printer to remove
         printer.extend([work[0].xpath('basename')[0].text])
 
         #after parsing the xml go and remove that network printer

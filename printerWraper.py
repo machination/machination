@@ -14,6 +14,26 @@ import win32com.client
 def WraperMain():
 
     ### Adding printers
+    chosenPrinters = """
+    <worker id="printer">
+    <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
+    op='remove'>
+        <printer id="al116">
+            <basename>al116</basename>
+            <printer_name>al116</printer_name>
+            <net_addr>http://cups.see.ed.ac.uk:631/printers/al116</net_addr>
+            <model>Kyocera FS-3900DN</model>
+            <driver/>
+            <inf/>
+        </printer>
+
+    </wu>
+    <wu id='/status/worker[@id="printer"]/printer[@id="stores"]'
+    op='remove'>
+    </wu>
+    </worker>
+    """
+
     #chosenPrinters = """
     #<worker id="printer">
     #<wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
@@ -46,21 +66,21 @@ def WraperMain():
     #"""
 
     ### Removing printers
-    chosenPrinters = """
-    <worker id="printer">
-    <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
-    op='remove'>
-        <printer id="al116">
-            <basename>al116</basename>
-            <printer_name>al116</printer_name>
-            <net_addr>http://cups.see.ed.ac.uk:631/printers/al116</net_addr>
-            <model>Kyocera FS-3900DN</model>
-            <driver/>
-            <inf/>
-        </printer>
-    </wu>
-    </worker>
-    """
+    #chosenPrinters = """
+    #<worker id="printer">
+    #<wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
+    #op='remove'>
+    #    <printer id="al116">
+    #        <basename>al116</basename>
+    #        <printer_name>al116</printer_name>
+    #        <net_addr>http://cups.see.ed.ac.uk:631/printers/al116</net_addr>
+    #        <model>Kyocera FS-3900DN</model>
+    #        <driver/>
+    #        <inf/>
+    #    </printer>
+    #</wu>
+    #</worker>
+    #"""
 
 
 

@@ -17,19 +17,17 @@ def WraperMain():
     chosenPrinters = """
     <worker id="printer">
     <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
-    op='remove'>
+    op='add'>
         <printer id="al116">
-            <basename>al116</basename>
-            <printer_name>al116</printer_name>
-            <net_addr>http://cups.see.ed.ac.uk:631/printers/al116</net_addr>
+            <descriptiveName>{id}-{model}-{location}</descriptiveName>
+            <location>AL116</location>
+            <remotePath>http://cups.see.ed.ac.uk:631/printers/al116</remotePath>
             <model>Kyocera FS-3900DN</model>
-            <driver/>
-            <inf/>
         </printer>
-
-    </wu>
-    <wu id='/status/worker[@id="printer"]/printer[@id="stores"]'
-    op='remove'>
+        <model id="Kyocera FS-3900DN">
+            <infFolder/>
+            <infFile/>
+        </model>
     </wu>
     </worker>
     """

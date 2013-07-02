@@ -53,42 +53,38 @@ class Worker(object):
     def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
-        #check if the worker is running in CMD mode(standalone installer)
-        #if not then assume machination and add the printer
-        #do printer additions in here
-        #defins subprocsess.Popen and use it with printui.exe and the
-        #options form printer{}
 
-        #pass the work unit to a methord to get the
-        #and return a list from the xml
-        #take that and stick it into subprocess.popen
-
-        cmdopts = {'basename': ['/u', '/b'],
-                   'printer_name': ['/x', '/n'],
-                   'net_addr': ['/r'],
-                   'model': ['/m']}
-        #remove base name add opts to begingin of printui
-        #add dict of name location and modal
-        #format rule "{}-{}-{}".format(**dic)
-        
-        #inf can be built in so not in the defalt opts
-        #get sysroot value from win rathere than explisetly calling it
+        cmdopts = {'printerName': ['/x', '/n', work[0].get("id") ],
+                   'remotePath': ['/r', work[0].xpath('remotePath')[0].text ],
+                   'model': ['/m', work[0].xpath('model')[0].text ]}
 
         printer = [os.path.join(
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
-                   'system32', 'printui.exe'), '/u']
-        # pendent removal : #printer.append(work[0].get('id'))
+                   'system32', 'printui.exe'), '/u', '/b']
+
+        printer_description = {'id':work[0].get("id"),
+                               'location':work[0].xpath('location')[0].text,
+                               'model':work[0].xpath('model')[0].text,
+                               'remotePath':work[0].xpath('remotePath')[0].text}
+
+        printer.append(work[0].xpath('descriptiveName')[0].text.format(**printer_info))
+        
+
         for key in cmdopts:
             printer.extend(cmdopts[key])
-            printer.extend([work[0].xpath(key)[0].text])
 
+        print(printer)
+        # Need a context module to get desired_status from. Outside of Machination a wrapper script will have to construct this.
+        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % (printer_info.get("model"))
+        model_elt = context.desired_status.getroot().xpath(xp)[0]
 
-        #get context.desierd_status(this is a status xml file).getroot().xpath(/worker=printer/modal=foo)
+        #get context.desierd_status(this is a status xml file).getroot().xpath(
+        #                                               /worker=printer/modal=foo)
         #this will get the modal driver bundal and parse it for the values it neads
 
         # Handle inf path differently depending on whether it is built
         # in or needed to be downloaded.
-        bundle_elts = work[0].xpath('machinationFetcherBundle')
+        bundle_elts = model_elt.xpath('machinationFetcherBundle')
         if bundle_elts:
             # We needed to download it.
             printer.extend(
@@ -97,17 +93,22 @@ class Worker(object):
                     os.path.join(context.cache_dir(),
                                  "bundles",
                                  bundle_elts[0].get("id"),
-                                 work[0].xpath('inf')[0].text)
+                                 model_elt.xpath('infFile')[0].text)
                 ]
             )
+        elif model_elt('infFolder'):
+             if model_elt.xpath('infFile')[0].text:
+                printer.extend(['/if', '/f', model_elt.xpath('infFile')[0].text])
+                printer.extend(['/l', model_elt('infFolder')[0].text])
         else:
-            if work[0].xpath('inf')[0].text:
-                printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
+            if model_elt.xpath('infFile')[0].text:
+                printer.extend(['/if', '/f', model_elt.xpath('infFile')[0].text])
             else:
                 printer.extend(['/if', '/f',
                                 os.path.join(
                                     os.environ.get('windir'),
                                     'inf', 'ntdriver.inf')])
+
 
         print(printer)
         #after parsing the xml go and add that printer

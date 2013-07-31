@@ -164,7 +164,17 @@ sub handler {
     unless(defined $machination_config);
 
   if(! defined $ha) {
-    $ha = Machination::HAccessor->new($machination_config);
+    eval {
+      $ha = Machination::HAccessor->new($machination_config);
+    };
+    if($@) {
+      if($@ =~ /authentication failed/) {
+        error("Authentication to database failed.");
+      } else {
+        error($@);
+      }
+      return Apache2::Const::OK;
+    }
     $log = $ha->log;
     $log->dmsg($cat,"handler called",1);
     $shared_memory_dir = $ha->conf->get_dir("dir.SHM");
@@ -1554,12 +1564,14 @@ sub call_GetSpecialSet {
 sub error {
     my ($error,$opts) = @_;
 
-    $log->emsg("WebHierarchy.error",$error,1);
+    $log->emsg("WebHierarchy.error",$error,1)
+      if defined $log;
     my $e = XML::LibXML::Element->new('error');
     my $m = XML::LibXML::Element->new('message');
     $m->appendText($error);
     $e->appendChild($m);
-    $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4);
+    $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4)
+      if defined $log;
     print $e->toString . "\n";
 
 }

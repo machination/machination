@@ -2963,7 +2963,7 @@ sub bootstrap_basehcs {
     );
 
   foreach my $i (@info) {
-    my $hp = Machination::HPath->new($self,$i->[0]);
+    my $hp = Machination::HPath->new($i->[0]);
     print $hp->to_string . "\n";
     $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]});
   }

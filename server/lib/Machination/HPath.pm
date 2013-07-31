@@ -89,16 +89,23 @@ has 'ha' => (is=>'rw',
 has 'revision' => (is=>'rw',
                    required =>0);
 
+has 'ensure_rooted' => (is=>'ro',
+                        required=>1,
+                        default=>1,
+                        isa=>'Bool');
+
 around BUILDARGS => sub {
   my $orig  = shift;
   my $class = shift;
 
+  my $obj;
   if ( @_ == 1 && ref($_[0]) ne 'HASH') {
     return $class->$orig( from => $_[0] );
   }
   else {
     return $class->$orig(@_);
   }
+
 };
 
 sub BUILD {
@@ -106,6 +113,8 @@ sub BUILD {
   my $args = shift;
 
   $self->_set_rep($self->construct_rep($args->{from}));
+  die "HPath is not rooted and ensure_rooted is true."
+    if($self->ensure_rooted && ! $self->is_rooted);
 }
 
 =item B<construct_rep>
@@ -193,13 +202,14 @@ sub string_to_rep {
      ['PATH_SEP', qr/\//],
      ['BRANCH_SEP', qr/::/],
      ['TYPENAME_SEP', qr/:/],
-     ['ID', qr/\#\d+/, sub {
-        return ['ID', substr($_[1],1)]
-      }],
+#     ['ID', qr/\#\d+/, sub {
+#        return ['ID', substr($_[1],1)]
+#      }],
      ['NAME', qr/.*/],
      );
   my $lexer = string_lexer($path, @input_tokens);
-  my $tracking = {is_id=>0, type_is_id=>0};
+#  my $tracking = {is_id=>0, type_is_id=>0};
+  my $tracking = {};
   while (my $token = $lexer->()) {
     if($token->[0] eq 'PATH_SEP') {
       $tracking->{name} = "" unless defined $tracking->{name};
@@ -256,6 +266,7 @@ sub is_rooted {
 sub to_string {
   my $self = shift;
   my @path = map {$_->to_string} @{$self->rep};
+  return "/" if(@path==1 && $self->is_rooted);
   return join("/",@path)
 }
 
@@ -324,7 +335,7 @@ sub parent {
 sub populate_ids {
   my $self = shift;
 
-  die "Cannot populate_ids unless path identifies and object"
+  die "Cannot populate_ids unless path identifies an object"
     unless $self->identifies_object;
 
   # If path is non rooted and still identifies an object then it has

@@ -4,7 +4,7 @@ use warnings;
 
 use Machination::HAccessor;
 
-my $bshfile = '/var/lib/machination/server/database/bootstrap_hierarchy.hda';
+my $bshfile = '/etc/machination/server/bootstrap_hierarchy.hda';
 
 # initial hierarchy admin user
 open BSH, $bshfile;

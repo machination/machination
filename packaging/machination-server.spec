@@ -56,6 +56,7 @@ for file in `find machination/server/database -type f -printf %%P\\\\n`
 do
     cp -p machination/server/database/$file %{buildroot}/var/lib/machination/server/database/$file
 done
+cp -p machination/server/database/bootstrap_hierarchy.hda %{buildroot}/etc/machination/server/bootstrap_hierarchy.hda
 
 mkdir -p %{buildroot}%{_bindir}
 for file in `find machination/server/bin -type f -printf %%P\\\\n`
@@ -71,9 +72,10 @@ mkdir -p %{buildroot}/var/log/machination/server/file
 %{perllib}/*
 %{_bindir}/*
 /var/www/cgi-bin/machination-join.py
+%config(noreplace) /etc/machination/server
 %config(noreplace) /etc/httpd/conf.d/machination.conf
 %attr(-,apache,apache) /var/lib/machination/server/
-%attr(-,apache,apache) /etc/machination/server
+%attr(-,apache,apache) /etc/machination/server/bootstrap_hierarchy.hda
 %config(noreplace) /etc/machination/server/config.xml
 %attr(0750,apache,apache) /etc/machination/server/secrets
 %config(noreplace) %attr(0640,apache,apache) /etc/machination/server/secrets/dbcred.xml

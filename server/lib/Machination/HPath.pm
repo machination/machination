@@ -92,7 +92,20 @@ has 'revision' => (is=>'rw',
 has 'ensure_rooted' => (is=>'ro',
                         required=>1,
                         default=>1,
-                        isa=>'Bool');
+                        isa=>'Bool',
+                        writer=>'_set_ensure_rooted');
+
+has '_ids_populated' => (is=>'ro',
+                         required=>1,
+                         default=>0,
+                         isa=>'Bool',
+                         writer=>'_set_ids_populated');
+
+has '_last_id_index' => (is=>'ro',
+                         required=>0,
+                         default=>0,
+                         isa=>'Int',
+                         writer=>'_set_last_id_index');
 
 around BUILDARGS => sub {
   my $orig  = shift;
@@ -152,6 +165,44 @@ sub clone_rep {
   $rep = $self->rep unless defined $rep;
 
   return Storable::dclone($rep);
+}
+
+=item B<copy_attribs>
+
+=cut
+
+sub copy_attribs {
+  my $self = shift;
+  my $from = shift;
+  my $to = shift;
+
+  $to->ha($from->ha) if($from->has_ha);
+  $to->revision($from->revision);
+  $to->_set_ensure_rooted($from->ensure_rooted);
+}
+
+=item B<clone_attribs>
+
+=cut
+
+sub clone_attribs {
+  my $self = shift;
+  # Construct the simplest HPath object we can so we can copy attribs
+  # to it.
+  my $hp = Machination::HPath->new(ensure_rooted=>0, from=>[]);
+  $self->copy_attribs($self, $hp);
+  return $hp;
+}
+
+=item B<clone>
+
+=cut
+
+sub clone {
+  my $self = shift;
+  my $hp = $self->clone_attribs;
+  $hp->_set_rep($self->clone_rep($self->rep));
+  return $hp;
 }
 
 =item B<string_to_rep>
@@ -278,7 +329,11 @@ sub slice {
   my $self = shift;
   my $slice = shift;
   my ($from, $to) = split(/:/, $slice);
-  $from = 0 if($from eq '');
+  my $ensure_rooted = 0;
+  if($from eq '') {
+    $from = 0;
+    $ensure_rooted = $self->ensure_rooted;
+  }
   my @rep;
   my $len = @{$self->rep};
   if(defined $to) {
@@ -288,7 +343,10 @@ sub slice {
   } else {
     @rep = ($self->rep->[$from]);
   }
-  return $self->new(\@rep)
+  my $hp = $self->clone_attribs;
+  $hp->_set_ensure_rooted($ensure_rooted);
+  $hp->_set_rep(\@rep);
+  return $hp;
 }
 
 =item B<identifies_object>
@@ -342,33 +400,88 @@ sub populate_ids {
   # an id already.
   return unless $self->is_rooted;
 
-  die "An ha is required to populate_ids"
+  croak "An ha is required to populate_ids"
     unless $self->has_ha;
 
-  my $finished = 1;
-
-  my $parent = $self->rep->[0];
-  $parent->id($self->ha->fetch_root_id)
-    unless defined $parent->id;
-  foreach my $item (@{$self->rep}[1..$#{$self->rep}]) {
-    if($item->branch eq "contents") {
-      $item->id($self->ha->fetch_id
-                (
-                 $self->ha->type_id($item->type),
-                 $item->name,
-                 $parent->id
-                 )
-                )
-        unless defined $item->id;
-    }
+  # initialise loop
+  my $last_id_index = -1;
+  my $parent_id;
+  foreach my $item (@{$self->rep}) {
     if(!defined $item->id) {
-      $finished = 0;
+      if($item->branch eq "machination_root") {
+        $item->id($self->ha->fetch_root_id);
+      } elsif($item->branch eq "contents") {
+        # Try to fetch an id if we don't have one.
+        $item->id($self->ha->fetch_id
+                  (
+                   $self->ha->type_id($item->type),
+                   $item->name,
+                   $parent_id
+                  )
+                 );
+      }
+    }
+    if(defined $item->id) {
+      # We got an ID from the hierarchy.
+      $last_id_index++;
+    } else {
+      # We didn't get one.
       last;
     }
-    $parent = $item;
+    $parent_id = $item->id;
   }
+  $self->_set_last_id_index($last_id_index);
+  $self->_set_ids_populated(1);
+  return;
+}
 
-  return $finished;
+=item B<existing>
+
+=cut
+
+sub existing {
+  my $self = shift;
+  $self->populate_ids unless($self->_ids_populated);
+
+  my $last = $self->_last_id_index;
+  return if $last == -1;
+  return $self->slice('0:' . $last);
+}
+
+=item B<remainder>
+
+=cut
+
+sub remainder {
+  my $self = shift;
+  $self->populate_ids unless($self->_ids_populated);
+
+  my $last = $self->_last_id_index;
+  return if $last == @{$self->rep};
+  return $self->slice(($last+1) . ":");
+}
+
+=item B<exists>
+
+=cut
+
+sub exists {
+  my $self = shift;
+  $self->populate_ids unless($self->_ids_populated);
+
+  my $last = $self->_last_id_index;
+  return 1 if ($last+1) == @{$self->rep};
+  return 0;
+}
+
+=item B<id>
+
+=cut
+
+sub id {
+  my $self = shift;
+  return unless $self->exists;
+  return $self->rep->[$#{$self->rep}]->id;
 }
 
 __PACKAGE__->meta->make_immutable;

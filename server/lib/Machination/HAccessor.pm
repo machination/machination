@@ -941,7 +941,8 @@ sub type_id {
 	my ($self,$type,$opts) = @_;
   $opts->{cache} = 1 unless(exists $opts->{cache});
 
-	return "machination:hc" if($type eq "machination:hc");
+	return "machination:hc" if($type eq "machination:hc" || !defined $type);
+
 	return $self->{type_id}->{$type} if
 		(exists $self->{type_id}->{$type} && $opts->{cache});
 	my $info = $self->fetch("object_types",
@@ -1108,7 +1109,7 @@ sub fetch_path_id {
   my $self = shift;
   my ($path) = @_;
 
-  my $hp = Machination::HPath->new($self,$path);
+  my $hp = Machination::HPath->new(ha=>$self,from=>$path);
   return $hp->id;
 }
 
@@ -1858,9 +1859,9 @@ $sth = $ha->get_attached_handle($hc, \@channel_ids, \@type_ids)
 
 sub get_attached_handle {
   my $self = shift;
-  my ($hc, $channels, $type_ids) = @_;
+  my ($hc_id, $channels, $type_ids) = @_;
 
-  my $hp = Machination::HPath->new($self,$hc);
+#  my $hp = Machination::HPath->new(ha=>$self,from=>$hc);
 
   my @params;
   my @subqs;
@@ -1876,7 +1877,7 @@ sub get_attached_handle {
     $sq .= "from hcatt_$tid as a, objs_$tid as o " .
       "where a.hc_id=?";
     $sq .= " and a.obj_id=o.id";
-    push @params, $hp->id;
+    push @params, $hc_id;
     unless($tid == $self->type_id("set")) {
       $sq .= " and o.channel_id in (" . join(",",('?') x @$channels) . ")";
       push @params, @$channels;
@@ -2963,9 +2964,10 @@ sub bootstrap_basehcs {
     );
 
   foreach my $i (@info) {
-    my $hp = Machination::HPath->new($i->[0]);
-    print $hp->to_string . "\n";
-    $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]});
+    my $hp = Machination::HPath->new(from=>$i->[0], ha=>$self);
+    print $hp->to_string . "," . $hp->exists . "\n";
+    $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]})
+      unless($hp->exists);
   }
 }
 
@@ -4035,30 +4037,23 @@ sub op_add_object_type {
 #  return $type_id;
   print "here2\n";
   # create a universal and empty set for this type
-  my $uhp = Machination::HPath->new($self, "/system/sets/universal");
-  my $ehp = Machination::HPath->new($self, "/system/sets/empty");
-  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
-               $set_type_id,
-               $type, # as the name of the set
-               $uhp->id,
+  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
+               "/system/sets/universal/set:$type",
                {
                 is_internal=>1,
                 member_type=>$type_id,
                 direct=>'UNIVERSAL',
                }
               );
-  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
-               $set_type_id,
-               $type, # as the name of the set
-               $ehp->id,
+  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
+               "/system/sets/empty/set:$type",
                {
                 is_internal=>1,
                 member_type=>$type_id,
                 direct=>'EMPTY',
                }
               );
-
-	return $type_id;
+  return $type_id;
 }
 
 =item B<op_add_setmember_type>
@@ -4154,35 +4149,46 @@ sub op_create_path {
 	my ($self,$actor,$rev,$path,$fields) = @_;
 
   my $hp = $path;
-  $hp = Machination::HPath->new($self,$path)
+  $hp = Machination::HPath->new(from=>$path)
     unless(eval {$path->isa("Machination::HPath")});
-  my ($idpath,$remainder) = $hp->defined_id_path;
+  $hp->ha($self) unless($hp->has_ha);
 
-  # path already exists if there is no remainder
-  return unless(@$remainder);
+  my $existing = $hp->existing;
+  my $remainder = $hp->remainder;
 
-#  print Data::Dumper->Dump([$idpath, $remainder],[qw(idpath remainder)]);
-  my $parent_hc = $idpath->[-1];
-  if(!@$idpath && @$remainder == @{$hp->{rep}}) {
-    shift @$remainder;
-    # machination root not created yet
-    $parent_hc = $self->do_op
-      ("create_obj",{actor=>$actor,parent=>$rev},
-       undef,"machination:root",undef);
-    # path is only the root element, return
-    return $parent_hc if(@{$hp->{rep}} == 1);
+#  $hp->clear_ha;
+
+  return if $hp->exists;
+
+  my $parent_hc;
+  if($existing) {
+    $parent_hc = $existing->rep->[-1]->id;
+  }
+  my $i = 0;
+  foreach my $item (@{$remainder->rep}) {
+    $i++;
+    die "create_path can only deal with the contents branch"
+      unless($item->is_root || $item->branch eq "contents");
+    if($item->is_root) {
+      # Need to create root element
+      $parent_hc = $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         undef,"machination:root",undef);
+      return $parent_hc if($i == @{$remainder->rep});
+    } elsif($i == @{$remainder->rep}) {
+      # The leaf node - could be any kind of object and need to use $fields
+      return $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         $self->type_id($item->type), $item->name, $parent_hc, $fields);
+    } else {
+      # An hc
+      $parent_hc = $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         undef,$item->name,$parent_hc);
+    }
   }
 
-  my $lastelt = pop @$remainder;
-  foreach my $elt (@$remainder) {
-    $parent_hc = $self->do_op
-      ("create_obj",{actor=>$actor,parent=>$rev},undef,$elt,$parent_hc);
-  }
-
-  return $self->do_op
-    ("create_obj",{actor=>$actor,parent=>$rev},
-     $hp->type_id([$lastelt]),$hp->name([$lastelt]),$parent_hc,$fields);
-
+  die "create_obj created everything without counting high enough.";
 }
 
 =item B<op_create_obj>

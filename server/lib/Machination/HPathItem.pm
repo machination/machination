@@ -18,7 +18,7 @@ package Machination::HPathItem;
 
 use Moose;
 use namespace::autoclean;
-use Machination::HPath;
+use Data::Dumper;
 
 =pod
 
@@ -46,9 +46,9 @@ use Machination::HPath;
 
 =cut
 
-has 'path' => (is=>'ro',
-               required=>1,
-               isa=>'Machination::HPath');
+#has 'path' => (is=>'ro',
+#               required=>0,
+#               isa=>'Machination::HPath');
 
 has 'branch' => (is=>'ro',
                  required=>0,

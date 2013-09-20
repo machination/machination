@@ -235,7 +235,9 @@ sub new {
 	my $self = {};
 	bless $self,$class;
 
-	$self->dbc(Machination::DBConstructor->new($conf)) if($conf);
+  # our hard coded super default
+  $conf = '/etc/machination/server/config.xml' unless $conf;
+	$self->dbc(Machination::DBConstructor->new($conf));
   $self->dbc->dbh->{RaiseError} = 1;
 	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
@@ -1926,13 +1928,13 @@ sub get_attachments_handle {
   my ($channel,$hlist,$type,$opts) = @_;
 
 
-  if(ref($hlist) ne "ARRAY") {
-    my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
-    HierarchyException->throw
-      ("Can only fetch attachment list for an hc")
-        unless $hpath->type_id eq 'machination:hc';
-    $hlist = [ reverse @{$hpath->id_path} ];
-  }
+#  if(ref($hlist) ne "ARRAY") {
+#    my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
+#    HierarchyException->throw
+#      ("Can only fetch attachment list for an hc")
+#        unless $hpath->type_id eq 'machination:hc';
+#    $hlist = [ reverse @{$hpath->id_path} ];
+#  }
 
   my @q;
   my @params = ($channel);
@@ -2015,7 +2017,6 @@ sub get_attachments_handle {
 
 =item B<get_authz_handle>
 
-$ha->fetch_authz_list($channel,$hpath,$op,$opts)
 $ha->fetch_authz_list($channel,$hc_id,$op,$opts)
 
 fetch a list of authorisation instructions relavent to $channel and
@@ -2047,7 +2048,7 @@ match when checking authorisation.
 
 sub get_authz_handle {
   my $self = shift;
-  my ($channel,$hpath,$op,$opts) = @_;
+  my ($channel,$hc_id,$op,$opts) = @_;
 
   $opts->{obj_fields} = ["op","is_allow","entities","xpath"];
   $opts->{att_fields} = [];
@@ -2056,7 +2057,7 @@ sub get_authz_handle {
 #                   "$hpath, 'authz_inst', " .
 #                   Data::Dumper->Dump([$opts],[qw(opts)]),9);
   return $self->get_attachments_handle
-    ($channel,$hpath,"authz_inst",$opts);
+    ($channel,$hc_id,"authz_inst",$opts);
 }
 
 =item B<fetch_set_attachments>
@@ -2174,7 +2175,7 @@ sub action_allowed {
     # need to check all parents of the object in question
     if(defined $obj_id) {
       if($hc_id == Machination::HPath->
-         new($self,'/system/special/authz/objects')->id) {
+         new(ha=>$self,from=>'/system/special/authz/objects')->id) {
         push @hcs, $self->fetch_parents($type_id,$obj_id);
       }
     }

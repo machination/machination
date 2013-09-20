@@ -218,7 +218,8 @@ sub _path_item {
   my $self = shift;
   my $tracking = shift;
 
-  my %args = (path=>$self);
+#  my %args = (path=>$self);
+  my %args;
   $args{branch} = $tracking->{branch} if (exists $tracking->{branch});
   $args{type} = $tracking->{type};
   if($tracking->{is_id}) {
@@ -238,7 +239,7 @@ sub string_to_rep {
 
   # Treat root differently
   if($path =~ s/\///) {
-    push @path, Machination::HPathItem->new(path=>$self, special=>"root");
+    push @path, Machination::HPathItem->new(special=>"root");
   }
 
   my @input_tokens =
@@ -483,6 +484,19 @@ sub id {
   return unless $self->exists;
   return $self->rep->[$#{$self->rep}]->id;
 }
+
+=item B<append>
+
+=cut
+
+sub append {
+  my $self = shift;
+  my $item = shift;
+  die "cannot append $item: it is not a Machination::HPathItem"
+    unless(blessed($item) && $item->isa("Machination::HPathItem"));
+  push(@{$self->rep},$item);
+}
+
 
 __PACKAGE__->meta->make_immutable;
 

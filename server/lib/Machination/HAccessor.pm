@@ -2185,8 +2185,13 @@ sub action_allowed {
       my $sth = $self->
         get_authz_handle($req->{channel_id},$cur_hc_id,$req->{op},$opts);
       my $it = $self->att_iterator($sth);
-      my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
-      my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
+#      my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
+#      my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
+      my @cur_hc_ancestors = reverse @{
+        Machination::MooseHC->
+            new(ha=>$self, id=>$cur_hc_id)->
+              id_path
+        };
 
       my $obj_elt;
       if(defined $type_name) {
@@ -2195,10 +2200,10 @@ sub action_allowed {
         $obj_elt = Machination::MPath->new($obj_mp)->construct_elt;
         # fill the object's fields if it exists
         if(defined $obj_id) {
-          my $obj_hp = Machination::HPath->new($self,"$type_name:$obj_id");
-          if($obj_hp->id) {
-            my $hobj = Machination::HObject->new($self, $type_id, $obj_id);
-            my $data = $hobj->fetch_data;
+          my $mhobj = Machination::MooseHObject->
+            new(ha=>$self, type_id=>$type_id, id=>$obj_id);
+          if($mhobj->exists) {
+            my $data = $mhobj->fetch_data;
             foreach my $k (keys %$data) {
               my $child = XML::LibXML::Element->new('field');
               $child->setAttribute("id", $k);

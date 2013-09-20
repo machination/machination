@@ -37,6 +37,15 @@ sub path {
   return $self->_construct_path($self->parent);
 }
 
+sub id_path {
+  my $self = shift;
+  my @idpath;
+  foreach my $item (@{$self->path->rep}) {
+    push @idpath, $item->id;
+  }
+  return \@idpath;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;

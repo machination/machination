@@ -123,7 +123,7 @@ sub _construct_path {
   while($parent->id != $root_id) {
     unshift @items, Machination::HPathItem->
       new(name=>$parent->name,
-          id=>$self->id,
+          id=>$parent->id,
           type=>"machination:hc");
     $parent = $parent->parent;
   }
@@ -131,6 +131,26 @@ sub _construct_path {
     $path->append($item);
   }
   return $path;
+}
+
+sub obj_table {
+  my $self = shift;
+
+  if($self->type_id eq "machination:hc" || !defined $self->type_id) {
+    return "hcs";
+  } else {
+    return "objs_" . $self->id;
+  }
+}
+
+sub exists {
+  my $self = shift;
+
+  my $sql = "select name from " . $self->obj_table .
+    " where id=?";
+  my @row = $self->ha->read_dbh->selectrow_array($sql, {} , $self->id);
+
+  return scalar(@row);
 }
 
 __PACKAGE__->meta->make_immutable;

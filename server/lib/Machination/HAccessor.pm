@@ -3704,8 +3704,8 @@ sub create_special_sets {
 
 #  print "$univ_hpath\n$empty_hpath\n";
 
-  my $uhp = Machination::HPath->new($self,$univ_hpath);
-  my $ehp = Machination::HPath->new($self,$empty_hpath);
+  my $uhp = Machination::HPath->new(ha=>$self,from=>$univ_hpath);
+  my $ehp = Machination::HPath->new(ha=>$self,from=>$empty_hpath);
 
   die "create_special_sets: $univ_hpath doesn't exist"
     unless($uhp->id);

@@ -485,6 +485,24 @@ sub id {
   return $self->rep->[$#{$self->rep}]->id;
 }
 
+=item B<type>
+
+=cut
+
+sub type {
+  my $self = shift;
+  return $self->rep->[$#{$self->rep}]->type;
+}
+
+=item B<type_id>
+
+=cut
+
+sub type_id {
+  my $self = shift;
+  return $self->ha->type_id($self->type);
+}
+
 =item B<append>
 
 =cut

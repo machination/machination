@@ -167,7 +167,7 @@ $statement = T
   (
    concatenate(star($Atom),lookfor('TERMINATOR')),
    sub {
-     debug "found statement " . join(",",map Machination::Parser::deref($_), @{$_[0]}) . "\n";
+     print "found statement " . join(",",map Machination::Parser::deref($_), @{$_[0]}) . "\n";
 
      return "nothing" unless @_ > 1;
      return "empty" if(join("",@{$_[0]})=~/^\s*$/);
@@ -211,12 +211,13 @@ $statement = T
        }
      }
 
-     $hpath = Machination::HPath->new($client,$hpath);
+     $hpath = Machination::HPath->new(ha=>$client,from=>$hpath);
      $last_hpath = $hpath;
 
      # call the function
      { no strict 'refs'; $f->($hpath->to_string,@{$_[0]}); };
-     return $hpath->to_string . " $f " . join(",",map Machination::Parser::deref($_), @{$_[0]});
+     my $ret = $hpath->to_string . " $f " . join(",",map Machination::Parser::deref($_), @{$_[0]});
+     return $ret;
    },
   );
 
@@ -310,8 +311,8 @@ sub func_exists {
   } keys %$fields;
 
   if($client_type eq "ha") {
-    my $hp = Machination::HPath->new($client,$path);
-    if(defined $hp->id) {
+    my $hp = Machination::HPath->new(ha=>$client,from=>$path);
+    if($hp->exists) {
       print "  exists\n";
       if(@_) {
         print "  checking fields\n";
@@ -345,8 +346,8 @@ sub func_notexists {
   my ($args,$named,$opts) = getargs(@_);
   my $path = shift @$args;
   if($client_type eq "ha") {
-    my $hp = Machination::HPath->new($client,$path);
-    if(defined $hp->id) {
+    my $hp = Machination::HPath->new(ha=>$client,from=>$path);
+    if($hp->exists) {
       $client->delete_obj({actor=>$vars->{_USER_}},$hp->type_id,$hp->id,
                          {'delete_obj:recursive'=>1});
     }
@@ -361,13 +362,15 @@ sub func_inhc {
   my ($args,$kv,$opts) = getargs(@_);
 
   # hc should exist
-  my $hchp = Machination::HPath->new($client, shift @$args);
-  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->id;
+  my $hcpath = shift @$args;
+  my $hchp = Machination::HPath->new(ha=>$client, from=>$hcpath);
+  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->exists;
 
   # object should exist
-  my $objhp = Machination::HPath->new($client, shift@$args);
+  my $path = shift @$args;
+  my $objhp = Machination::HPath->new(ha=>$client, from=>$path);
   die "object to link (" . $objhp->to_string . ") does not exist"
-    unless $objhp->id;
+    unless $objhp->exists;
 
   if($client->object_in_hc($objhp->type_id, $objhp->id, $hchp->id)) {
     print "  already in hc\n";
@@ -378,18 +381,21 @@ sub func_inhc {
 
   return "";
 }
+
 sub func_notinhc {
   showfn(@_);
   my ($args,$kv,$opts) = getargs(@_);
   $opts->{del_orphans} = 0 unless exists $opts->{del_orphans};
 
   # hc should exist
-  my $hchp = Machination::HPath->new($client, shift @$args);
-  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->id;
+  my $hcpath = shift @$args;
+  my $hchp = Machination::HPath->new(ha=>$client, from=>$hcpath);
+  die "hc (" . $hchp->to_string . ") does not exist" unless $hchp->exists;
 
-  my $objhp = Machination::HPath->new($client, shift@$args);
+  my $path = shift @$args;
+  my $objhp = Machination::HPath->new(ha=>$client, from=>$path);
   # trivially true if object doesn't exist
-  if (not $objhp->id) {
+  if (not $objhp->exists) {
     print "  " . $objhp->to_string . " doesn't exist\n";
     return "";
   }
@@ -413,14 +419,14 @@ sub func_members_exist {
   showfn(@_);
   my ($args) = getargs(@_);
   my $path = shift @$args;
-  my $hp = Machination::HPath->new($client,$path);
+  my $hp = Machination::HPath->new(ha=>$client,from=>$path);
 
   # $path ought to refer to a set
   die "tried to add members to a non set object $path"
     unless $hp->type eq "set";
   # $path ought to exist
   die "tried to add members to a set that does not exist: $path"
-    unless $hp->id;
+    unless $hp->exists;
 
   my $set = Machination::HSet->new($client,$hp->id);
 
@@ -429,9 +435,9 @@ sub func_members_exist {
   foreach my $memp (@$args) {
     print " queueing member $memp\n";
     if($set->is_internal) {
-      my $mhp = Machination::HPath->new($client,$memp);
+      my $mhp = Machination::HPath->new(ha=>$client,from=>$memp);
       die "prospective member $memp does not exist"
-        unless $mhp->id;
+        unless $mhp->exists;
       die "prospective member $memp is of type " . $mhp->type .
         ". Set contains members of type " . $set->member_type
           unless $set->member_type == $mhp->type_id;
@@ -450,14 +456,14 @@ sub func_notmembers_exist {
   showfn(@_);
   my ($args) = getargs(@_);
   my $path = shift @$args;
-  my $hp = Machination::HPath->new($client,$path);
+  my $hp = Machination::HPath->new(ha=>$client,from=>$path);
 
   # $path ought to refer to a set
   die "tried to remove members from a non set object $path"
     unless $hp->type eq "set";
   # $path ought to exist
   die "tried to remove members from a set that does not exist: $path"
-    unless $hp->id;
+    unless $hp->exists;
 
   my $set = Machination::HSet->new($client,$hp->id);
 
@@ -466,7 +472,7 @@ sub func_notmembers_exist {
   foreach my $memp (@$args) {
     print " ensuring no member $memp\n";
     if($set->is_internal) {
-      my $mhp = Machination::HPath->new($client,$memp);
+      my $mhp = Machination::HPath->new(ha=>$client,from=>$memp);
       die "removal path $memp is of type " . $mhp->type .
         ". Set contains members of type " . $set->member_type
           unless $set->member_type == $mhp->type_id;
@@ -487,20 +493,20 @@ sub func_attached {
   $kv->{is_mandatory} = 0 unless exists $kv->{is_mandatory};
   $kv->{is_active} = 1 unless exists $kv->{is_active};
   my $path = shift @$args;
-  my $hp = Machination::HPath->new($client,$path);
+  my $hp = Machination::HPath->new(ha=>$client,from=>$path);
 
   # $path ought to refer to an hc
   die "cannot attach to a " . $hp->type
     unless not defined $hp->type or $hp->type eq "machination:hc";
   # $path ought to exist
   die "tried to attach to an hc that does not exist: $path"
-    unless $hp->id;
+    unless $hp->exists;
 
   foreach my $attp (@$args) {
-    my $ahp = Machination::HPath->new($client,$attp);
+    my $ahp = Machination::HPath->new(ha=>$client,from=>$attp);
     # make sure it exists
     die "cannot attach non existant item $attp"
-      unless $ahp->id;
+      unless $ahp->exists;
     # make sure it is attachable
     die "cannot attach $attp, type " . $ahp->type . " is not attachable"
       unless $client->type_info($ahp->type_id)->{is_attachable};
@@ -519,22 +525,23 @@ sub func_attached {
 
   return "";
 }
+
 sub func_notattached {
   showfn(@_);
   my ($args,$kv) = getargs(@_);
   $kv->{is_mandatory} = 0 unless exists $kv->{is_mandatory};
   my $path = shift @$args;
-  my $hp = Machination::HPath->new($client,$path);
+  my $hp = Machination::HPath->new(ha=>$client,from=>$path);
 
   # $path ought to refer to an hc
   die "cannot detach from a " . $hp->type
     unless not defined $hp->type or $hp->type eq "machination:hc";
   # $path ought to exist
   die "tried to detach from an hc that does not exist: $path"
-    unless $hp->id;
+    unless $hp->exists;
 
   foreach my $attp (@$args) {
-    my $ahp = Machination::HPath->new($client,$attp);
+    my $ahp = Machination::HPath->new(ha=>$client,from=>$attp);
     # see if it is attached
     if($client->attachment_exists($hp->id, $ahp->type_id, $ahp->id, $kv->{is_mandatory})) {
       print "  $attp attached - detaching\n";
@@ -558,7 +565,9 @@ sub func_type_id {
 }
 
 sub func_obj_id {
-  my $hp = Machination::HPath->new($client, $_[0]);
+  showfn(@_);
+  my $hp = Machination::HPath->new(ha=>$client, from=>$_[0]);
+  $hp->populate_ids;
   return $hp->id;
 }
 

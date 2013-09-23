@@ -14,7 +14,7 @@ setvar(_USER_,changeme_to_admin_user@somewhere.com)
 
 /lib is_mp=1
 
-setvar(everyone,/system/sets/universal/set:external::string)
+setvar(everyone,/system/sets/universal/set:external\:\:string)
 /system/ag_authz_insts/agroup_authz_inst:default_deny \
     channel_id=channel_id(machination:hierarchy)
 /system/authz_insts/authz_inst:default_deny \

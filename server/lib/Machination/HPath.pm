@@ -35,16 +35,15 @@ use Machination::HPathItem;
 
 =head2 Synopsis
 
- $hp = Machination::HPath->new($ha,"/system/sets/set:some_set");
+ $hp = Machination::HPath->new(ha=>$ha,from=>"/system/sets/set:some_set");
 
  or
 
- $hp = Machination::HPath->new($ha,$other_hpath_object_to_copy);
- print Dumper($hp->id_path);
+ $hp = Machination::HPath->new(ha=>$ha,from=>$other_hpath_object_to_copy);
  $object_id = $hp->id;
 
  The path need not exist in the hierarchy yet, though if it does not
- any attempts to look up hierarchy information like id_path() or id()
+ any attempts to look up hierarchy information like parents() or id()
  will fail.
 
  $ha should be a Machination::HAccessor object and is used to look up
@@ -58,11 +57,11 @@ use Machination::HPathItem;
 
 =item B<new>
 
- $hp = Machination::HPath->new("/system/sets/set:some_set");
+ $hp = Machination::HPath->new(from=>"/system/sets/set:some_set");
 
  or
 
- $hp = Machination::HPath->new($other_hpath_object_to_copy);
+ $hp = Machination::HPath->new(from=>$other_hpath_object_to_copy);
 
 Create a new Machination::HPath
 

@@ -499,7 +499,7 @@ $req =
 
 sub call_ActionAllowed {
   my ($owner, $approval, $req, $path) = @_;
-  my $hp = Machination::HPath->new($ha, $path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
 
   return $ha->action_allowed($req, $hp->id);
 }
@@ -516,7 +516,7 @@ sub call_Exists {
   my ($owner,$approval,$path) = @_;
 
   my $hp;
-  $hp = Machination::HPath->new($ha,$path);
+  $hp = Machination::HPath->new(ha=>$ha,from=>$path);
   my $mpath = "/contents/" . $hp->type;
   $mpath .= "[" . $hp->id . "]" if defined $hp->id;
 
@@ -525,19 +525,19 @@ sub call_Exists {
              mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
-  return $hp->id if $ha->action_allowed($req,$hp->parent);
+  return $hp->id if $ha->action_allowed($req,$hp->parent->id);
   $req->{op} = "readtext";
-  return $hp->id if $ha->action_allowed($req,$hp->parent);
+  return $hp->id if $ha->action_allowed($req,$hp->parent->id);
 
   AuthzDeniedException->
     throw("could not get read or exists permission for $path");
 }
 
-=item B<ListContents($hc,$opts)>
+=item B<ListContents($hcpath,$opts)>
 
-List the contents of $hc.
+List the contents of $hcpath.
 
- $hc = numeric id or path string
+ $hcpath = path string denoting an hc
  $opts = hash of options {
     types => [types,to,list], # (all types if this is not specified)
     fetch_names => 0 or 1 (whether to fetch object names as well)
@@ -562,16 +562,17 @@ you always get the ids, names are optional.
 =cut
 
 sub call_ListContents {
-  my ($owner,$approval,$hc,$opts) = @_;
+  my ($owner,$approval,$path,$opts) = @_;
 
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
   $ha->log->dmsg("WebHierarchy.ListContents",
-                 "owner: $owner, approval: $approval, hc: $hc, " .
+                 "owner: $owner, approval: $approval, hc: $path, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
 
-  my $hp = Machination::HPath->new($ha,$hc);
-
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
+  die "$path is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
+  die "hc $path does not exist" unless($hp->id exists);
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -599,7 +600,7 @@ sub call_ListContents {
 
 =item B<GetListContentsIterator>
 
-$fetcher_info = GetListContentsIterator($hc,$opts)
+$fetcher_info = GetListContentsIterator($hcpath,$opts)
 
 See B<GetIteratorInfo> for $fetcher_info format
 
@@ -608,8 +609,10 @@ See B<GetIteratorInfo> for $fetcher_info format
 sub call_GetListContentsIterator {
   my ($owner,$approval,$hc,$types,$opts) = @_;
 
-  my $hp = Machination::HPath->new($ha,$hc);
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+  die "$hc is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
+  die "hc $hc does not exist" unless($hp->exists);
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listchildren",
@@ -676,9 +679,10 @@ sub call_ListAttachments {
                  "owner: $owner, approval: $approval, hc: $hc, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
 
-  my $hp = Machination::HPath->new($ha,$hc);
-
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+  die "$hc is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
+  die "hc $hc does not exist" unless($hp->exists);
 
   $ha->log->dmsg("WebHierarchy.ListAttachments","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -727,7 +731,7 @@ sub call_AgroupMembers {
   my ($owner,$approval,$path,$opts) = @_;
 
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
-  my $hp = Machination::HPath->new($ha,$path);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listchildren",
@@ -737,7 +741,7 @@ sub call_AgroupMembers {
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->parent));
+    unless($ha->action_allowed($req,$hp->parent->id));
 
   return $ha->
     get_ag_member_handle($hp->type_id, $hp->id)->
@@ -845,7 +849,9 @@ sub call_GetAssertionList {
           push @hc_info, $hc;
           push @hc_ids, $hc->{id};
 #          my $lin = $ha->fetch_lineage($hc->{id});
-          my $hp = Machination::HPath->new($ha,$hc->{id});
+#          my $hp = Machination::HPath->new($ha,$hc->{id});
+          my $hp = Machination::MooseHC->new(ha=>$ha, id=>$hc->{id})->path;
+          #### Todo(colin): don't use id_path
           my $id_path = $hp->id_path;
           push @hc_path, $id_path;
           if($hc->{is_mp}) {
@@ -1067,7 +1073,8 @@ sub call_Create {
   my ($caller, $approval, $path, $fields) = @_;
 
   my $hp;
-  $hp = Machination::HPath->new($ha,$path);
+  $hp = Machination::HPath->new(ha=>$ha,from=>$path);
+  $hp->populate_ids;
   my $type = $hp->type;
   $type = "machination:hc" unless defined $type;
   my $mpath = "/contents/$type/fields[name]/" . $hp->name;
@@ -1079,7 +1086,7 @@ sub call_Create {
              approval=>$approval};
   AuthzDeniedException->
     throw("Could not get create permission for $mpath on " . $hp->parent->to_string)
-      unless $ha->action_allowed($req,$hp->parent_id);
+      unless $ha->action_allowed($req,$hp->parent->id);
 
   return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent_id, $fields);
 }

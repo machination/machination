@@ -1412,7 +1412,7 @@ sub fetch_hc_path_string {
 #	if (eval{$path->isa("Machination::HPath")}) {
 #		return $path->id;
 #	} else {
-#		return Machination::HPath->new($self,$path,$opts->{revision})->id;
+#		return Machination::HPath->new(ha=>$self,from=>$path)->id;
 #	}
 #}
 
@@ -1929,7 +1929,7 @@ sub get_attachments_handle {
 
 
 #  if(ref($hlist) ne "ARRAY") {
-#    my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
+#    my $hpath = Machination::HPath->new(ha=>$self,from=>$hlist);
 #    HierarchyException->throw
 #      ("Can only fetch attachment list for an hc")
 #        unless $hpath->type_id eq 'machination:hc';
@@ -2185,8 +2185,6 @@ sub action_allowed {
       my $sth = $self->
         get_authz_handle($req->{channel_id},$cur_hc_id,$req->{op},$opts);
       my $it = $self->att_iterator($sth);
-#      my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
-#      my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
       my @cur_hc_ancestors = reverse @{
         Machination::MooseHC->
             new(ha=>$self, id=>$cur_hc_id)->
@@ -4127,7 +4125,8 @@ sub op_delete_obj {
     my $row = $ch->fetchrow_hashref;
     if($row) {
       unless($opts->{'delete_obj:recursive'}) {
-        my $hp = Machination::HPath->new($self,$obj_id);
+        my $hc = Machination::MooseHC->new(ha=>$self,id=>$pbj_id);
+        my $hp = $hc->path;
         HierarchyException->
           throw("Cannot delete " . $hp->to_string . " because " .
                 "it contains children and recursive is not set");
@@ -4984,7 +4983,8 @@ sub op_assertion_group_from_xml {
     unless($opts->{'x2a:replace'}) {
       HierarchyNameExistsException->
         throw("Not replacing agroup_assertion:$name in " .
-              Machination::HPath->new($self, $hcid)->to_string);
+              Machination::MooseHC->new(ha=>$self,id=>$hcid)->
+              path->to_string);
     }
     # need to delete the agroup and the member assertions
     $self->do_op('delete_obj', {actor=>$actor, parent=>$rev},

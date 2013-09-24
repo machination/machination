@@ -475,6 +475,15 @@ sub exists {
   return 0;
 }
 
+=item B<name>
+
+=cut
+
+sub name {
+  my $self = shift;
+  return $self->leaf_node->name;
+}
+
 =item B<id>
 
 =cut
@@ -482,7 +491,7 @@ sub exists {
 sub id {
   my $self = shift;
   return unless $self->exists;
-  return $self->rep->[$#{$self->rep}]->id;
+  return $self->leaf_node->id;
 }
 
 =item B<type>
@@ -491,7 +500,7 @@ sub id {
 
 sub type {
   my $self = shift;
-  return $self->rep->[$#{$self->rep}]->type;
+  return $self->leaf_node->type;
 }
 
 =item B<type_id>
@@ -513,6 +522,20 @@ sub append {
   die "cannot append $item: it is not a Machination::HPathItem"
     unless(blessed($item) && $item->isa("Machination::HPathItem"));
   push(@{$self->rep},$item);
+}
+
+=item B<paths>
+
+=cut
+
+sub paths {
+  my $self = shift;
+  die "cannot call 'parents' on " . $self->to_string .
+    ": it does not exist" unless $self->exists;
+
+  return Machination::MooseHObject->
+    new(ha=>$self->ha, id=>$self->id, type_id=>$self->type_id)->
+      paths;
 }
 
 

@@ -572,7 +572,7 @@ sub call_ListContents {
   my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
   die "$path is not an hc, it is a " . $hp->type
     unless($hp->type eq "machination:hc");
-  die "hc $path does not exist" unless($hp->id exists);
+  die "hc $path does not exist" unless($hp->exists);
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),

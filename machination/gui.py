@@ -178,8 +178,9 @@ class MGUI(QtGui.QWidget):
         self.d_service_url = QtGui.QInputDialog(self)
         self.d_service_url.setLabelText("Service URL:")
         self.d_service_url.setComboBoxItems(
-            ["https://mach2-test.see.ed.ac.uk/machination/hierarchy",
-             "https://mach2see.ed.ac.uk/machination/hierarchy",
+            ["http://localhost/machination/hierarchy",
+             "https://mach2-test.see.ed.ac.uk/machination/hierarchy",
+             "https://mach2.see.ed.ac.uk/machination/hierarchy",
              "--new--"]
             )
         # credentials

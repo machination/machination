@@ -4125,7 +4125,7 @@ sub op_delete_obj {
     my $row = $ch->fetchrow_hashref;
     if($row) {
       unless($opts->{'delete_obj:recursive'}) {
-        my $hc = Machination::MooseHC->new(ha=>$self,id=>$pbj_id);
+        my $hc = Machination::MooseHC->new(ha=>$self,id=>$obj_id);
         my $hp = $hc->path;
         HierarchyException->
           throw("Cannot delete " . $hp->to_string . " because " .

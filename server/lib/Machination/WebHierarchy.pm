@@ -397,7 +397,7 @@ sub call_ServiceInfo {
   return $service_elt->toString(1);
 }
 
-=item B<ServiceInfo2>
+=item B<ServiceConfig>
 
 Return service info in the form of the server's config file. Not all
 information is transferred.
@@ -849,10 +849,9 @@ sub call_GetAssertionList {
           push @hc_info, $hc;
           push @hc_ids, $hc->{id};
 #          my $lin = $ha->fetch_lineage($hc->{id});
-#          my $hp = Machination::HPath->new($ha,$hc->{id});
-          my $hp = Machination::MooseHC->new(ha=>$ha, id=>$hc->{id})->path;
-          #### Todo(colin): don't use id_path
-          my $id_path = $hp->id_path;
+          my $hc_obj = Machination::MooseHC->new(ha=>$ha, id=>$hc->{id});
+          my $hp = $hc_obj->path;
+          my $id_path = $hc_obj->id_path;
           push @hc_path, $id_path;
           if($hc->{is_mp}) {
             push @hc_mp_path, $id_path;
@@ -970,7 +969,8 @@ sub call_SignIdentityCert {
       unless $ha->action_allowed
         (
          $req,
-         Machination::HPath->new($ha,'/system/special/authz/objects')->id
+         Machination::HPath->new(ha=>$ha,
+                                 from=>'/system/special/authz/objects')->id
         );
 
   die "Object ${obj_type}:${obj_name} does not exist" unless($obj_id);
@@ -1000,9 +1000,9 @@ sub call_RevokeIdentity {
 sub call_IdPair {
   my ($owner, $approval, $path) = @_;
 
-  my $hp = Machination::HPath->new($ha,$path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
   my $mpath = "/contents/" . $hp->type;
-  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
+  $mpath .= "[" . $hp->id . "]" if $hp->exists;
   my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);
 
   my $req = {channel_id=>hierarchy_channel(),
@@ -1036,7 +1036,7 @@ sub call_EntityId {
     throw("could not get exists permission for $type_name:$id in " .
           "/system/special/authz/objects")
       unless $ha->action_allowed
-        ($req, Machination::HPath->new($ha, "/system/special/authz/objects")->id);
+        ($req, Machination::HPath->new(ha=>$ha, from=>"/system/special/authz/objects")->id);
 
   return $id
 }
@@ -1088,7 +1088,7 @@ sub call_Create {
     throw("Could not get create permission for $mpath on " . $hp->parent->to_string)
       unless $ha->action_allowed($req,$hp->parent->id);
 
-  return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent_id, $fields);
+  return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent->id, $fields);
 }
 
 =item * call_LinkCount($ent,$item)
@@ -1102,7 +1102,7 @@ sub call_LinkCount {
 
   my ($type,$id);
   if($item =~ /^\//) {
-    my $hp = Machination::HPath->new($ha,$item);
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$item);
     $type = $hp->type;
     $id = $hp->id;
   } else {
@@ -1121,47 +1121,47 @@ $hc = path string or id
 =cut
 
 sub call_Link {
-    my ($ent,$item,$hc) = @_;
+  my ($ent,$item,$hc) = @_;
 
-    my $item_hp = Machination::HPath->new($ha,$item);
+  my $item_hp = Machination::HPath->new(ha=>$ha,from=>$item);
 
-    my $hc_id;
-    if($hc=~/^\//) {
-	my $hp = Machination::HPath->new($ha,$hc);
-	$hc_id = $hp->id;
-    } else {
-	$hc_id = $hc;
-    }
+  my $hc_id;
+  if($hc=~/^\//) {
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+    $hc_id = $hp->id;
+  } else {
+    $hc_id = $hc;
+  }
 
-    # need read_elt permission on the item from the point of view
-    # of the $item_path's parent
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>$item_hp->type,
-		 id=>$item_hp->id},
-	    owner=>$ent,
-	    op=>"read_elt",
-	    elt_path=>"/",
-	},
-	$item_hp->parent
-	);
-    # need add_elt permission to the path where the link is to be added
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>"machination:hc",
-		 id=>$hc_id},
-	    owner=>$ent,
-	    op=>"add_elt",
-	    elt_path=>"/hc/contents",
-	},
-	$hc_id
-	);
+  # need read_elt permission on the item from the point of view
+  # of the $item_path's parent
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>$item_hp->type,
+              id=>$item_hp->id},
+         owner=>$ent,
+         op=>"read_elt",
+         elt_path=>"/",
+        },
+        $item_hp->parent->id
+       );
+  # need add_elt permission to the path where the link is to be added
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>"machination:hc",
+              id=>$hc_id},
+         owner=>$ent,
+         op=>"add_elt",
+         elt_path=>"/hc/contents",
+        },
+        $hc_id
+       );
 
-    $ha->hcontainer->add_object($item_hp->type,$item_hp->id,$hc_id);
+  $ha->hcontainer->add_object($item_hp->type,$item_hp->id,$hc_id);
 
-    return $ha->hobject->contained_count($item_hp->type,$item_hp->id);
+  return $ha->hobject->contained_count($item_hp->type,$item_hp->id);
 }
 
 =item * call_Unlink($ent,$item_path)
@@ -1171,22 +1171,22 @@ $item_path = path string
 =cut
 
 sub call_Unlink {
-    my ($ent,$item) = @_;
+  my ($ent,$item) = @_;
 
-    my $item_hp = Machination::HPath->new($ha,$item);
+  my $item_hp = Machination::HPath->new(ha=>$ha,from=>$item);
 
-    # need del_elt permission to the path where the link is to be removed
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>"machination:hc",
-		 id=>$item_hp->parent},
-	    owner=>$ent,
-	    op=>"del_elt",
-	    elt_path=>"/hc/contents",
-	},
-	$item_hp->parent,
-	);
+  # need del_elt permission to the path where the link is to be removed
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>"machination:hc",
+              id=>$item_hp->parent->id},
+         owner=>$ent,
+         op=>"del_elt",
+         elt_path=>"/hc/contents",
+        },
+        $item_hp->parent->id,
+       );
 
     $ha->hcontainer->
 	remove_object($item_hp->type,$item_hp->id,$item_hp->parent);

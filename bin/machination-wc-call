@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+
+import sys
+import argparse
+import getpass
+import os.path
+from machination.webclient import WebClient
+from lxml import etree
+
+def main(inargs):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--name', '-n', nargs='?')
+    ap.add_argument('--type', '-t', nargs='?')
+    ap.add_argument('--authtype', '-a', nargs='?', default="basic")
+    ap.add_argument('--opt', '-o', nargs='?', action='append')
+    # TODO(Colin): get default service from config file
+    ap.add_argument('--service', '-s', nargs='?',
+                    default='http://localhost/machination/hierarchy')
+    args = ap.parse_args(inargs)
+    print(args)
+
+    opts = {}
+
+    pubwc = WebClient(args.service, 'public', 'person')
+    sxml = pubwc.call('ServiceConfig')
+    sc = etree.fromstring(sxml)
+
+    for atelt in sc.xpath('authentication/type'):
+        print(atelt.get('id'))
+        for cf in atelt.xpath('clientField'):
+            msg = cf.get('id')
+            if(cf.get('alias')):
+                msg = msg + '(' + cf.get('alias') + ')'
+            print('  ' + msg)
+
+    atelt = sc.xpath('authentication/type[@id="{}"]'.format(args.authtype))
+    if not atelt:
+        raise Exception("Can't handle authtype {}".format(args.authtype))
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

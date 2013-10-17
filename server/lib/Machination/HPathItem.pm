@@ -58,13 +58,13 @@ has 'branch' => (is=>'ro',
 
 has 'name' => (is=>'rw',
                required=>1,
-               isa=>'Str',
+               isa=>'Maybe[Str]',
                clearer=>'clear_name',
                predicate=>'has_name');
 
 has 'id' => (is=>'rw',
              required=>0,
-             isa=>'Int',
+             isa=>'Maybe[Int]',
              clearer=>'clear_id',
              predicate=>'has_id');
 

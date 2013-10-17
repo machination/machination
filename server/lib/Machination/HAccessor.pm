@@ -33,6 +33,8 @@ use Machination::XML::Element;
 use Machination::XMLConstructor;
 use Machination::Log;
 use Machination::XML2Assertions;
+use Machination::MooseHObject;
+use Machination::MooseHC;
 
 use Data::Dumper;
 
@@ -2183,7 +2185,7 @@ sub action_allowed {
     my $is_allow = undef;
     foreach my $cur_hc_id (@hcs) {
       my $sth = $self->
-        get_authz_handle($req->{channel_id},$cur_hc_id,$req->{op},$opts);
+        get_authz_handle($req->{channel_id},[$cur_hc_id],$req->{op},$opts);
       my $it = $self->att_iterator($sth);
       my @cur_hc_ancestors = reverse @{
         Machination::MooseHC->

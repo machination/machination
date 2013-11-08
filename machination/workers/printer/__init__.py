@@ -68,7 +68,7 @@ class Worker(object):
                                'remotePath':work[0].xpath('remotePath')[0].text}
 
         printer.append(work[0].xpath('descriptiveName')[0].text.format(**printer_info))
-        
+
 
         for key in cmdopts:
             printer.extend(cmdopts[key])
@@ -135,7 +135,7 @@ class Worker(object):
         return self._add(work)
 
     def _remove(self, work):
-        res = etree.Element("wu", wuId=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
 
         printer_id = MRXpath("/prof/wu[@id='printer'].getid()")
 

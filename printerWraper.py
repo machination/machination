@@ -24,10 +24,18 @@ def WraperMain():
             <remotePath>http://cups.see.ed.ac.uk:631/printers/al116</remotePath>
             <model>Kyocera FS-3900DN</model>
         </printer>
-        <model id="Kyocera FS-3900DN">
-            <infFolder/>
-            <infFile/>
+        <model id="Kyocera FS-3900DN"/>
+      <!-- example of different drivers with same driverName
+        <printer id="splat">
+          <model="HP frog"/>
+        </printer>
+        <model id="HP frog">
+          <driverName>frog</driverName>
         </model>
+        <model id="KY frog">
+          <driverName>frog</driverName>
+        </model>
+      -->
     </wu>
     </worker>
     """
@@ -82,7 +90,7 @@ def WraperMain():
 
 
 
-    #found that this xml must have all the tags in comandops 
+    #found that this xml must have all the tags in comandops
     #and must have and inf feald of list is out of range
     printerini = machination.workers.printer.Worker()
 

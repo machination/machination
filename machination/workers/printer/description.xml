@@ -35,22 +35,27 @@
       </element>
     </element>
     <element name="model" wu:wu="1">
+      <attibute name="id">
+        <text/>
+      </attibute>
       <optional>
         <element name="machinationFetcherBundle">
           <attribute name="id">
             <text/>
           </attribute>
         </element>
+        <element name="infFolder">
+          <text/>
+        </element>
+        <element name="infFile">
+          <text/>
+        </element>
       </optional>
-      <element name="infFolder">
-        <text/>
-      </element>
-      <element name="infFile">
-        <text/>
-      </element>
-      <element name="driverName">
-        <text/>
-      </element>
+      <optional>
+        <element name="driverName">
+          <text/>
+        </element>
+      </optional>
     </element>
   </zeroOrMore>
 </element>

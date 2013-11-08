@@ -58,57 +58,68 @@ class Worker(object):
                    'remotePath': ['/r', work[0].xpath('remotePath')[0].text ],
                    'model': ['/m', work[0].xpath('model')[0].text ]}
 
+        # Start building a printui command
         printer = [os.path.join(
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
-                   'system32', 'printui.exe'), '/u', '/b']
-
-        printer_description = {'id':work[0].get("id"),
-                               'location':work[0].xpath('location')[0].text,
-                               'model':work[0].xpath('model')[0].text,
-                               'remotePath':work[0].xpath('remotePath')[0].text}
-
-        printer.append(work[0].xpath('descriptiveName')[0].text.format(**printer_info))
-
-
-        for key in cmdopts:
-            printer.extend(cmdopts[key])
+                   'system32', 'printui.exe')]
+        # Use existing driver, if any.
+        printer.append('/u')
+        # Construct human readable printer name ('base' name in
+        # windows, hence /b).
+        printer.extend(
+            [
+                '/b',
+                self.descriptive_name(work[0])
+                ]
+            )
+        # Queue name.
+        printer.extend(['/n', work[0].get("id")])
+        # 'Remote path' = port, url or path to print server queue
+        printer.extend(['/r', work[0].xpath('remotePath')[0].text ])
 
         print(printer)
-        # Need a context module to get desired_status from. Outside of Machination a wrapper script will have to construct this.
+
+        # Now we need model information. We'll need to get that from
+        # context.desired_status. Outside of Machination a wrapper
+        # script will need to supply a fake context.
         xp = '/status/worker[@id="printer"]/model[@id="%s"]' % (printer_info.get("model"))
         model_elt = context.desired_status.getroot().xpath(xp)[0]
 
-        #get context.desierd_status(this is a status xml file).getroot().xpath(
-        #                                               /worker=printer/modal=foo)
-        #this will get the modal driver bundal and parse it for the values it neads
+        # Normally the driver name is the same as the model_elt id. In
+        # exceptional circumstances it may be necessary to set
+        # something different. In that case there should be a
+        # driverName child of model.
+        try:
+            driverName = model_elt.xpath("driverName/text()")[0]
+        except IndexError:
+            driverName = model_elt.get("id")
+        printer.extend(['/m',driverName])
 
-        # Handle inf path differently depending on whether it is built
-        # in or needed to be downloaded.
+        # Handle inf path differently depending on whether the driver
+        # is built in or needed to be downloaded.
         bundle_elts = model_elt.xpath('machinationFetcherBundle')
         if bundle_elts:
-            # We needed to download it.
+            # We needed to download it. Fetcher should have done the
+            # download already, we just have to point to the files.
             printer.extend(
                 [
                     '/if', '/f',
                     os.path.join(context.cache_dir(),
                                  "bundles",
                                  bundle_elts[0].get("id"),
-                                 model_elt.xpath('infFile')[0].text)
-                ]
-            )
-        elif model_elt('infFolder'):
-             if model_elt.xpath('infFile')[0].text:
-                printer.extend(['/if', '/f', model_elt.xpath('infFile')[0].text])
-                printer.extend(['/l', model_elt('infFolder')[0].text])
+                                 model_elt.xpath('infFile/text()')[0])
+                    ]
+                )
         else:
-            if model_elt.xpath('infFile')[0].text:
-                printer.extend(['/if', '/f', model_elt.xpath('infFile')[0].text])
-            else:
-                printer.extend(['/if', '/f',
-                                os.path.join(
-                                    os.environ.get('windir'),
-                                    'inf', 'ntdriver.inf')])
-
+            # No bundles: builtin driver.
+            printer.extend(
+                [
+                    '/if', '/f',
+                    os.path.join(
+                        os.environ.get('windir'),'inf', 'ntdriver.inf'
+                        )
+                    ]
+                )
 
         print(printer)
         #after parsing the xml go and add that printer
@@ -137,7 +148,7 @@ class Worker(object):
     def _remove(self, work):
         res = etree.Element("wu", id=work.attrib["id"])
 
-        printer_id = MRXpath("/prof/wu[@id='printer'].getid()")
+        dname = self.descriptive_name(work[0])
 
         #do removal here
         printer = [os.path.join(
@@ -145,9 +156,8 @@ class Worker(object):
                    'system32', 'printui.exe'), '/dl', '/n']
 
         #use the wu id to get the name of the printer to remove
-        printer.extend([work[0].xpath('basename')[0].text])
+        printer.append(dname)
 
-        #after parsing the xml go and remove that network printer
         print(printer)
         return_code = self.print_ui(printer)
 
@@ -158,3 +168,14 @@ class Worker(object):
             res.attrib["status"] = "success"
 
         return res
+
+    def descriptive_name(self, wu):
+        # Put the information from the XML into a dict for formatting
+        # purposes.
+        info = {
+            'id':wu.get("id"),
+            'location':wu.xpath('location')[0].text,
+            'model':wu.xpath('model')[0].text,
+            'remotePath':wu.xpath('remotePath')[0].text
+            }
+        return wu.xpath('descriptiveName')[0].text.format(**info)

@@ -35,17 +35,14 @@
       </element>
     </element>
     <element name="model" wu:wu="1">
-      <attibute name="id">
+      <attribute name="id">
         <text/>
-      </attibute>
+      </attribute>
       <optional>
         <element name="machinationFetcherBundle">
           <attribute name="id">
             <text/>
           </attribute>
-        </element>
-        <element name="infFolder">
-          <text/>
         </element>
         <element name="infFile">
           <text/>

@@ -36,7 +36,8 @@ class Worker(object):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            if wu[0].tag != "printer":
+            # We only expect 'printer' or 'model' work units
+            if wu[0].tag not in ["printer", "model"]:
                 msg = "Work unit of type: " + wu[0].tag
                 msg += " not understood by packageman. Failing."
                 self.log.emsg(msg)
@@ -44,6 +45,13 @@ class Worker(object):
                                     id=wu.attrib["id"],
                                     status="error",
                                     message=msg)
+                continue
+            # No need to do anything for a model
+            if wu[0].tag == 'model':
+                res = etree.Element("wu",
+                                    id=work.attrib["id"])
+                res.attrib["status"] = "success"
+                result.append(res)
                 continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
@@ -63,7 +71,7 @@ class Worker(object):
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printui.exe')]
         # Use staged driver driver.
-        printer.append('/u')
+        # printer.append('/u')
         # Construct human readable printer name ('base' name in
         # windows, hence /b).
         printer.extend(
@@ -82,7 +90,10 @@ class Worker(object):
         # Now we need model information. We'll need to get that from
         # context.desired_status. Outside of Machination a wrapper
         # script will need to supply a fake context.
-        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % (work[0].get("model"))
+        printer_model = work[0].xpath(
+            'model/text()'
+            )[0]
+        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % printer_model
         model_elt = context.desired_status.getroot().xpath(xp)[0]
 
         # Normally the driver name is the same as the model_elt id. In

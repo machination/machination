@@ -1,6 +1,5 @@
-<worker id="printer">
-  <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
-  op='add'>
+<status>
+  <worker id="printer">
     <printer id="al116">
       <descriptiveName>{id}-{model}-{location}</descriptiveName>
       <location>AL116</location>
@@ -8,5 +7,5 @@
       <model>Kyocera FS-3900DN</model>
     </printer>
     <model id="Kyocera FS-3900DN"/>
-  </wu>
-</worker>
+  </worker>
+</status>

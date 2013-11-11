@@ -49,7 +49,7 @@ class Worker(object):
             # No need to do anything for a model
             if wu[0].tag == 'model':
                 res = etree.Element("wu",
-                                    id=work.attrib["id"])
+                                    id=wu.attrib["id"])
                 res.attrib["status"] = "success"
                 result.append(res)
                 continue
@@ -71,7 +71,7 @@ class Worker(object):
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printui.exe')]
         # Use staged driver driver.
-        # printer.append('/u')
+        printer.append('/u')
         # Construct human readable printer name ('base' name in
         # windows, hence /b).
         printer.extend(
@@ -84,8 +84,6 @@ class Worker(object):
         printer.extend(['/n', work[0].get("id")])
         # 'Remote path' = port, url or path to print server queue
         printer.extend(['/r', work[0].xpath('remotePath')[0].text ])
-
-        print(printer)
 
         # Now we need model information. We'll need to get that from
         # context.desired_status. Outside of Machination a wrapper

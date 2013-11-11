@@ -39,6 +39,11 @@
         <text/>
       </attribute>
       <optional>
+        <attribute name="driverVersion">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
         <element name="machinationFetcherBundle">
           <attribute name="id">
             <text/>

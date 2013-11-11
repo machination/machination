@@ -62,7 +62,7 @@ class Worker(object):
         printer = [os.path.join(
                    os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
                    'system32', 'printui.exe')]
-        # Use existing driver, if any.
+        # Use staged driver driver.
         printer.append('/u')
         # Construct human readable printer name ('base' name in
         # windows, hence /b).
@@ -82,7 +82,7 @@ class Worker(object):
         # Now we need model information. We'll need to get that from
         # context.desired_status. Outside of Machination a wrapper
         # script will need to supply a fake context.
-        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % (printer_info.get("model"))
+        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % (work[0].get("model"))
         model_elt = context.desired_status.getroot().xpath(xp)[0]
 
         # Normally the driver name is the same as the model_elt id. In

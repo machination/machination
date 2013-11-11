@@ -15,6 +15,9 @@ import subprocess
 
 
 class Worker(object):
+    #TODO(Ali): Test woker for drivers that are not installed
+    # check if /u stopmps on old drivers if given new ones
+    # Test xerox first
 
     def __init__(self):
         self.log = context.logger

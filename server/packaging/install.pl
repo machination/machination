@@ -135,11 +135,7 @@ sub find_install {
     }
     return if(/$opts->{ignore}/);
     my $tgt_dir;
-    if($dir) {
-      $tgt_dir = File::Spec->catdir($tgt,$dir);
-    } else {
-      $tgt_dir = "$tgt";
-    }
+    $tgt_dir = $tgt;
     if(-d "$_") {
       $make_path->(File::Spec->catfile($tgt_dir,$_));
     } else {

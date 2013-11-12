@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with apache2
+
+override_dh_auto_install:
+	perl packaging/install.pl \
+	  --tgt_root=$$(pwd)/debian/machination-server install

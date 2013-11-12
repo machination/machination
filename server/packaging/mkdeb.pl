@@ -30,4 +30,6 @@ system "tar cfz $build_dir/$src_tar -C $mach_dir --transform 's/^server/${pkgnam
 
 system "(cd $build_dir && tar xfz $src_tar)";
 
+system "(cd $build_dir/${pkgname}_${pkgver} && dch --create -v ${pkgver}-1 --package ${pkgname} \"Autobuilt package -- new upstream version\")";
+
 system "(cd $build_dir/${pkgname}_${pkgver} && debuild -us -uc)";

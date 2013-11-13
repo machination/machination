@@ -1,0 +1,8 @@
+{$system_perllib_dir}/*
+{$system_bin_dir}/*
+--config=noreplace {$mach_config_dir}/server/config.xml
+--perms=0700 {$mach_config_dir}/server/secrets
+--config=noreplace --perms=0600 {$mach_config_dir}/server/secrets/dbcred.xml
+--config=noreplace {$mach_apache_conf_file}
+--perms=0750 --owner={$apache_user}:{$apache_user} {$mach_log_dir}/server
+{$mach_lib_dir}/server

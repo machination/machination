@@ -52,6 +52,9 @@
         <element name="infFile">
           <text/>
         </element>
+	<element name="infLocation">
+	   <text/>
+	</element>
       </optional>
       <optional>
         <element name="driverName">

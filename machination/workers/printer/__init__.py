@@ -112,7 +112,7 @@ class Worker(object):
         bundle_elts = model_elt.xpath('machinationFetcherBundle')
         if bundle_elts:
             # We needed to download it. Fetcher should have done the
-            # download already, we just have to point to the files.
+            # download already, we just have to point to the fil
             printer.extend(
                 [
                     '/if', '/f',
@@ -122,6 +122,18 @@ class Worker(object):
                                  model_elt.xpath('infFile/text()')[0])
                     ]
                 )
+            print(model_elt.xpath('infLocation/text()'))
+            bundle_elts_inf = model_elt.xpath('infLocation')
+            if bundle_elts_inf:
+                printer.extend(
+                    [
+                        '/l',
+                        os.path.join(context.cache_dir(),
+                                     "bundles",
+                                     bundle_elts[0].get("id"),
+                                     model_elt.xpath('infLocation/text()')[0])
+                        ]
+                    )
         else:
             # No bundles: builtin driver.
             printer.extend(

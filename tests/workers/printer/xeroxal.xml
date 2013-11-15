@@ -1,0 +1,19 @@
+﻿<wus>
+  <wu id='/status/worker[@id="printer"]/model[@id="Xerox WorkCentre 7535 PS"]'
+      op='add'>
+    <model id="Xerox WorkCentre 7535 PS">
+      <machinationFetcherBundle id="xeroxal"/>
+      <infFile>WC5735-5790_PS_x64_Driver.inf\x2WRADP.inf</infFile>
+      <infLocation>WC5735-5790_PS_x64_Driver.inf</infLocation>
+    </model>
+  </wu>
+  <wu id='/status/worker[@id="printer"]/printer[@id="xeroxal"]'
+      op='add'>
+    <printer id="xeroxal">
+      <descriptiveName>{id}-{location}</descriptiveName>
+      <location>AL Corridor</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/xeroxal</remotePath>
+      <model>Xerox WorkCentre 7535 PS</model>
+    </printer>
+  </wu>
+</wus>

@@ -1,4 +1,4 @@
-#!bin/sh
+#!/bin/bash
 # postinst script for machination-server.
 #
 # Generated from the Txt::Template template
@@ -39,13 +39,15 @@ case "$1" in
         fi
         # Get our ca into /etc/ca-certificates.conf.
         # Look for our cert name with or without a "!" at the beginning.
-        if ! grep -E '^\!\{0,1\}{$default_ca_dir}/{$default_ca_cert}$' /etc/ca-certificates.conf > /dev/null ; then
+        if ! grep -E '^\!\{0,1\}{$default_ca_cert}$' /etc/ca-certificates.conf > /dev/null ; then
             # We didn't find our cert name, add it
-            echo {$default_ca_dir}/{$default_ca_cert} >> /etc/ca-certificates.conf
+            echo {$default_ca_cert} >> /etc/ca-certificates.conf
         fi
+        # update the symlinks in /etc/ssl/certs
+        update-ca-certificates
 
-        # Change ownership of some files.
-        {join("\n        ",@chown_lines)}
+        # Any ownership and perms changes.
+        {join("\n        ",@overrides)}
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

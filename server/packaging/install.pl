@@ -23,8 +23,8 @@ my $mach_config_dir="/etc/machination";
 my $mach_lib_dir="/var/lib/machination";
 my $mach_log_dir="/var/log/machination";
 my $default_ca_key = "$mach_config_dir/server/secrets/machination-server-ca.key";
-my $default_ca_dir = "/usr/share/ca-certificates/machination-server";
-my $default_ca_cert = "machination-server-ca.crt";
+my $default_ca_dir = "/usr/share/ca-certificates";
+my $default_ca_cert = "machination-server/machination-server-ca.crt";
 my $debug;
 my $doit = 1;
 my $manifest = 1;
@@ -33,6 +33,7 @@ my $pkgname = "machination-server";
 my $scriptdir = File::Basename::dirname(abs_path(__FILE__));
 my $files_tmpl_file = "$scriptdir/files.tmpl";
 my $postinst_tmpl_file = "$scriptdir/machination-server.postinst.tmpl";
+my $postrm_tmpl_file = "$scriptdir/machination-server.postrm.tmpl";
 my $tgt_distro;
 my $apache_conf_dir;
 
@@ -140,7 +141,7 @@ sub cmd_deb_perms {
 }
 
 sub cmd_deb_postinst {
-  my @chown_lines;
+  my @overrides;
   for my $info (@parsed_lines) {
     my $need_override;
 
@@ -164,7 +165,7 @@ sub cmd_deb_postinst {
     foreach my $f (@{$info->{args}}) {
       if(!defined $perms) {
         # Permissions not explicitly set; choose a default.
-        if($f =~ /\/$/) {
+        if($f =~ s/\/$//) {
           # Directory
           $perms = "0755";
         } else {
@@ -172,7 +173,7 @@ sub cmd_deb_postinst {
           $perms = "0644";
         }
       }
-      push @chown_lines,
+      push @overrides,
         "conditional_statoverride_add $owner $group $perms $f";
     }
 
@@ -184,7 +185,7 @@ sub cmd_deb_postinst {
     (
      HASH=>
      {
-      chown_lines=>\@chown_lines,
+      overrides=>\@overrides,
       default_ca_key=>$default_ca_key,
       default_ca_dir=>$default_ca_dir,
       default_ca_cert=>$default_ca_cert,
@@ -193,7 +194,43 @@ sub cmd_deb_postinst {
   print $script;
 }
 
-sub cmd_deb_owner {
+sub cmd_deb_postrm {
+  my @overrides;
+  for my $info (@parsed_lines) {
+    my $need_override;
+
+    if (exists $info->{opts}->{owner}) {
+      $need_override = 1;
+    }
+    if (exists $info->{opts}->{perms}) {
+      $need_override = 1;
+    }
+
+    next unless($need_override);
+
+    foreach my $f (@{$info->{args}}) {
+      push @overrides,
+        "conditional_statoverride_rm $f";
+    }
+  }
+
+  my $post_tmpl = Text::Template->new(SOURCE=>$postrm_tmpl_file)
+    or die "could not construct template from $postrm_tmpl_file";
+
+  my $escaped_ca_cert = $default_ca_cert;
+  $escaped_ca_cert =~ s/\//\\\//g;
+  my $script = $post_tmpl->fill_in
+    (
+     HASH=>
+     {
+      overrides=>\@overrides,
+      default_ca_key=>$default_ca_key,
+      default_ca_dir=>$default_ca_dir,
+      default_ca_cert=>$default_ca_cert,
+      escaped_ca_cert=>$escaped_ca_cert,
+     }
+    );
+  print $script;
 }
 
 sub cmd_install {
@@ -230,7 +267,7 @@ sub cmd_install {
   $make_path->(tgtdir($mach_log_dir, "server", "file"));
 
   # empty files as placeholders for ca key and certificate
-  $make_path->(tgt_dir($default_ca_dir));
+  $make_path->(tgtdir($default_ca_dir));
   $touch->(tgtdir($default_ca_key));
   $touch->(tgtdir("$default_ca_dir/$default_ca_cert"));
 }
@@ -263,15 +300,6 @@ sub cmd_rpm_owner_perms {
 
 sub cmd_rpm_config_files {
 
-}
-
-sub formatstr {
-  my $str = shift;
-  my $hash = shift;
-
-  $str =~ s/($RE{balanced}{-parens=>'{}'})/findsub($1, $hash)/eg;
-
-  return $str;
 }
 
 sub findsub {

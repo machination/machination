@@ -9,7 +9,7 @@ Package: machination-server
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends},
  ${python:Depends}, ${perl:Depends},
- openssl, apache2
+ openssl, apache2 | httpd
 Recommends: ${misc:Recommends}
 Description: Machination configuration management server.
  Server for the Machination configuration management system.

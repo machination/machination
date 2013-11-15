@@ -11,17 +11,6 @@ override_dh_auto_install:
 	perl packaging/install.pl \
 	  --tgt_distro=debian \
 	  deb_postinst > debian/machination-server.postinst
-#	perl packaging/install.pl \
-#	  --tgt_distro=debian \
-#	  --tgt_root=$$(pwd)/debian/machination-server \
-#	  deb_conffiles > debian/conffiles
-
-override_dh_fixperms:
-	dh_fixperms
-	perl packaging/install.pl \
-	  --tgt_distro=debian \
-	  --tgt_root=$$(pwd)/debian/machination-server \
-	  deb_perms
 
 override_dh_clean:
 	echo "would clean up here"

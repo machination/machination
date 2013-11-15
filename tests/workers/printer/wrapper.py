@@ -2,14 +2,13 @@
 # vim: set fileencoding=utf-8:
 
 """script wrapper for stand alone printer worker"""
-
+import sys
 from lxml import etree
 from machination import context
 from machination import xmltools
 from machination.workers import printer
 import machination
 import win32com.client
-import sys
 import argparse
 import io
 

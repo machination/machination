@@ -22,6 +22,9 @@ my $src_root="";
 my $mach_config_dir="/etc/machination";
 my $mach_lib_dir="/var/lib/machination";
 my $mach_log_dir="/var/log/machination";
+my $default_ca_key = "$mach_config_dir/server/secrets/machination-server-ca.key";
+my $default_ca_dir = "/usr/share/ca-certificates/machination-server";
+my $default_ca_cert = "machination-server-ca.crt";
 my $debug;
 my $doit = 1;
 my $manifest = 1;
@@ -61,10 +64,12 @@ my $files_vars =
 if(!defined $apache_conf_dir) {
   if($tgt_distro eq "debian") {
     $apache_conf_dir = "/etc/apache2/conf-available";
-    $files_vars->{apache_user} = "www-data";
+    $files_vars->{mach_user} = "www-data";
+    $files_vars->{mach_group} = "www-data";
   } elsif($tgt_distro eq "redhat") {
     $apache_conf_dir = "/etc/httpd/conf.d";
-    $files_vars->{apache_user} = "apache";
+    $files_vars->{mach_user} = "apache";
+    $files_vars->{mach_group} = "apache";
   } else {
     die "Can't figure out where apache config should go";
   }
@@ -92,6 +97,7 @@ foreach (@files_lines) {
 my $copy = wrap(\&File::Copy::cp);
 my $make_path = wrap(\&File::Path::make_path);
 my $ln = wrap(\&ln);
+my $touch = wrap(\&touch);
 
 my $cmd = $ARGV[0];
 no strict "refs";
@@ -136,19 +142,54 @@ sub cmd_deb_perms {
 sub cmd_deb_postinst {
   my @chown_lines;
   for my $info (@parsed_lines) {
+    my $need_override;
+
+    # owner and group
+    my ($owner, $group) = qw(root root);
     if (exists $info->{opts}->{owner}) {
-      foreach my $f (@{$info->{args}}) {
-        my ($owner, $group) = split(":",$info->{opts}->{owner});
-        print "chown $owner $f\n";
-        push @chown_lines, "chown $owner $f";
-        push @chown_lines, "chgrp $group $f" if(defined $group);
-      }
+      $need_override = 1;
+      my ($lowner, $lgroup) = split(":",$info->{opts}->{owner});
+      $owner = $lowner;
+      $group = $lgroup if(defined $lgroup);
     }
+    # permissions
+    my $perms;
+    if (exists $info->{opts}->{perms}) {
+      $need_override = 1;
+      $perms = $info->{opts}->{perms};
+    }
+
+    next unless($need_override);
+
+    foreach my $f (@{$info->{args}}) {
+      if(!defined $perms) {
+        # Permissions not explicitly set; choose a default.
+        if($f =~ /\/$/) {
+          # Directory
+          $perms = "0755";
+        } else {
+          # File.
+          $perms = "0644";
+        }
+      }
+      push @chown_lines,
+        "conditional_statoverride_add $owner $group $perms $f";
+    }
+
   }
 
   my $post_tmpl = Text::Template->new(SOURCE=>$postinst_tmpl_file)
     or die "could not construct template from $postinst_tmpl_file";
-  my $script = $post_tmpl->fill_in(HASH=>{chown_lines=>\@chown_lines});
+  my $script = $post_tmpl->fill_in
+    (
+     HASH=>
+     {
+      chown_lines=>\@chown_lines,
+      default_ca_key=>$default_ca_key,
+      default_ca_dir=>$default_ca_dir,
+      default_ca_cert=>$default_ca_cert,
+     }
+    );
   print $script;
 }
 
@@ -187,6 +228,11 @@ sub cmd_install {
 
   # logs
   $make_path->(tgtdir($mach_log_dir, "server", "file"));
+
+  # empty files as placeholders for ca key and certificate
+  $make_path->(tgt_dir($default_ca_dir));
+  $touch->(tgtdir($default_ca_key));
+  $touch->(tgtdir("$default_ca_dir/$default_ca_cert"));
 }
 
 sub cmd_configure_apache {
@@ -267,7 +313,7 @@ sub wrap {
       if($name eq "copy" or $name eq "cp" or $name eq "ln") {
         print $_[1] . "\n";
       }
-      if($name eq "make_path") {
+      if($name eq "make_path" or $name eq "touch") {
         print $_[0] . "/\n";
       }
     }
@@ -294,4 +340,14 @@ sub addroot {
   my @dirs = @_;
   unshift(@dirs, $root ) if(defined $root && $root ne "");
   return File::Spec->rel2abs(File::Spec->catdir(@dirs));
+}
+
+sub touch {
+  my $file = shift;
+  my $now = time;
+  local (*TMP);
+
+  utime ($now, $now, $file)
+    || open (TMP, ">>$file")
+      || warn ("Couldn't touch file: $!\n");
 }

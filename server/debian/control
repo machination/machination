@@ -7,7 +7,9 @@ Build-Depends: debhelper (>= 9), dh-apache2, libregexp-common-perl,
 
 Package: machination-server
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ ${python:Depends}, ${perl:Depends},
+ openssl, apache2
 Recommends: ${misc:Recommends}
 Description: Machination configuration management server.
  Server for the Machination configuration management system.

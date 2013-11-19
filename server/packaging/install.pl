@@ -23,8 +23,9 @@ my $mach_config_dir="/etc/machination";
 my $mach_lib_dir="/var/lib/machination";
 my $mach_log_dir="/var/log/machination";
 my $default_ca_key = "$mach_config_dir/server/secrets/machination-server-ca.key";
-my $default_ca_dir = "/usr/share/ca-certificates";
-my $default_ca_cert = "machination-server/machination-server-ca.crt";
+my $system_ca_dir = "/usr/share/ca-certificates";
+my $default_ca_dir = "machination-server";
+my $default_ca_cert = "machination-server-ca.crt";
 my $debug;
 my $doit = 1;
 my $manifest = 1;
@@ -173,6 +174,7 @@ sub cmd_deb_postinst {
           $perms = "0644";
         }
       }
+      $f =~ s/\/$//;
       push @overrides,
         "conditional_statoverride_add $owner $group $perms $f";
     }
@@ -187,6 +189,7 @@ sub cmd_deb_postinst {
      {
       overrides=>\@overrides,
       default_ca_key=>$default_ca_key,
+      system_ca_dir=>$system_ca_dir,
       default_ca_dir=>$default_ca_dir,
       default_ca_cert=>$default_ca_cert,
      }
@@ -209,6 +212,7 @@ sub cmd_deb_postrm {
     next unless($need_override);
 
     foreach my $f (@{$info->{args}}) {
+      $f =~ s/\/$//;
       push @overrides,
         "conditional_statoverride_rm $f";
     }
@@ -217,7 +221,7 @@ sub cmd_deb_postrm {
   my $post_tmpl = Text::Template->new(SOURCE=>$postrm_tmpl_file)
     or die "could not construct template from $postrm_tmpl_file";
 
-  my $escaped_ca_cert = $default_ca_cert;
+  my $escaped_ca_cert = "$default_ca_dir/$default_ca_cert";
   $escaped_ca_cert =~ s/\//\\\//g;
   my $script = $post_tmpl->fill_in
     (
@@ -225,6 +229,7 @@ sub cmd_deb_postrm {
      {
       overrides=>\@overrides,
       default_ca_key=>$default_ca_key,
+      system_ca_dir=>$system_ca_dir,
       default_ca_dir=>$default_ca_dir,
       default_ca_cert=>$default_ca_cert,
       escaped_ca_cert=>$escaped_ca_cert,
@@ -267,9 +272,9 @@ sub cmd_install {
   $make_path->(tgtdir($mach_log_dir, "server", "file"));
 
   # empty files as placeholders for ca key and certificate
-  $make_path->(tgtdir($default_ca_dir));
+  $make_path->(tgtdir("$system_ca_dir/$default_ca_dir"));
   $touch->(tgtdir($default_ca_key));
-  $touch->(tgtdir("$default_ca_dir/$default_ca_cert"));
+  $touch->(tgtdir("$system_ca_dir/$default_ca_dir/$default_ca_cert"));
 }
 
 sub cmd_configure_apache {
@@ -341,8 +346,11 @@ sub wrap {
       if($name eq "copy" or $name eq "cp" or $name eq "ln") {
         print $_[1] . "\n";
       }
-      if($name eq "make_path" or $name eq "touch") {
+      if($name eq "make_path") {
         print $_[0] . "/\n";
+      }
+      if($name eq "touch") {
+        print $_[0] . "\n";
       }
     }
     if($doit) {

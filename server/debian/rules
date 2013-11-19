@@ -11,6 +11,9 @@ override_dh_auto_install:
 	perl packaging/install.pl \
 	  --tgt_distro=debian \
 	  deb_postinst > debian/machination-server.postinst
+	perl packaging/install.pl \
+	  --tgt_distro=debian \
+	  deb_postrm > debian/machination-server.postrm
 
 override_dh_clean:
 	echo "would clean up here"

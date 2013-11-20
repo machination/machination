@@ -16,7 +16,7 @@ die "Please change the hierarchy admin user in $bshfile before bootstrapping"
 
 # create the database
 system("machination-createdb");
-die if $?;
+#die if $?;
 
 # bootstrap the hierarchy
 

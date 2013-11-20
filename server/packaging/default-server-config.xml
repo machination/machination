@@ -71,8 +71,8 @@
   </subconfig>
 
   <subconfig xml:id="subconfig.haccess"
-             serviceId="your.service.id"
-             URI="https://your.server.name/machination/hierarchy">
+             serviceId="machination-initial-id"
+             URI="https://localhost/machination/hierarchy">
     <authentication>
 
       <!-- Default authentication type for each object type -->
@@ -111,7 +111,7 @@
       </type>
       <type id="debug" defaultObjType="person">
         <!-- allowed object types for this auth method -->
-        <objType id="person" defaultName="eggy"/>
+        <objType id="person" defaultName="dev"/>
         <objType id="os_instance"/>
       </type>
       <type id="cert" defaultObjType="os_instance"
@@ -122,7 +122,7 @@
         <objType id="person"/>
       </type>
       <type id="cosign" defaultObjType="person"
-            cosignLoginPage="https://www.ease.ed.ac.uk/">
+            cosignLoginPage="https://my.cosign.service/">
         <objType id="person"/>
       </type>
       <type id="basic" defaultObjType="person">
@@ -130,8 +130,8 @@
       </type>
 
       <certSign lifetime="3650">
-        <ca certfile="ca.crt"
-            keyfile="secrets/ca.key"/>
+        <ca certfile="/etc/ca-certificates/machination-server/machination-server-ca.crt"
+            keyfile="secrets/machination-server-ca.key"/>
         <clientDNForm>
           <node id="C" check="equal"
                 value="UK"/>

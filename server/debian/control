@@ -4,6 +4,7 @@ Section: misc
 Standards-Version: 3.9.4
 Build-Depends: debhelper (>= 9), dh-apache2, libregexp-common-perl,
  python | python-all | python-dev | python-all-dev,
+ postgresql,
 # perl dependencies found with
 # packaging/find-lib-package.pl Machination::HAccessor
  libdevel-globaldestruction-perl,libsocket-perl,libclass-data-inheritable-perl,libdbi-perl,libclass-load-perl,libclass-load-xs-perl,libnamespace-autoclean-perl,libsub-exporter-progressive-perl,libdevel-stacktrace-perl,libnamespace-clean-perl,libxml-parser-perl,libxml-xpath-perl,libmoose-perl,libdata-optlist-perl,liblist-moreutils-perl,libb-hooks-endofscope-perl,libpackage-stash-xs-perl,libexception-class-perl,libmro-compat-perl,libxml-sax-base-perl,libsub-name-perl,libxml-libxml-perl,libpackage-deprecationmanager-perl,libpackage-stash-perl,libeval-closure-perl,libsub-exporter-perl,libmodule-runtime-perl,libvariable-magic-perl,libsub-install-perl,libexception-class-dbi-perl,libparams-util-perl,libtry-tiny-perl,libmodule-implementation-perl,

@@ -22,4 +22,4 @@ die if $?;
 
 my $ha = Machination::HAccessor->new("/etc/machination/server/config.xml");
 $ha->bootstrap_all;
-print qx"machination-hda $bshfile";
+system("machination-hda $bshfile");

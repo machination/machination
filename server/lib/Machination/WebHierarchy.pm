@@ -46,6 +46,7 @@ use URI;
 use Machination::HAccessor;
 use Machination::XMLDumper;
 use Machination::Exceptions;
+use Machination::ConfigFile;
 
 use Apache::DataIterator::Reader;
 use Apache::DataIterator::Writer;
@@ -129,6 +130,7 @@ my %calls =
     );
 our $log;
 our $ha;
+our $debug;
 our $hierarchy_channel;
 our $shared_memory_dir;
 
@@ -163,9 +165,13 @@ sub handler {
   $machination_config = $machination_config_default
     unless(defined $machination_config);
 
+  my $conf = Machination::ConfigFile->new($machination_config);
+  $debug = $conf->root->
+    findvalue('//subconfig[@xml:id="subconfig.haccess"]/@debug');
+
   if(! defined $ha) {
     eval {
-      $ha = Machination::HAccessor->new($machination_config);
+      $ha = Machination::HAccessor->new($conf);
     };
     if($@) {
       if($@ =~ /authentication failed/) {
@@ -1574,8 +1580,11 @@ sub error {
     $log->emsg("WebHierarchy.error",$error,1)
       if defined $log;
     my $e = XML::LibXML::Element->new('error');
+    my $d = XML::LibXML::Element->new('debug');
     my $m = XML::LibXML::Element->new('message');
+    $d->appendTextChild("file", __FILE__);
     $m->appendText($error);
+    $e->appendChild($d) if($debug);
     $e->appendChild($m);
     $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4)
       if defined $log;

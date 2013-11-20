@@ -101,7 +101,23 @@ copy($tmp->filename, "$mach_config_dir/server/bootstrap_hierarchy.hda");
 
 print "\n\n";
 
+print "Set password=$db_pass in $mach_config_dir/server/secrets/dbcred.xml\n";
+my $dbc = XML::LibXML->load_xml(location=>"$mach_config_dir/server/secrets/dbcred.xml");
+my $dbp_elt = ($dbc->findnodes("//password"))[0];
+$dbp_elt->removeChildNodes;
+$dbp_elt->appendText($db_pass);
+open(my $fh, ">$mach_config_dir/server/secrets/dbcred.xml");
+print $fh $dbc->toString;
+close $fh;
+
 print "chmod 755 $mach_config_dir/server/secrets\n";
 chmod(0755, "$mach_config_dir/server/secrets");
 print "chmod 644 $mach_config_dir/server/secrets/dbcred.xml\n";
 chmod(0644, "$mach_config_dir/server/secrets/dbcred.xml");
+
+print "\n\n";
+
+print "chmod 755 /var/log/machination/server\n";
+chmod(0755, "/var/log/machination/server");
+print "chmod 777 /var/log/machination/server/file\n";
+chmod(0777, "/var/log/machination/server/file");

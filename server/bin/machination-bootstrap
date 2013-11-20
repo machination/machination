@@ -15,11 +15,11 @@ die "Please change the hierarchy admin user in $bshfile before bootstrapping"
   if($hadmin eq 'changeme_to_admin_user@somewhere.com');
 
 # create the database
-qx"machination-createdb";
+system("machination-createdb");
 die if $?;
 
 # bootstrap the hierarchy
 
 my $ha = Machination::HAccessor->new("/etc/machination/server/config.xml");
 $ha->bootstrap_all;
-system("machination-hda $bshfile");
+system("machination-hda", $bshfile);

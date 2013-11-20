@@ -22,6 +22,7 @@ die "Please change the database password in $crfile before bootstrapping"
 
 # create the user and database
 my $pg_uid = getpwnam('postgres');
+print "postgres uid: $pg_uid\n"
 my $pg_gid = getgrnam('postgres');
 
 

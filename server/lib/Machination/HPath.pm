@@ -307,6 +307,7 @@ sub string_to_rep {
 
 sub is_rooted {
   my $self = shift;
+  return if ! @{$self->rep};
   return $self->rep->[0]->is_root;
 }
 
@@ -365,6 +366,7 @@ the above is enough information to find it.
 sub identifies_object {
   my $self = shift;
 
+  return 0 if(! defined $self->leaf_node);
   ($self->is_rooted or $self->leaf_node->has_id) ? return 1 : return 0;
 }
 
@@ -393,7 +395,8 @@ sub parent {
 sub populate_ids {
   my $self = shift;
 
-  die "Cannot populate_ids unless path identifies an object"
+#  die "Cannot populate_ids unless path identifies an object"
+  return
     unless $self->identifies_object;
 
   # If path is non rooted and still identifies an object then it has
@@ -480,6 +483,7 @@ sub exists {
 
 sub name {
   my $self = shift;
+  return unless defined $self->leaf_node;
   return $self->leaf_node->name;
 }
 
@@ -499,6 +503,7 @@ sub id {
 
 sub type {
   my $self = shift;
+  return unless defined $self->leaf_node;
   return $self->leaf_node->type;
 }
 
@@ -508,6 +513,7 @@ sub type {
 
 sub type_id {
   my $self = shift;
+  return unless defined $self->type;
   return $self->ha->type_id($self->type);
 }
 

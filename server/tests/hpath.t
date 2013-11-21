@@ -14,7 +14,7 @@ use Data::Dumper;
 use Machination::HAccessor;
 use Machination::HPath;
 
-my $actor = "dev";
+my $actor = "person:dev";
 
 my $ha = Machination::HAccessor->new("/etc/machination/server/config.xml");
 my $hp = Machination::HPath->new(ha=>$ha, from=>"/");
@@ -40,14 +40,13 @@ is($p->to_string, '', "    string rep is ''");
 # Now move on to /dev/tests/hpath
 $hp = Machination::HPath->new(ha=>$ha, from=>"/dev/tests/hpath");
 is($hp->to_string, "/dev/tests/hpath", "switched to hpath '/dev/tests/hpath'");
-ok($hp->existing->isa('Machination::HPath'), "  existing isa Machination::HPath (" . $hp->existing->to_string . ")");
-ok($hp->remainder->isa('Machination::HPath'), "  remainder isa Machination::HPath (" . $hp->remainder->to_string . ")");
+# we'd like at least part of the path not to exist to test remainder
 if($hp->exists) {
   $ha->delete_obj({"actor"=>"dev"}, $hp->type_id, $hp->id);
   $hp = Machination::HPath->new(ha=>$ha, from=>"/dev/tests/hpath");
-} else {
-
 }
+ok($hp->existing->isa('Machination::HPath'), "  existing isa Machination::HPath (" . $hp->existing->to_string . ")");
+ok($hp->remainder->isa('Machination::HPath'), "  remainder isa Machination::HPath (" . $hp->remainder->to_string . ")");
 
 # clean up
 $ha->read_dbh->disconnect;

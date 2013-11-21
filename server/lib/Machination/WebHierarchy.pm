@@ -192,10 +192,16 @@ sub handler {
   my $uri_base = URI->new($uri)->path;
   my $ruri = substr($r->uri,length($uri_base));
   $ruri =~ s/^\///;
-  # When using the 'debug' authentication type the remote user in the uri.
   my ($authen_type, $rem_user) = split(/\//, $ruri);
-  # For all other authentication types Apache should tell us.
-  $rem_user = $r->user unless $authen_type eq "debug";
+  # For $authen_type 'debug' the remote user is in the uri so we are done.
+  if($authen_type ne "debug") {
+    if($authen_type eq "public") {
+      $rem_user = "person:__MACHINATION_PUBLIC__";
+    } else {
+      # For all other authentication types Apache should tell us.
+      $rem_user = $r->user unless $authen_type eq "debug";
+    }
+  }
   my $haccess_conf_node = $ha->conf->doc->getElementById("subconfig.haccess");
   my @authen_nodes = $haccess_conf_node->findnodes("authentication/type[\@id='$authen_type']");
   unless(@authen_nodes) {

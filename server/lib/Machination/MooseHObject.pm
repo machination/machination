@@ -110,8 +110,13 @@ sub _construct_path {
   my $self = shift;
   my $path_parent = shift;
 
+  my $root_id = $self->ha->fetch_root_id;
   my $path = Machination::HPath->new(ha=>$self->ha,from=>"/");
   $path->populate_ids;
+  # The parent of root is not defined. If we see an undef id for
+  # $path_parent then the path we are after is "/", as constructed
+  # above.
+  return $path if(!defined $path_parent->id);
   my $data = $self->fetch_data;
   my @items = (Machination::HPathItem->
                new(name=>$self->name,
@@ -119,7 +124,6 @@ sub _construct_path {
                    type=>$self->ha->type_name($self->type_id),
                   ));
   my $parent = $path_parent;
-  my $root_id = $self->ha->fetch_root_id;
   while($parent->id != $root_id) {
     unshift @items, Machination::HPathItem->
       new(name=>$parent->name,

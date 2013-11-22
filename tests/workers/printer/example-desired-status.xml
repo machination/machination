@@ -7,9 +7,9 @@
       <model>Xerox Workcenter 7535 PS</model>
     </printer>
     <model id="Xerox Workcenter 7535 PS">
-		<machinationFetcherBundle id="xeroxal">
-			<iniFile>C:\Workspace\WC5735.inf\x2WRADP.inf</iniFile>
-		</machinationFetcherBundle>
-	</model>
+      <machinationFetcherBundle id="xeroxal">
+        <iniFile>C:\Workspace\WC5735.inf\x2WRADP.inf</iniFile>
+      </machinationFetcherBundle>
+    </model>
   </worker>
 </status>

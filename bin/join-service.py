@@ -63,6 +63,8 @@ if __name__ == '__main__':
                         help='openssl config file')
     parser.add_argument('--certbits', nargs='?',
                         help='No of bits for certificate cipher')
+    parser.add_argument('--rejoin', default='',
+                        help='Rejoin service if os instance exists (y or n)')
     args = parser.parse_args()
 
     try:
@@ -186,6 +188,7 @@ if __name__ == '__main__':
         cmd.extend(['-config',opensslcfg])
     cmd.extend(['-key', pending_keyfile])
     # Find the base DN for certs for this service.
+    print(etree.tostring(service_elt))
     wc = WebClient.from_service_elt(service_elt, 'person')
     dnform = wc.call('CertInfo').get('dnform', {})
     # Fill in any blanks.
@@ -218,6 +221,8 @@ if __name__ == '__main__':
 
     path = '{}/os_instance:{}'.format(location, inst_id)
     os_id = wc.call('OsId', *machination.utils.os_info())
+    if os_id is None:
+        raise Exception("Could not find os_id for {}".format(" ".join([str(x) for x in machination.utils.os_info()])))
     # try to create the object
     try:
         wc.call('Create', path, {'os_id': os_id})
@@ -241,14 +246,14 @@ if __name__ == '__main__':
         # Didn't get all the way to a cert for some reason
         if(re.search(r'A valid certificate for', e.args[0])):
             # Currently the only allowed reason is cert exists.
-            ans = ''
+            ans = args.rejoin
             while ans.lower() not in ['y', 'n']:
                 ans = input('certificate for {} exists, are you sure [y/N]? '.format(inst_id))
                 if ans == '':
                     ans = 'n'
-                if ans.lower() == 'n':
-                    print('Aborting service join')
-                    exit()
+            if ans.lower() == 'n':
+                print('Aborting service join')
+                exit()
             # Try again with force = True
             cert = wc.call("SignIdentityCert", csr.decode('utf8'), 1)
         else:

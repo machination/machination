@@ -237,7 +237,8 @@ class WebClient(object):
 #        print("got:\n" + s)
         elt = etree.fromstring(s)
         if elt.tag == 'error':
-            raise Exception('error at the server end:\n' + elt[0].text)
+            msg = elt.xpath('message/text()')[0]
+            raise Exception('error at the server end:\n' + msg)
         ret = from_xml(elt)
         return ret
 

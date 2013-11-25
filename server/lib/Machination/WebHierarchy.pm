@@ -329,7 +329,7 @@ sub hierarchy_channel {
 =item B<HierarchyChannel>
 
 =cut
-
+#hp
 sub call_HierarchyChannel {
   return hierarchy_channel();
 }
@@ -337,7 +337,7 @@ sub call_HierarchyChannel {
 =item B<CertInfo>
 
 =cut
-
+#hp
 sub call_CertInfo {
   my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
   my @nodes = $haccess_node->findnodes("authentication/certSign/clientDNForm/node");
@@ -363,7 +363,7 @@ sub call_CertInfo {
 =item B<OsId>
 
 =cut
-
+#hp
 sub call_OsId {
   shift;
   shift;
@@ -375,7 +375,7 @@ sub call_OsId {
 Return old style service config element.
 
 =cut
-
+#hp
 sub call_ServiceInfo {
   my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
 
@@ -415,7 +415,7 @@ Return service info in the form of the server's config file. Not all
 information is transferred.
 
 =cut
-
+#hp
 sub call_ServiceConfig {
   my $han = $ha->conf->doc->getElementById("subconfig.haccess");
   my $ret = XML::LibXML::Element->new('subconfig');
@@ -439,7 +439,7 @@ sub call_ServiceConfig {
 =item B<Help>
 
 =cut
-
+#hp
 sub call_Help {
   my $user = shift;
   my $info;
@@ -462,7 +462,7 @@ sub splat {
 TypeInfo($type)
 
 =cut
-
+#hp
 sub call_TypeInfo {
   my ($owner,$approval,$type) = @_;
 
@@ -474,7 +474,7 @@ sub call_TypeInfo {
 AllTypesInfo($opts)
 
 =cut
-
+#hp
 sub call_AllTypesInfo {
   my ($owner,$approval,$opts) = @_;
 
@@ -486,7 +486,7 @@ sub call_AllTypesInfo {
 TypeId($type_name)
 
 =cut
-
+#hp
 sub call_TypeId {
   my ($owner,$approval,$type) = @_;
 
@@ -508,38 +508,40 @@ $req =
  }
 
 =cut
-
+#hp
 sub call_ActionAllowed {
   my ($owner, $approval, $req, $path) = @_;
   my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
 
-  return $ha->action_allowed($req, $hp->id);
+  return $ha->action_allowed($req, $hp);
 }
 
 =item B<Exists>
 
 Exists($path)
 
-need readtext or exists permission on /hc[machination:root]/hc[path1]...
+Permission required:
+- readtext on $path or listchildren on parent.
 
 =cut
-
+#
 sub call_Exists {
   my ($owner,$approval,$path) = @_;
 
   my $hp;
   $hp = Machination::HPath->new(ha=>$ha,from=>$path);
   my $mpath = "/contents/" . $hp->type;
-  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
+  $mpath .= "[" . $hp->id . "]" if $hp->exists;
 
   my $req = {channel_id=>hierarchy_channel(),
-             op=>"exists",
+             op=>"readtext",
              mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
-  return $hp->id if $ha->action_allowed($req,$hp->parent->id);
-  $req->{op} = "readtext";
-  return $hp->id if $ha->action_allowed($req,$hp->parent->id);
+  return $hp->id
+    if($hp->exists and $ha->action_allowed($req,$hp->parent->id));
+  $req->{op} = "listchildren";
+  return $hp->id if $ha->action_allowed($req,$hp->parent);
 
   AuthzDeniedException->
     throw("could not get read or exists permission for $path");
@@ -572,7 +574,7 @@ items are of the form:
 you always get the ids, names are optional.
 
 =cut
-
+#
 sub call_ListContents {
   my ($owner,$approval,$path,$opts) = @_;
 
@@ -681,7 +683,7 @@ sub _writer_thread {
 $attachments = ListAttachments($hc, $opts)
 
 =cut
-
+#hp
 sub call_ListAttachments {
   my ($owner,$approval,$hc,$opts) = @_;
 
@@ -738,7 +740,7 @@ sub call_ListAttachments {
 $members = AgroupMembers($type_id, $obj_id, $opts)
 
 =cut
-
+#hp
 sub call_AgroupMembers {
   my ($owner,$approval,$path,$opts) = @_;
 

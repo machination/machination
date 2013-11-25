@@ -534,14 +534,14 @@ sub call_Exists {
   $mpath .= "[" . $hp->id . "]" if $hp->exists;
 
   my $req = {channel_id=>hierarchy_channel(),
-             op=>"readtext",
+             op=>"listchildren",
              mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
+  return $hp->id if $ha->action_allowed($req,$hp->parent);
+  $req->{op} = "readtext";
   return $hp->id
     if($hp->exists and $ha->action_allowed($req,$hp->parent->id));
-  $req->{op} = "listchildren";
-  return $hp->id if $ha->action_allowed($req,$hp->parent);
 
   AuthzDeniedException->
     throw("could not get read or exists permission for $path");
@@ -586,7 +586,6 @@ sub call_ListContents {
   my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
   die "$path is not an hc, it is a " . $hp->type
     unless($hp->type eq "machination:hc");
-  die "hc $path does not exist" unless($hp->exists);
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -597,7 +596,9 @@ sub call_ListContents {
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->id));
+    unless($ha->action_allowed($req,$hp));
+
+  die "hc $path does not exist" unless($hp->exists);
 
   my $pass_opts = {};
   $pass_opts->{fields} = ["name"] if($opts->{fetch_names});

@@ -125,8 +125,9 @@ sub BUILD {
   my $args = shift;
 
   $self->_set_rep($self->construct_rep($args->{from}));
-  die "HPath is not rooted and ensure_rooted is true."
-    if($self->ensure_rooted && ! $self->is_rooted);
+  MalformedPathException->
+    throw("HPath is not rooted and ensure_rooted is true.")
+      if($self->ensure_rooted && ! $self->is_rooted);
 }
 
 =item B<construct_rep>
@@ -269,15 +270,20 @@ sub string_to_rep {
         unless($item->is_hc and $item->name eq "");
       $tracking = {is_id=>0, type_is_id=>0};
     } elsif ($token->[0] eq 'NAME') {
-      die "attempting to add non digits to an ID" if($tracking->{is_id});
+      MalformedPathException->
+        throw("attempting to add non digits to an ID")
+          if($tracking->{is_id});
       $tracking->{name} .= $token->[1];
     } elsif ($token->[0] eq 'BRANCH_SEP') {
-      die "adding a second branch" if(exists $tracking->{branch});
+      MalformedPathException->
+        throw("adding a second branch")
+          if(exists $tracking->{branch});
       $tracking->{branch} = $tracking->{name};
       delete $tracking->{name};
     } elsif ($token->[0] eq 'TYPENAME_SEP') {
-      die "second type/name seperator"
-        if(exists $tracking->{type});
+      MalformedPathException->
+        throw("second type/name seperator")
+          if(exists $tracking->{type});
       $tracking->{type} = $tracking->{name};
       delete $tracking->{name};
     } elsif ($token->[0] eq 'ID') {
@@ -287,10 +293,12 @@ sub string_to_rep {
         $tracking->{is_id} = 1;
       } else {
         # type specifier is an id - not supposed to do that.
-        die "Type specifier must not be an id."
+        MalformedPathException->
+          throw("Type specifier must not be an id.")
       }
     } else {
-      die "Unrecognised token $token->[0] parsing HPath $path";
+      MalformedPathException->
+        throw("Unrecognised token $token->[0] parsing HPath $path");
     }
   }
   $tracking->{name} = "" unless defined $tracking->{name};
@@ -525,8 +533,9 @@ sub type_id {
 sub append {
   my $self = shift;
   my $item = shift;
-  die "cannot append $item: it is not a Machination::HPathItem"
-    unless(blessed($item) && $item->isa("Machination::HPathItem"));
+  MachinationException->
+    throw("cannot append $item: it is not a Machination::HPathItem")
+      unless(blessed($item) && $item->isa("Machination::HPathItem"));
   push(@{$self->rep},$item);
 }
 
@@ -536,8 +545,10 @@ sub append {
 
 sub paths {
   my $self = shift;
-  die "cannot call 'parents' on " . $self->to_string .
-    ": it does not exist" unless $self->exists;
+  MachinationException->
+    throw("cannot call 'parents' on " . $self->to_string .
+    ": it does not exist")
+      unless $self->exists;
 
   return Machination::MooseHObject->
     new(ha=>$self->ha, id=>$self->id, type_id=>$self->type_id)->

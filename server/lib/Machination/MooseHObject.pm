@@ -26,14 +26,31 @@ has "ha" => (is=>"ro",
              handles=>[qw(read_dbh write_dbh)]);
 
 has 'id' => (is=>'ro',
-             required=>1);
+             writer=>'_set_id');
 
 has 'type_id' => (is=>'ro',
-                  required=>1);
+                  writer=>'_set_type_id');
+
+has 'from' => (is=>'ro');
 
 has '_data' => (is=>'ro',
                 required=>0,
                 default => sub { {} });
+
+sub BUILD {
+  my $self = shift;
+  my $args = shift;
+
+  if(defined $args->{from}) {
+    my ($type, $id) = $args->{from} =~ /^(.*?):(.*)$/;
+    $self->_set_id($id);
+    if($type =~ s/^\#//) {
+      $self->_set_type_id($type);
+    } else {
+      $self->_set_type_id($self->ha->type_id($type));
+    }
+  }
+}
 
 sub fetch_data {
   my $self = shift;

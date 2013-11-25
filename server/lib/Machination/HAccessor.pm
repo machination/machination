@@ -790,6 +790,39 @@ sub valid_op {
 	}
 }
 
+=item B<valid_action_op>
+
+$bool = $self->valid_action_op($op,$opts)
+
+True if $op is a valid action op (authorisable action), false
+otherwise.
+
+=cut
+
+sub valid_action_op {
+	my $self = shift;
+	my ($op,$opts) = @_;
+
+	$self->{vaops} = {} unless exists($self->{vaops});
+	if ($opts->{reread}) {
+		delete $self->{vaops}->{$op};
+	}
+	unless (exists $self->{vaops}->{$op}) {
+		if (exists $self->dbc->dbh->
+				selectall_hashref
+        ("select op from valid_action_ops where op=?",
+         "op",{},$op)->{$op}) {
+			$self->{vaops}->{$op} = undef;
+		}
+	}
+	if (exists $self->{vaops}->{$op}) {
+		return 1;
+	} else {
+		return undef;
+	}
+}
+
+
 =item B<object_types>
 
 @type_ids = $ha->object_types;
@@ -2019,7 +2052,7 @@ sub get_attachments_handle {
 
 =item B<get_authz_handle>
 
-$ha->fetch_authz_list($channel,$hc_id,$op,$opts)
+$ha->fetch_authz_list($channel,$hc_id_list,$op,$opts)
 
 fetch a list of authorisation instructions relavent to $channel and
 $op attached to $hc_id and its parents.
@@ -2050,16 +2083,14 @@ match when checking authorisation.
 
 sub get_authz_handle {
   my $self = shift;
-  my ($channel,$hc_id,$op,$opts) = @_;
+  my ($channel,$hlist,$op,$opts) = @_;
 
   $opts->{obj_fields} = ["op","is_allow","entities","xpath"];
   $opts->{att_fields} = [];
   $opts->{obj_conditions} = [["(o.op=? or o.op=?)",[$op,"ALL"]]];
-#  $self->log->dmsg("Haccessor.fetch_authz_list","args:\n $channel, " .
-#                   "$hpath, 'authz_inst', " .
-#                   Data::Dumper->Dump([$opts],[qw(opts)]),9);
+
   return $self->get_attachments_handle
-    ($channel,$hc_id,"authz_inst",$opts);
+    ($channel,$hlist,"authz_inst",$opts);
 }
 
 =item B<fetch_set_attachments>
@@ -2115,7 +2146,7 @@ sub authz_hash_from_object {
 
 =item B<action_allowed>
 
-$ha->action_allowed($request,$hc_id)
+$ha->action_allowed($request,$hpath_or_id)
 
 $request  = hash ref with following representation:
  {
@@ -2142,9 +2173,40 @@ if it is.
 
 sub action_allowed {
 	my $self = shift;
-  my ($req,$hc_id,$opts) = @_;
+  my ($req,$hpath_or_id,$opts) = @_;
   my $cat = "HAccessor.action_allowed";
   $self->log->dmsg($cat,"\n" . Dumper($req),8);
+
+  # Make sure $req->{op} is valid
+  AuthzException->throw("Invalid authz op '$req->{op}'")
+    unless($self->valid_action_op($req->{op}));
+
+  # Decide whether we were given an id or an hpath.
+  my $hc_id;
+  my $hp;
+  if(eval {$hpath_or_id->isa("Machination::HPath")}) {
+    $hp = $hpath_or_id;
+    MalformedPathException->throw
+      (
+       "HPath used in action_allowed must be rooted"
+      )
+        unless($hp->is_rooted);
+    $hc_id = $hp->id if($hp->exists);
+  } else {
+    $hc_id = $hpath_or_id;
+  }
+
+  # $hc_id should now be defined and exist unless we are after
+  # listchildren in the hierarchy_channel. We return permission denied
+  # otherwise we're giving information away.
+  return 0
+    unless(
+       ($req->{channel_id} == $self->channel_id('machination:hierarchy')
+       and
+       $req->{op} eq 'listchildren')
+       or
+       defined($hc_id)
+      );
 
   if($req->{channel_id} == $self->channel_id('machination:hierarchy')) {
     # The hierarchy channel must be treated specially for three reasons:
@@ -2161,11 +2223,26 @@ sub action_allowed {
     # 3) If the hc is /system/special/authz/objects then populate the
     #    object element as long as it exists (even if not in that hc)
 
+    # For 'listchildren' in the hierarchy_channel we need to accept a
+    # Machination::HPath instead of an hc_id. Otherwise we wouldn't be
+    # able to deal with the case that the hc to authorise against
+    # doesn't exist (a real possibility when authorising checks on
+    # object existence).
+    if($req->{op} eq 'listchildren') {
+      if(defined $hp) {
+        # Look for the nearest existing parent
+        while(!$hp->exists) {
+          $hp = $hp->parent;
+        }
+        $hc_id = $hp->id;
+      }
+    }
+
     # the mpath must be of the form /$branch or /$branch/type[id]
 
     my ($branch, $type_name, $obj_id) =
       $req->{mpath} =~ /^\/(contents|attachments)(?:\/(\w+:?\w*)(?:\[(\d+)\])?)?/;
-    croak "don't know how to authorise branch " .
+    croak "don't know how to authorise branch '$branch' " .
       "in hierarchy channel when processing mpath " . $req->{mpath}
         unless(defined $branch);
     $type_name =~ s/:$//;
@@ -2173,8 +2250,8 @@ sub action_allowed {
     $type_id = $self->type_id($type_name) if(defined $type_name);
 
     my @hcs = ($hc_id);
-    # if $hc_id corresponds to /system/special/authz/objects then we really
-    # need to check all parents of the object in question
+    # if $hc_id corresponds to /system/special/authz/objects then we
+    # really need to check all parents of the object in question
     if(defined $obj_id) {
       if($hc_id == Machination::HPath->
          new(ha=>$self,from=>'/system/special/authz/objects')->id) {
@@ -2184,8 +2261,11 @@ sub action_allowed {
 
     my $is_allow = undef;
     foreach my $cur_hc_id (@hcs) {
+      $self->log->dmsg($cat,"checking $cur_hc_id for authz",10);
+      my $cur_hc = Machination::MooseHC->new(ha=>$self, id=>$cur_hc_id);
+      my @rev_idpath = reverse(@{$cur_hc->id_path});
       my $sth = $self->
-        get_authz_handle($req->{channel_id},[$cur_hc_id],$req->{op},$opts);
+        get_authz_handle($req->{channel_id},\@rev_idpath,$req->{op},$opts);
       my $it = $self->att_iterator($sth);
       my @cur_hc_ancestors = reverse @{
         Machination::MooseHC->
@@ -3327,9 +3407,9 @@ sub create_special_sets {
   my $ehp = Machination::HPath->new(ha=>$self,from=>$empty_hpath);
 
   die "create_special_sets: $univ_hpath doesn't exist"
-    unless($uhp->id);
+    unless($uhp->exists);
   die "create_special_sets: $empty_hpath doesn't exist"
-    unless($ehp->id);
+    unless($ehp->exists);
 
   my $uhc = Machination::HObject->new($self,"machination:hc",$uhp->id);
   my $ehc = Machination::HObject->new($self,"machination:hc",$ehp->id);

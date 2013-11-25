@@ -294,6 +294,7 @@ sub string_to_rep {
     }
   }
   $tracking->{name} = "" unless defined $tracking->{name};
+  $tracking->{type} = 'machination:hc' unless defined $tracking->{type};
   my $item = $self->_path_item($tracking);
   push @path, $item
     unless($item->is_hc and $item->name eq "");

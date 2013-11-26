@@ -697,7 +697,6 @@ sub call_ListAttachments {
   my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
   die "$hc is not an hc, it is a " . $hp->type
     unless($hp->type eq "machination:hc");
-  die "hc $hc does not exist" unless($hp->exists);
 
   $ha->log->dmsg("WebHierarchy.ListAttachments","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -708,7 +707,9 @@ sub call_ListAttachments {
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->id));
+    unless($ha->action_allowed($req,$hp));
+
+  die "hc $hc does not exist" unless($hp->exists);
 
   my $types = $opts->{types};
   unless (defined $types) {

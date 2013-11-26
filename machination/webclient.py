@@ -167,7 +167,7 @@ class WebClient(object):
 
     # Convenience method for constructing wc from an etree element.
     @classmethod
-    def from_service_elt(cls, elt, obj_type, credentials=None):
+    def from_service_elt(cls, service_elt, obj_type, credentials=None):
         '''Class method: construct a WebClient from an etree element.
         '''
         tmp_auth = service_elt.xpath(
@@ -191,7 +191,7 @@ class WebClient(object):
         authen_elt = tmp_auth[0]
         authen_type = authen_elt.get("type")
         if authen_type == 'debug' and credentials is None:
-            credentials = {'name': authen_elt['username']}
+            credentials = {'name': authen_elt.get('username')}
         service_id = service_elt.get('id')
         hierarchy_url = service_elt.xpath('hierarchy/@id')[0]
         return cls(hierarchy_url = hierarchy_url,

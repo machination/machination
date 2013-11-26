@@ -1,0 +1,15 @@
+﻿<wus>
+  <wu id='/status/worker[@id="printer"]/model[@id="Kyocera FS-1030D"]'
+      op='remove'>
+    <model id="Kyocera FS-1030D"/>
+  </wu>
+  <wu id='/status/worker[@id="printer"]/printer[@id="fd72"]'
+      op='remove'>
+    <printer id="fd72">
+      <descriptiveName>{id}-{model}-{location}</descriptiveName>
+      <location>Faraday 72</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/fd72</remotePath>
+      <model>Kyocera FS-1030D</model>
+    </printer>
+  </wu>
+</wus>

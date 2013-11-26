@@ -1,0 +1,15 @@
+<wus>
+  <wu id='/status/worker[@id="printer"]/model[@id="Kyocera FS-3900DN"]'
+      op='add'>
+    <model id="Kyocera FS-3900DN"/>
+  </wu>
+  <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
+      op='add'>
+    <printer id="al116">
+      <descriptiveName>{id}-{model}-{location}</descriptiveName>
+      <location>AL116</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/al116</remotePath>
+      <model>Kyocera FS-3900DN</model>
+    </printer>
+  </wu>
+</wus>

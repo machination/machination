@@ -18,26 +18,10 @@
   <zeroOrMore>
     <element name="printer" wu:wu="1">
       <attribute name="id"/>
-      <optional>
-        <element name="machinationFetcherBundle">
-          <attribute name="id">
-            <text/>
-          </attribute>
-        </element>
-      </optional>
-      <element name="basename">
+      <element name="discriptiveName">
         <text/>
       </element>
-      <element name="printer_name">
-        <text/>
-      </element>
-      <element name="net_addr">
-        <text/>
-      </element>
-      <element name="inf">
-        <text/>
-      </element>
-      <element name="driver">
+      <element name="remotePath">
         <text/>
       </element>
       <element name="model">
@@ -46,6 +30,34 @@
       <element name="location">
         <text/>
       </element>
+      <element name="comment">
+        <text/>
+      </element>
+    </element>
+    <element name="model" wu:wu="1">
+      <attribute name="id">
+        <text/>
+      </attribute>
+      <optional>
+        <attribute name="driverVersion">
+          <text/>
+        </attribute>
+      </optional>
+      <optional>
+        <element name="machinationFetcherBundle">
+          <attribute name="id">
+            <text/>
+          </attribute>
+        </element>
+        <element name="infFile">
+          <text/>
+        </element>
+      </optional>
+      <optional>
+        <element name="driverName">
+          <text/>
+        </element>
+      </optional>
     </element>
   </zeroOrMore>
 </element>

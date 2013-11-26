@@ -155,7 +155,7 @@ def generate_wus(todo, comp, orderstyle="move"):
             e.getparent().remove(e)
         # <wu op="remove" id="rx"/>
         l.dmsg('generating remove for {}'.format(rx.to_xpath()))
-        wus.append(E.wu(op="remove", id=rx.to_xpath()))
+        wus.append(E.wu(copy.deepcopy(e), op="remove", id=rx.to_xpath()))
 
     # data only modified
     for mx in comp.actions()['datamod'] & todo:

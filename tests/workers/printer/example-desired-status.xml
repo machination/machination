@@ -1,0 +1,15 @@
+<status>
+  <worker id="printer">
+    <printer id="xeroxal">
+      <descriptiveName>{id}-{model}-{location}</descriptiveName>
+      <location>AL Corridor</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/xeroxal</remotePath>
+      <model>Xerox Workcenter 7535 PS</model>
+    </printer>
+    <model id="Xerox Workcenter 7535 PS">
+      <machinationFetcherBundle id="xeroxal">
+        <iniFile>C:\Workspace\WC5735.inf\x2WRADP.inf</iniFile>
+      </machinationFetcherBundle>
+    </model>
+  </worker>
+</status>

@@ -11,30 +11,50 @@ import win32com.client
 import os
 import shutil
 import stat
-
-l = context.logger
+import subprocess
 
 
 class Worker(object):
+    #TODO(Ali): Test woker for drivers that are not installed
+    # check if /u stopmps on old drivers if given new ones
+    # Test xerox first
 
     def __init__(self):
+        self.log = context.logger
         self.name = self.__module__.split('.')[-1]
         self.wd = xmltools.WorkerDescription(self.name,
                                              prefix='/status')
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
+    def print_ui(self, printer):
+        """Function to take in a list of args and tell
+        subprocess to run them. Can be any list but first
+         arg must be a valid program or command."""
+        #using the list, printer tell subprocess.Popen
+        #to run the comand printui.exe
+        proc = subprocess.Popen(printer)
+        return proc.wait()
+
     def do_work(self, work_list):
         "Process the work units and return their status."
         result = []
         for wu in work_list:
-            if wu[0].tag != "printer":
+            # We only expect 'printer' or 'model' work units
+            if wu[0].tag not in ["printer", "model"]:
                 msg = "Work unit of type: " + wu[0].tag
                 msg += " not understood by packageman. Failing."
-                l.emsg(msg)
+                self.log.emsg(msg)
                 res = etree.Element("wu",
                                     id=wu.attrib["id"],
                                     status="error",
                                     message=msg)
+                continue
+            # No need to do anything for a model
+            if wu[0].tag == 'model':
+                res = etree.Element("wu",
+                                    id=wu.attrib["id"])
+                res.attrib["status"] = "success"
+                result.append(res)
                 continue
             operator = "_{}".format(wu.attrib["op"])
             res = getattr(self, operator)(wu)
@@ -44,52 +64,78 @@ class Worker(object):
     def _add(self, work):
         res = etree.Element("wu",
                             id=work.attrib["id"])
-        #check if the worker is running in CMD mode(standalone installer)
-        #if not then assume machination and add the printer
-        #do printer additions in here
-        #defins subprocsess.Popen and use it with printui.exe and the
-        #options form printer{}
 
-        #pass the work unit to a methord to get the
-        #and return a list from the xml
-        #take that and stick it into subprocess.popen
+        cmdopts = {'printerName': ['/x', '/n', work[0].get("id") ],
+                   'remotePath': ['/r', work[0].xpath('remotePath')[0].text ],
+                   'model': ['/m', work[0].xpath('model')[0].text ]}
 
-        cmdopts = {'basename': ['/b'],
-                   'printer_name': ['/x', '/n'],
-                   'net_addr': ['/r'],
-                   'driver': ['/b', '/l'],
-                   'model': ['/m']}
-
-        #inf can be built in so not in the defalt opts
-        #get sysroot value from win rathere than explisetly calling it
-
+        # Start building a printui command
         printer = [os.path.join(
-                   os.eviron.get('SYSTEMROOT', os.path.join('C:','Windows')),
-                   'system32', 'printerui.exe'), '/in', '/u']
-        printer["name"] = work[0].get('id')
-        for property in cmdopts:
-            printer.extend(cmdopts[property])
-            printer.extend([x for x in work[0].xpath(property)[0].text])
+                   os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
+                   'system32', 'printui.exe')]
+        # Use staged driver driver.
+        printer.append('/u')
+        # Construct human readable printer name ('base' name in
+        # windows, hence /b).
+        printer.extend(
+            [
+                '/b',
+                self.descriptive_name(work[0])
+                ]
+            )
+        # Queue name.
+        printer.extend(['/n', work[0].get("id")])
+        # 'Remote path' = port, url or path to print server queue
+        printer.extend(['/r', work[0].xpath('remotePath')[0].text ])
 
-        # Handle inf path differently depending on whether it is built
-        # in or needed to be downloaded.
-        bundle_elts = work[0].xpath('machinationFetcherBundle')
+        # Now we need model information. We'll need to get that from
+        # context.desired_status. Outside of Machination a wrapper
+        # script will need to supply a fake context.
+        printer_model = work[0].xpath(
+            'model/text()'
+            )[0]
+        xp = '/status/worker[@id="printer"]/model[@id="%s"]' % printer_model
+        model_elt = context.desired_status.getroot().xpath(xp)[0]
+
+        # Normally the driver name is the same as the model_elt id. In
+        # exceptional circumstances it may be necessary to set
+        # something different. In that case there should be a
+        # driverName child of model.
+        try:
+            driverName = model_elt.xpath("driverName/text()")[0]
+        except IndexError:
+            driverName = model_elt.get("id")
+        printer.extend(['/m',driverName])
+
+        # Handle inf path differently depending on whether the driver
+        # is built in or needed to be downloaded.
+        bundle_elts = model_elt.xpath('machinationFetcherBundle')
         if bundle_elts:
-            # We needed to download it.
+            # We needed to download it. Fetcher should have done the
+            # download already, we just have to point to the files.
             printer.extend(
                 [
                     '/if', '/f',
                     os.path.join(context.cache_dir(),
                                  "bundles",
                                  bundle_elts[0].get("id"),
-                                 work[0].xpath('inf')[0].text)
-                ]
-            )
+                                 model_elt.xpath('infFile/text()')[0])
+                    ]
+                )
         else:
-            printer.extend(['/if', '/f', work[0].xpath('inf')[0].text])
+            # No bundles: builtin driver.
+            printer.extend(
+                [
+                    '/if', '/f',
+                    os.path.join(
+                        os.environ.get('windir'),'inf', 'ntdriver.inf'
+                        )
+                    ]
+                )
 
+        print(printer)
         #after parsing the xml go and add that printer
-        return_code = printUI(printer)
+        return_code = self.print_ui(printer)
 
         #check the return code from processAdd
         if return_code:
@@ -112,23 +158,20 @@ class Worker(object):
         return self._add(work)
 
     def _remove(self, work):
-        res = etree.Element("wu",
-                             wuId=work.attrib["id"])
+        res = etree.Element("wu", id=work.attrib["id"])
 
-        printerId = MRXpath(/prof/wu[@id='printer'].getid() #check
+        dname = self.descriptive_name(work[0])
 
         #do removal here
         printer = [os.path.join(
-                   os.environ.get('SYSTEMROOT', os.path.join('C:','Windows')),
-                   'system32', 'printerui.exe'), '/dn']
+                   os.environ.get('SYSTEMROOT', os.path.join('C:', 'Windows')),
+                   'system32', 'printui.exe'), '/dl', '/n']
 
-        printer["name"] = printerId
-        for property in cmdopts:
-            printer.extend([x for x in work[0].xpath('basename')[0].text])
-            #change above to only get the basename rather than listcomp
-        #after parsing the xml go and remove that network printer
+        #use the wu id to get the name of the printer to remove
+        printer.append(dname)
 
-        return_code = printUI(printer)
+        print(printer)
+        return_code = self.print_ui(printer)
 
         #check the return code from processAdd
         if return_code:
@@ -138,8 +181,13 @@ class Worker(object):
 
         return res
 
-    def printUI(self, printer):
-        #using the list, printer tell subprocess.Popen
-        #to run the comand printui.exe
-        proc = subprocess.Popen(printer)
-        return proc.wait()
+    def descriptive_name(self, wu):
+        # Put the information from the XML into a dict for formatting
+        # purposes.
+        info = {
+            'id':wu.get("id"),
+            'location':wu.xpath('location')[0].text,
+            'model':wu.xpath('model')[0].text,
+            'remotePath':wu.xpath('remotePath')[0].text
+            }
+        return wu.xpath('descriptiveName')[0].text.format(**info)

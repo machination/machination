@@ -738,28 +738,55 @@ sub call_ListAttachments {
 
 =item B<AgroupMembers>
 
-$members = AgroupMembers($type_id, $obj_id, $opts)
+$members = AgroupMembers($path_or_spec, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an agroup object (/path/to/agroup_something:blah). Otherwise it is
+interpreted as a constructor string for a MooseHObject
+(e.g. 'type_name:id').
 
 =cut
 #hp
 sub call_AgroupMembers {
-  my ($owner,$approval,$path,$opts) = @_;
-
+  my ($owner,$approval,$path_or_spec,$opts) = @_;
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
-  my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
 
+  my $type_id;
+  my $id;
+  my $parent_hpath;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    if($hp->exists) {
+      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    if($o->exists) {
+      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+  }
+
+  my $type_name = $ha->type_name($type_id);
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listchildren",
-             mpath=>"/contents/" . $hp->type . ":[" . $hp->id . "]",
+             mpath=>"/contents/$type_name\[$id\]/members",
              owner=>$owner,
              approval=>$approval};
-#  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->parent->id));
+    unless($ha->action_allowed($req,$parent_hpath->id));
 
   return $ha->
-    get_ag_member_handle($hp->type_id, $hp->id)->
+    get_ag_member_handle($type_id, $id)->
       fetchall_arrayref({}, $opts->{max_objects});
 }
 

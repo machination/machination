@@ -42,6 +42,7 @@ sub BUILD {
   my $args = shift;
 
   if(defined $args->{from}) {
+    $self->ha->log->dmsg("moosehobject","building moosehobject from " . $args->{from},10);
     my ($type, $id) = $args->{from} =~ /^(.*?):(.*)$/;
     $self->_set_id($id);
     if($type =~ s/^\#//) {
@@ -50,6 +51,7 @@ sub BUILD {
       $self->_set_type_id($self->ha->type_id($type));
     }
   }
+  $self->ha->log->dmsg("moosehobject",sprintf("  (%d, %d)",$self->type_id, $self->id),10);
 }
 
 sub fetch_data {
@@ -160,7 +162,7 @@ sub obj_table {
   if($self->type_id eq "machination:hc" || !defined $self->type_id) {
     return "hcs";
   } else {
-    return "objs_" . $self->id;
+    return "objs_" . $self->type_id;
   }
 }
 

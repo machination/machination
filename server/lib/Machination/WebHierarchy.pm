@@ -853,7 +853,7 @@ $success = ExtendIteratorLife($handle)
 $list = GetAssertionList($type_name, $obj_name, $channel)
 
 =cut
-
+#hp
 sub call_GetAssertionList {
   my ($owner,$approval,$type_name, $obj_name) = @_;
   my $info;

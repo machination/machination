@@ -20,6 +20,7 @@ package Machination::HAccessor;
 
 use Carp;
 use File::Temp qw(tempfile);
+use Scalar::Util qw(openhandle);
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -566,6 +567,82 @@ sub ssl_get_dn {
     $dn->{$name} = $value;
   }
   return $dn;
+}
+
+=item B<ssl_dn_from_file>
+
+$dnstring = $ha->ssl_dn_from_file($filename)
+
+=cut
+
+sub ssl_dn_from_file {
+  my $self = shift;
+  my $file = shift;
+
+  # A place to put stderr from the openssl cmd
+  my $errfh = File::Temp->new;
+  $errfh->unlink_on_destroy(1);
+  my $errfile = $errfh->filename;
+
+  # parse out the various fields from the subject
+  my $fulldn =
+    qx"openssl x509 -in $file -noout -subject -nameopt RFC2253 2>$errfile";
+  if($?) {
+    my $msg;
+    {
+      local($/);
+      $msg = <$errfh>;
+    }
+    $errfh->DESTROY;
+    die $msg;
+  }
+  $errfh->DESTROY;
+  chomp $fulldn;
+  $fulldn =~ s/^subject=\s*//;
+
+  $self->log->dmsg('ssl_dn_from_file', $fulldn, 10);
+
+  return $fulldn;
+}
+
+=item B<ssl_split_dn>
+
+\@dn = $ha->ssl_split_dn($fulldn)
+
+example return value:
+ [
+  ['CN'='os_instance:foo'],
+  ['DC','example'],
+  ['DC','com']
+ ]
+
+=cut
+
+sub ssl_split_dn {
+  my $self = shift;
+  my $fulldn = shift;
+
+  my @fields = quotewords(",", 0,$fulldn);
+  my @dn;
+  foreach my $field (@fields) {
+    my ($name, $value) = quotewords("=",0,$field);
+    push @dn, [$name,$value];
+  }
+  return \@dn;
+}
+
+=item B<ssl_server_dn>
+
+$fulldn = $ha->ssl_server_dn
+
+=cut
+
+sub ssl_server_dn {
+  my $self = shift;
+  my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
+  my $cafile = $haccess_node->
+    findvalue('authentication/certSign/ca/@certfile');
+  return $self->ssl_dn_from_file($cafile);
 }
 
 =item B<ssl_entity_from_cn>

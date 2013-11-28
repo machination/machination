@@ -357,6 +357,15 @@ sub call_CertInfo {
     $info->{dnform}->{$node->getAttribute("id")} = $default;
   }
 
+  $info->{serverdn_string_rfc} = $ha->ssl_server_dn;
+  $info->{serverdn_list} = $ha->ssl_split_dn($info->{serverdn_string_rfc});
+
+  my @dnbase = @{$info->{serverdn_list}};
+  shift @dnbase;
+  $info->{dnbase_list} = \@dnbase;
+  $info->{dnbase_string_rfc} =
+    join(",", map {$_->[0] . "=" . $_->[1]} @dnbase);
+
   return $info;
 }
 

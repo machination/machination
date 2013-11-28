@@ -10,9 +10,16 @@ import json
 
 def main(inargs):
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--name', '-n')
-    ap.add_argument('--type', '-t', default="person")
-    ap.add_argument('--authtype', '-a', default="basic")
+    ap.add_argument('--authtype', '-a', default="basic",
+                    help='authentication type')
+    ap.add_argument('--type', '-t', default="person",
+                    help='object type of actor')
+    ap.add_argument('--name', '-n',
+                    help='name of actor (needed by debug, basic, cosign)')
+    ap.add_argument('--key','-k',
+                    help='certificate key file for actor (ssl)')
+    ap.add_argument('--cert', '-c',
+                    help='certificate file for actor (ssl)')
     ap.add_argument('--opt', '-o', action='append')
     # TODO(Colin): get default service from config file
     ap.add_argument('--service', '-s',
@@ -43,8 +50,11 @@ def main(inargs):
     call_args = [json.loads(x) for x in args.args]
     print(args.call, call_args)
 
-    if args.authtype == 'debug':
-        cred = { 'name': args.name }
+    cred = {}
+    cred['name'] = args.name
+    cred['key'] = args.key
+    cred['cert'] = args.cert
+
     wc = WebClient(args.service, args.authtype, args.type, credentials=cred)
     print(json.dumps(wc.call(args.call, *call_args), indent=2))
 

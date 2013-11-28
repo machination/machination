@@ -130,7 +130,7 @@
       </type>
 
       <certSign lifetime="3650">
-        <ca certfile="/etc/ca-certificates/machination-server/machination-server-ca.crt"
+        <ca certfile="/usr/share/ca-certificates/machination-server/machination-server-ca.crt"
             keyfile="secrets/machination-server-ca.key"/>
         <clientDNForm>
           <node id="C" check="equal"

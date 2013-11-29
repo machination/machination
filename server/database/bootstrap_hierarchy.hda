@@ -11,6 +11,7 @@ setvar(_USER_,changeme_to_admin_user@somewhere.com)
 
 /system/special is_mp=1
 /system/special/authz/objects is_mp=1
+/system/special/authz/valid_oses
 
 /lib is_mp=1
 

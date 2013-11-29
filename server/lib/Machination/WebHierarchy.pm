@@ -114,6 +114,7 @@ my %calls =
    # Manipulating the hierarchy and objects
    ########################################
    Create => undef,
+   AddValidOs => undef,
 
     Link => undef,
     Unlink => undef,
@@ -339,32 +340,21 @@ sub call_HierarchyChannel {
 =cut
 #hp
 sub call_CertInfo {
-  my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
-  my @nodes = $haccess_node->findnodes("authentication/certSign/clientDNForm/node");
-  unless(@nodes) {
-    error("No certificate information found");
-    return Apache2::Const::OK;
-  }
-  my $info = {dnform=>{}};
-  foreach my $node (@nodes) {
-    my $default;
-    if($node->getAttribute("check") eq "equal") {
-      $default = $node->getAttribute("value");
-    }
-    $default = $node->getAttribute("default")
-      if($node->hasAttribute("default"));
-    next unless(defined $default);
-    $info->{dnform}->{$node->getAttribute("id")} = $default;
-  }
-
+  my $info = {};
   $info->{serverdn_string_rfc} = $ha->ssl_server_dn;
   $info->{serverdn_list} = $ha->ssl_split_dn($info->{serverdn_string_rfc});
+  $info->{serverdn_string_slash} =
+    $ha->ssl_dnlist_to_string($info->{serverdn_list}, "slash");
+
 
   my @dnbase = @{$info->{serverdn_list}};
   shift @dnbase;
-  $info->{dnbase_list} = \@dnbase;
-  $info->{dnbase_string_rfc} =
-    join(",", map {$_->[0] . "=" . $_->[1]} @dnbase);
+  $info->{basedn_list} = \@dnbase;
+  $info->{basedn_string_slash} =
+    $ha->ssl_dnlist_to_string($info->{basedn_list}, "slash");
+  $info->{basedn_string_rfc} =
+    $ha->ssl_dnlist_to_string($info->{basedn_list});
+#    join(",", map {$_->[0] . "=" . $_->[1]} @dnbase);
 
   return $info;
 }
@@ -377,6 +367,30 @@ sub call_OsId {
   shift;
   shift;
   return $ha->os_id(@_)
+}
+
+=item B<AddValidOs>
+
+=cut
+
+sub call_AddValidOs {
+  my $caller = shift;
+  my $approval = shift;
+
+  my $hp = Machination::HPath->
+    new(ha=>$ha,from=>"/system/special/authz/valid_oses");
+
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"create",
+             mpath=>"/contents",
+             owner=>$caller,
+             approval=>$approval};
+
+  AuthzDeniedException->
+    throw("could not get create permission for " . $hp->to_string)
+      unless $ha->action_allowed($req,$hp);
+
+  $ha->add_valid_os({actor=>$caller}, @_);
 }
 
 =item B<ServiceInfo>
@@ -1002,8 +1016,8 @@ permissions required:
 sub call_SignIdentityCert {
   my ($caller,$approval,$csr,$force) = @_;
 
-  my $dn = $ha->ssl_get_dn($csr, "req");
-  my ($obj_type, $obj_name) = $ha->ssl_entity_from_cn($dn->{CN});
+  my $cn = $ha->ssl_split_dn($ha->ssl_dn_from_string($csr,"req"))->[0]->[1];
+  my ($obj_type, $obj_name) = $ha->ssl_entity_from_cn($cn);
   my $obj_id = $ha->entity_id($ha->type_id($obj_type), $obj_name);
   my $mpath_obj_id="";
   if($obj_id) {

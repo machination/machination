@@ -569,15 +569,48 @@ sub ssl_get_dn {
   return $dn;
 }
 
+=item B<ssl_dn_from_string>
+
+$dnstring = $ha->ssl_dn_from_string($string, $type)
+
+$type must be one of 'x509' or 'req', default x509.
+
+=cut
+
+sub ssl_dn_from_string {
+  my $self = shift;
+  my $thing = shift;
+  my $type = shift;
+
+  # put the thing into a temporary file so that openssl can find it
+  my $thingfh = File::Temp->new;
+  $thingfh->unlink_on_destroy(1);
+  my $thingfile = $thingfh->filename;
+  print $thingfh $thing;
+
+  my $fulldn = $self->ssl_dn_from_file($thingfh->filename, $type);
+
+  # we are now finished with the temporary file
+  $thingfh->DESTROY;
+
+  return $fulldn;
+}
+
 =item B<ssl_dn_from_file>
 
-$dnstring = $ha->ssl_dn_from_file($filename)
+$dnstring = $ha->ssl_dn_from_file($filename, $filetype)
+
+$filetype must be one of 'x509' or 'req', default x509.
 
 =cut
 
 sub ssl_dn_from_file {
   my $self = shift;
   my $file = shift;
+  my $type = shift;
+  $type = 'x509' unless defined $type;
+  croak "\$filetype must be either 'x509' or 'req'"
+    unless($type eq "x509" or $type eq "req");
 
   # A place to put stderr from the openssl cmd
   my $errfh = File::Temp->new;
@@ -586,7 +619,7 @@ sub ssl_dn_from_file {
 
   # parse out the various fields from the subject
   my $fulldn =
-    qx"openssl x509 -in $file -noout -subject -nameopt RFC2253 2>$errfile";
+    qx"openssl $type -in $file -noout -subject -nameopt RFC2253 2>$errfile";
   if($?) {
     my $msg;
     {
@@ -629,6 +662,27 @@ sub ssl_split_dn {
     push @dn, [$name,$value];
   }
   return \@dn;
+}
+
+=item B<ssl_dnlist_to_string>
+
+$string = $ha->ssl_dnlist_to_string($list, $string_type)q
+
+=cut
+
+sub ssl_dnlist_to_string {
+  my $self = shift;
+  my $list = shift;
+  my $strtype = shift;
+  $strtype = "rfc" unless defined $strtype;
+
+  if ($strtype eq "rfc") {
+    return join(",", map {$_->[0] . "=" . $_->[1]} @$list);
+  } elsif ($strtype eq "slash") {
+    return "/" . join("/", map {$_->[0] . "=" . $_->[1]} reverse(@$list));
+  } else {
+    croak "Don't know how to convert dnlist to string of type '$strtype'";
+  }
 }
 
 =item B<ssl_server_dn>
@@ -686,12 +740,26 @@ sub sign_csr {
     $keyfile = $self->conf->get_dir("dir.CONFIG") . "/" . $keyfile;
   }
 
-  # store the fields and values in $dn
-  my $dn = $self->ssl_get_dn($csr, "req");
-  my $fulldn = $dn->{fulldn};
+  # Get the DN from the request
+  my $fulldn = $self->ssl_dn_from_string($csr,"req");
+  my @fulldn = @{$self->ssl_split_dn($fulldn)};
+  my @basedn = @fulldn;
+  my $cnitem = shift @basedn;
+  my $cn = $cnitem->[1];
+
+  # Check that the server basedn is the same as the csr basedn
+  my @serverdn = @{$self->ssl_split_dn($self->ssl_server_dn)};
+  # Drop the CN.
+  shift @serverdn;
+  # Compare with @basedn
+  my $basedn = join(",", map {$_->[0] . "=" . $_->[1]} @basedn);
+  my $server_basedn = join(",", map {$_->[0] . "=" . $_->[1]} @serverdn);
+  die "Could not sign csr: basedn not equal to server_basedn " .
+    "('$basedn' cf '$server_basedn')"
+      unless($basedn eq $server_basedn);
 
   # check that obj exists
-  my ($obj_type, $obj_name) = $self->ssl_entity_from_cn($dn->{CN});
+  my ($obj_type, $obj_name) = $self->ssl_entity_from_cn($cn);
   die "Could not sign csr: object $obj_type:$obj_name does not exist"
     unless($self->entity_id($self->type_id($obj_type), $obj_name));
 
@@ -707,20 +775,19 @@ sub sign_csr {
   die "A valid certificate for $obj_type:$obj_name exists and force not set"
     if(@$existing_rows and not $force);
 
-  # check conformance for various fields of $dn
-  foreach my $node ($cs_elt->findnodes("clientDNForm/node")) {
+  # check conformance of request CN
+  foreach my $node ($cs_elt->findnodes("clientCNForm")) {
     my $name = $node->findvalue('@id');
     my $check = $node->findvalue('@check');
     my $cfg_val = $node->findvalue('@value');
-    my $dn_val = $dn->{$name};
     if($check eq "equal") {
-      die "Could not sign csr: failed equality check on $name " .
-        "('$dn_val' cf '$cfg_val')"
-          unless($cfg_val eq $dn_val);
+      die "Could not sign csr: failed equality check on CN " .
+        "('$cn' cf '$cfg_val')"
+          unless($cfg_val eq $cn);
     } elsif($check eq "re") {
-      die "Could not sign csr: failed regex check on $name " .
-        "('$dn_val' matches '$cfg_val')"
-          unless($dn_val =~ /$cfg_val/);
+      die "Could not sign csr: failed regex check on CN " .
+        "('$cn' matches '$cfg_val')"
+          unless($cn =~ /$cfg_val/);
     } else {
       die "Could not sign csr: invalid check ($check) specified";
     }

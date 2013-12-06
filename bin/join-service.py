@@ -79,10 +79,10 @@ if __name__ == '__main__':
 #    print(args)
 #    sys.exit()
 
-    cred = {}
-    for credarg in args.cred:
-        (credname, credval) = re.split('=', credarg, 1)
-        cred[credname] = credval
+    if args.cred:
+        cred = dict(s.split('=',1) for s in args.cred)
+    else:
+        cred = {}
 
     try:
         services_elt = context.machination_worker_elt.xpath('services')[0]

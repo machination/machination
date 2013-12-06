@@ -53,7 +53,7 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
             context = None
 
         if context:
-            # python 3.2+
+            # python >= 3.2
             context.verify_mode = ssl.CERT_NONE
             context.load_cert_chain(certfile=self.cert, keyfile=self.key)
             try:

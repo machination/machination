@@ -6,7 +6,9 @@ import getpass
 import os.path
 from machination.webclient import WebClient
 from lxml import etree
-import json
+#import json
+import ast
+from pprint import pprint
 
 def main(inargs):
     ap = argparse.ArgumentParser(description=__doc__)
@@ -14,13 +16,11 @@ def main(inargs):
                     help='authentication type')
     ap.add_argument('--type', '-t', default="person",
                     help='object type of actor')
-    ap.add_argument('--name', '-n',
-                    help='name of actor (needed by debug, basic, cosign)')
-    ap.add_argument('--key','-k',
-                    help='certificate key file for actor (ssl)')
-    ap.add_argument('--cert', '-c',
-                    help='certificate file for actor (ssl)')
-    ap.add_argument('--opt', '-o', action='append')
+    ap.add_argument(
+        '--cred', '-c', action='append',
+        help='credentials entry separated by "=" (e.g. name=foo)'
+        )
+
     # TODO(Colin): get default service from config file
     ap.add_argument('--service', '-s',
                     default='http://localhost/machination/hierarchy')
@@ -29,7 +29,11 @@ def main(inargs):
     args = ap.parse_args(inargs)
     print(args)
 
-    opts = {}
+    if args.cred:
+        cred = dict(s.split('=',1) for s in args.cred)
+    else:
+        cred = {}
+    print(cred)
 
     pubwc = WebClient(args.service, 'public', 'person')
     sxml = pubwc.call('ServiceConfig')
@@ -47,16 +51,11 @@ def main(inargs):
     if not atelt:
         raise Exception("Can't handle authtype {}".format(args.authtype))
 
-    call_args = [json.loads(x) for x in args.args]
+    call_args = [ast.literal_eval(x) for x in args.args]
     print(args.call, call_args)
 
-    cred = {}
-    cred['name'] = args.name
-    cred['key'] = args.key
-    cred['cert'] = args.cert
-
     wc = WebClient(args.service, args.authtype, args.type, credentials=cred)
-    print(json.dumps(wc.call(args.call, *call_args), indent=2))
+    pprint(wc.call(args.call, *call_args), indent=2)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

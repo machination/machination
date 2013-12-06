@@ -114,10 +114,7 @@
         <objType id="person" defaultName="dev"/>
         <objType id="os_instance"/>
       </type>
-      <type id="cert" defaultObjType="os_instance"
-            entityPattern="(?(?=^.*CN=.*?:))
-                           ^.*CN=(?&lt;type&gt;.*?):(?&lt;name&gt;.*)$ |
-                           ^.*CN=(?&lt;name&gt;.*)$">
+      <type id="cert" defaultObjType="os_instance">
         <objType id="os_instance"/>
         <objType id="person"/>
       </type>

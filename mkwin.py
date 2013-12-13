@@ -43,7 +43,7 @@ def get_git_version():
     version = git_describe()
     release_version = read_release_version()
     if version:
-        # Get the release tag, and number of commits away from that
+        # Get the release tag and number of commits away from that
         # release from git.
         [gtag, gcommits, ghash] = version.split('-')
 

@@ -43,11 +43,30 @@ def get_git_version():
     version = git_describe()
     release_version = read_release_version()
     if version:
-        vlist = version.split('-')
-        # Not interested in sha-1.
-        vlist.pop()
-        commits = vlist.pop()
-        version = '{}.{}'.format('-'.join(vlist), commits)
+        # Get the release tag, and number of commits away from that
+        # release from git.
+        [gtag, gcommits, ghash] = version.split('-')
+
+        # The tag should be in the form 1.2.3 (three numbers separated
+        # by '.'): major.minor.bugfix
+        gversions = gtag.split(".")
+
+        # Don't have to specifiy all three numbers in the git
+        # tag. We'd better add any missing ones back in.
+        while len(gversions) < 3:
+            gversions.append("0")
+
+        # The following looks insane, but it is a workaround to the
+        # fact that we want a four number version
+        # (major.minor.bugfix.commits) when in a debugging cycle
+        # whilst the MSI package format only allows three. On the
+        # other hand the last number in the MSI version format can be
+        # from 0-65535 (two bytes), so we munge our last two numbers
+        # into one by restricting them to 0-255 (one byte) each.
+        gupdate = gversions.pop()
+        versions = gversions
+        versions.append(str(int(gupdate)*256 + int(gcommits)))
+        version = ".".join(versions)
     else:
         # If that doesn't work, fall back on the value that's in
         # RELEASE-VERSION.
@@ -110,7 +129,7 @@ def run_setup(pkgname, pkglist, datalist=[], scriptlist=[],
         )
 
 def make_worker_msi(basedir, wname):
-    
+
     logging.info('making msi for {} in {}'.format(wname, basedir))
     wixdir = r'c:\Program Files (x86)\Windows Installer XML v3.6\bin'
     candle = os.path.join(wixdir, 'candle.exe')
@@ -176,7 +195,7 @@ def make_worker_msi(basedir, wname):
 
 def make_id(text):
     return re.sub(r'[^0-9A-Za-z.]', '_', text)
-    
+
 
 if __name__ == "__main__":
 
@@ -262,7 +281,7 @@ if __name__ == "__main__":
 #    core_pkgs.append('machination.workers')
 
     p = Process(
-        target = run_setup, 
+        target = run_setup,
         args = (
             "machination-client-core",
             core_pkgs,

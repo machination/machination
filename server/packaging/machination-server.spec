@@ -41,7 +41,6 @@ do
     cp -p %{srcperllib}/$file %{buildroot}%{perllib}/$file
 done
 mkdir -p %{buildroot}/var/www/cgi-bin
-cp -p machination/server/certcgi/machination-join.py %{buildroot}/var/www/cgi-bin/
 
 mkdir -p %{buildroot}/etc/httpd/conf.d
 cp -p machination/server/packaging/default-mod-perl-machination.conf %{buildroot}/etc/httpd/conf.d/machination.conf
@@ -71,8 +70,6 @@ mkdir -p %{buildroot}/var/log/machination/server/file
 %files
 %{perllib}/*
 %{_bindir}/*
-#/var/www/cgi-bin/machination-join.py
-%config(noreplace) /etc/machination/server
 %config(noreplace) /etc/httpd/conf.d/machination.conf
 %attr(-,apache,apache) /var/lib/machination/server/
 %attr(-,apache,apache) /etc/machination/server/bootstrap_hierarchy.hda

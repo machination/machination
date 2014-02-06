@@ -47,8 +47,8 @@ mkdir -p %{buildroot}/etc/httpd/conf.d
 cp -p machination/server/packaging/default-mod-perl-machination.conf %{buildroot}/etc/httpd/conf.d/machination.conf
 
 mkdir -p %{buildroot}/etc/machination/server/secrets
-cp -p machination/packaging/default-server-config.xml %{buildroot}/etc/machination/server/config.xml
-cp -p machination/packaging/default-dbcred.xml %{buildroot}/etc/machination/server/secrets/dbcred.xml
+cp -p machination/server/packaging/default-server-config.xml %{buildroot}/etc/machination/server/config.xml
+cp -p machination/server/packaging/default-dbcred.xml %{buildroot}/etc/machination/server/secrets/dbcred.xml
 
 mkdir -p %{buildroot}/var/lib/machination/server/database
 mkdir -p %{buildroot}/var/lib/machination/server/database/functions

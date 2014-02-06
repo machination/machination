@@ -44,7 +44,7 @@ mkdir -p %{buildroot}/var/www/cgi-bin
 cp -p machination/server/certcgi/machination-join.py %{buildroot}/var/www/cgi-bin/
 
 mkdir -p %{buildroot}/etc/httpd/conf.d
-cp -p machination/packaging/default-mod-perl-machination.conf %{buildroot}/etc/httpd/conf.d/machination.conf
+cp -p machination/server/packaging/default-mod-perl-machination.conf %{buildroot}/etc/httpd/conf.d/machination.conf
 
 mkdir -p %{buildroot}/etc/machination/server/secrets
 cp -p machination/packaging/default-server-config.xml %{buildroot}/etc/machination/server/config.xml
@@ -71,7 +71,7 @@ mkdir -p %{buildroot}/var/log/machination/server/file
 %files
 %{perllib}/*
 %{_bindir}/*
-/var/www/cgi-bin/machination-join.py
+#/var/www/cgi-bin/machination-join.py
 %config(noreplace) /etc/machination/server
 %config(noreplace) /etc/httpd/conf.d/machination.conf
 %attr(-,apache,apache) /var/lib/machination/server/

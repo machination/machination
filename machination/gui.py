@@ -13,12 +13,13 @@ import functools
 import os
 import context
 from lxml import etree
-from PyQt4 import QtGui
-from PyQt4 import QtCore
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 from machination.webclient import WebClient
 from collections import OrderedDict
 
-class CredentialsDialog(QtGui.QDialog):
+class CredentialsDialog(QDialog):
     '''Capture the correct credentials to authenticate to a service'''
 
     def __init__(self, parent, url):
@@ -34,12 +35,12 @@ class CredentialsDialog(QtGui.QDialog):
                 ('cosign', OrderedDict(
                         [
                             ('login', {
-                                    'label': QtGui.QLabel('Login Name'),
-                                    'widget': QtGui.QLineEdit()
+                                    'label': QLabel('Login Name'),
+                                    'widget': QLineEdit()
                                     }
                              ),
                             ('password', {
-                                    'label': QtGui.QLabel('Password'),
+                                    'label': QLabel('Password'),
                                     'widget': self.makePasswordBox()
                                     }
                              ),
@@ -49,13 +50,13 @@ class CredentialsDialog(QtGui.QDialog):
                 ('cert', OrderedDict(
                         [
                             ('key', {
-                                    'label': QtGui.QLabel('Key File'),
-                                    'widget': QtGui.QLineEdit()
+                                    'label': QLabel('Key File'),
+                                    'widget': QLineEdit()
                                     }
                              ),
                             ('cert', {
-                                    'label': QtGui.QLabel('Certificate File'),
-                                    'widget': QtGui.QLineEdit()
+                                    'label': QLabel('Certificate File'),
+                                    'widget': QLineEdit()
                                     }
                              )
                             ]
@@ -64,12 +65,12 @@ class CredentialsDialog(QtGui.QDialog):
                 ('basic', OrderedDict(
                         [
                             ('username', {
-                                    'label': QtGui.QLabel('User Name'),
-                                    'widget': QtGui.QLineEdit()
+                                    'label': QLabel('User Name'),
+                                    'widget': QLineEdit()
                                     }
                              ),
                             ('password', {
-                                    'label': QtGui.QLabel('Password'),
+                                    'label': QLabel('Password'),
                                     'widget': self.makePasswordBox()
                                     }
                              )
@@ -79,8 +80,8 @@ class CredentialsDialog(QtGui.QDialog):
                 ('debug', OrderedDict(
                         [
                             ('name', {
-                                    'label': QtGui.QLabel('Name'),
-                                    'widget': QtGui.QLineEdit()
+                                    'label': QLabel('Name'),
+                                    'widget': QLineEdit()
                                     }
                              )
                             ]
@@ -90,20 +91,20 @@ class CredentialsDialog(QtGui.QDialog):
             )
 
         # A combobox for the different authentication methods
-        self.auth_method_label = QtGui.QLabel('Authentication Method:')
-        self.auth_methods = QtGui.QComboBox()
+        self.auth_method_label = QLabel('Authentication Method:')
+        self.auth_methods = QComboBox()
 
         # The button box along the bottom
-        self.button_box = QtGui.QDialogButtonBox(
-            QtGui.QDialogButtonBox.Ok |
-            QtGui.QDialogButtonBox.Cancel
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok |
+            QDialogButtonBox.Cancel
             )
 
         # Lay out the main widgets
-        self.main_layout = QtGui.QVBoxLayout()
-        self.cred_layout = QtGui.QVBoxLayout()
+        self.main_layout = QVBoxLayout()
+        self.cred_layout = QVBoxLayout()
         self.main_layout.addLayout(self.cred_layout)
-        self.main_layout.addWidget(QtGui.QLabel(url))
+        self.main_layout.addWidget(QLabel(url))
         self.main_layout.addWidget(self.auth_method_label)
         self.main_layout.addWidget(self.auth_methods)
         self.main_layout.addWidget(self.button_box)
@@ -119,8 +120,8 @@ class CredentialsDialog(QtGui.QDialog):
 
     def makePasswordBox(self):
         '''Make a QLineEdit widget with the 'Password' echo mode.'''
-        box = QtGui.QLineEdit()
-        box.setEchoMode(QtGui.QLineEdit.Password)
+        box = QLineEdit()
+        box.setEchoMode(QLineEdit.Password)
         return box
 
     def setAuthMethodsList(self, methods):
@@ -132,7 +133,7 @@ class CredentialsDialog(QtGui.QDialog):
     def setAuthMethod(self, method):
         '''Set the current choice of authentication method.'''
         self.auth_methods.setCurrentIndex(
-            self.auth_methods.findText(method, QtCore.Qt.MatchExactly)
+            self.auth_methods.findText(method, Qt.MatchExactly)
             )
 
     def method_chosen(self, idx):
@@ -150,7 +151,7 @@ class CredentialsDialog(QtGui.QDialog):
             self.cred_layout.removeItem(self.cred_layout.itemAt(0))
         # Add entry fields
         for key, data in (self.cred_inputs.get(method).items()):
-            layout = QtGui.QHBoxLayout()
+            layout = QHBoxLayout()
             data.get('label').show()
             data.get('widget').show()
             layout.addWidget(data.get('label'))
@@ -162,7 +163,7 @@ class CredentialsDialog(QtGui.QDialog):
         cred_tmp = self.cred_inputs.get(self.current_auth_method)
         return {x:y.get('widget').text() for x,y in cred_tmp.items()}
 
-class MGUI(QtGui.QWidget):
+class MGUI(QWidget):
 
     def __init__(self):
         super().__init__()
@@ -170,12 +171,12 @@ class MGUI(QtGui.QWidget):
 
         self.wcs = {}
 
-        QtCore.QDir.addSearchPath("icons","")
-        print(QtCore.QDir.searchPaths("icons"))
+        QDir.addSearchPath("icons","")
+        print(QDir.searchPaths("icons"))
 
         ### Dialogs ####################
         # service_url
-        self.d_service_url = QtGui.QInputDialog(self)
+        self.d_service_url = QInputDialog(self)
         self.d_service_url.setLabelText("Service URL:")
         self.d_service_url.setComboBoxItems(
             ["http://localhost/machination/hierarchy",
@@ -215,21 +216,21 @@ class MGUI(QtGui.QWidget):
             self.model.add_service(self.wcs[url])
 
     def init_ui(self):
-#        self.model = QtGui.QFileSystemModel()
+#        self.model = QFileSystemModel()
 #        self.model.setRootPath('/')
 
         self.model = HModel()
 
         # The main layout
-        self.vbox = QtGui.QVBoxLayout(self)
+        self.vbox = QVBoxLayout(self)
         self.setLayout(self.vbox)
 
         # Menus
-        self.menubar = QtGui.QMenuBar()
+        self.menubar = QMenuBar()
         self.layout().setMenuBar(self.menubar)
 
         # Service menu
-        self.service_menu = QtGui.QMenu("&Service", self)
+        self.service_menu = QMenu("&Service", self)
         self.menubar.addMenu(self.service_menu)
         # Connect to a new service
         action = self.service_menu.addAction(
@@ -238,13 +239,13 @@ class MGUI(QtGui.QWidget):
             )
 
 
-        self.wtitle = QtGui.QLabel()
+        self.wtitle = QLabel()
         self.wtitle.setText("Workers")
         # Generate worker buttons
         # FIXME: Automate getting a worker list
-        self.wbbox = QtGui.QVBoxLayout()
+        self.wbbox = QVBoxLayout()
         #self.wbbox.addWidget(self.wtitle)
-        self.wkb = QtGui.QButtonGroup()
+        self.wkb = QButtonGroup()
         wkrs = {1: "New",
                 2: "Environment",
                 3: "Fetcher",
@@ -254,22 +255,22 @@ class MGUI(QtGui.QWidget):
                 7: "Time",
                 8: "Usergroup"}
         for wkr in wkrs:
-            b = QtGui.QPushButton(wkrs[wkr])
+            b = QPushButton(wkrs[wkr])
             b.setCheckable(True)
             self.wkb.addButton(b, wkr)
             self.wbbox.addWidget(b)
 
         self.wkb.buttonClicked.connect(self.worker_button_clicked)
 
-        self.librarylist = QtGui.QListWidget()
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                 QtGui.QSizePolicy.Expanding)
+        self.librarylist = QListWidget()
+        sPol = QSizePolicy(QSizePolicy.Fixed,
+                                 QSizePolicy.Expanding)
         self.librarylist.setSizePolicy(sPol)
         self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
-        self.hbox = QtGui.QHBoxLayout(self)
+        self.hbox = QHBoxLayout(self)
         self.vbox.addLayout(self.hbox)
-        self.view = QtGui.QTreeView()
-        self.view.setIconSize(QtCore.QSize(22,22))
+        self.view = QTreeView()
+        self.view.setIconSize(QSize(22,22))
         self.hbox.addWidget(self.view)
         self.view.setModel(self.model)
         self.view.expanded.connect(self.model.on_expand)
@@ -278,24 +279,24 @@ class MGUI(QtGui.QWidget):
         self.view.hideColumn(2)
         self.view.hideColumn(3)
 #        self.view.hideColumn(4)
-        self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
+        self.view.sizePolicy().setHorizontalPolicy(QSizePolicy.Expanding)
         self.view.sizePolicy().setHorizontalStretch(1)
         self.view.resize(self.view.sizeHint())
         self.hbox.addLayout(self.wbbox)
         self.hbox.addWidget(self.librarylist)
 #        self.setLayout(self.hbox)
-        self.contents = QtGui.QVBoxLayout(self)
+        self.contents = QVBoxLayout(self)
         self.hbox.addLayout(self.contents)
-        self.cframe = QtGui.QFrame(self)
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                 QtGui.QSizePolicy.Expanding)
+        self.cframe = QFrame(self)
+        sPol = QSizePolicy(QSizePolicy.Expanding,
+                                 QSizePolicy.Expanding)
         sPol.setHorizontalStretch(0)
         sPol.setVerticalStretch(0)
         self.cframe.setSizePolicy(sPol)
-        self.cframe.setFrameShape(QtGui.QFrame.StyledPanel)
-        self.cframe.setFrameShadow(QtGui.QFrame.Sunken)
+        self.cframe.setFrameShape(QFrame.StyledPanel)
+        self.cframe.setFrameShadow(QFrame.Sunken)
         self.contents.addWidget(self.cframe)
-        self.ctitle = QtGui.QLabel(self.cframe)
+        self.ctitle = QLabel(self.cframe)
         self.ctitle.setText("Please Select a Worker")
 
         self.setGeometry(300, 300, 1080, 520)
@@ -334,7 +335,7 @@ class MGUI(QtGui.QWidget):
     def refresh_type_info(self):
         self.type_info = self.wc.call('TypeInfo')
 
-class HModel(QtGui.QStandardItemModel):
+class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
     '''
 
@@ -365,18 +366,18 @@ class HModel(QtGui.QStandardItemModel):
     def get_icon(self, name):
         '''Return the correct icon for name
         '''
-        return QtGui.QIcon(os.path.join(context.resources_dir(),'{}.svg'.format(name)))
+        return QIcon(os.path.join(context.resources_dir(),'{}.svg'.format(name)))
 
     def add_object(self, parent, obj, wc=None,
                    peek_children=True):
         '''Add an object to parent in tree'''
-        if not isinstance(parent, QtGui.QStandardItem):
+        if not isinstance(parent, QStandardItem):
             # Assume parent is an index
             parent = self.itemFromIndex(parent)
         if wc is None:
             wc = self.get_wc(parent)
 
-        name_item = QtGui.QStandardItem(obj.get('name'))
+        name_item = QStandardItem(obj.get('name'))
         type_id = obj.get('type_id')
         type_name = wc.memo('TypeInfo', type_id).get('name')
 
@@ -391,10 +392,10 @@ class HModel(QtGui.QStandardItemModel):
             name_item.setIcon(self.get_icon(type_name))
         row = [
             name_item,
-            QtGui.QStandardItem(type_id),
-            QtGui.QStandardItem(obj.get('obj_id')),
-            QtGui.QStandardItem(obj.get('channel_id')),
-            QtGui.QStandardItem(obj.get('__branch__')),
+            QStandardItem(type_id),
+            QStandardItem(obj.get('obj_id')),
+            QStandardItem(obj.get('channel_id')),
+            QStandardItem(obj.get('__branch__')),
             ]
         parent.appendRow(row)
 
@@ -413,7 +414,7 @@ class HModel(QtGui.QStandardItemModel):
 
     def get_obj_path(self, thing):
         '''Return list of StandardItem objects from index or item to root.'''
-        if isinstance(thing, QtGui.QStandardItem):
+        if isinstance(thing, QStandardItem):
             index = thing.index()
         else:
             index = thing
@@ -534,7 +535,7 @@ class HModel(QtGui.QStandardItemModel):
 
 # Later we'll make a better model based on QAbstractItemModel. Right
 # now, see HModel -- based on QStandardItemModel
-class HierarchyModel(QtCore.QAbstractItemModel):
+class HierarchyModel(QAbstractItemModel):
 
     def __init__(self, parent = None, wcp = None):
         super().__init__(parent = parent)
@@ -558,7 +559,7 @@ class HObject(object):
         if self.type_id and self.obj_id:
             self.sync()
 
-    data_changed = QtCore.pyqtSignal()
+    data_changed = pyqtSignal()
 
     # Not sure if we want this method...
     def set_data(self, data, timestamp = None):
@@ -702,7 +703,7 @@ class HContainer(HObject):
             col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
 
 def main():
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     ex = MGUI()
     sys.exit(app.exec_())
 

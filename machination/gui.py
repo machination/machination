@@ -19,23 +19,48 @@ class MGUI():
 
     def __init__(self):
 
+        self.wcs = {}
         self.model = HModel()
+
+        QDir.addSearchPath("icons","")
+        print(QDir.searchPaths("icons"))
 
         self.myfile = inspect.getfile(inspect.currentframe())
         self.mydir = os.path.dirname(self.myfile)
         self.ui = PyQt5.uic.loadUi(os.path.join(self.mydir, "gui.ui"))
         self.ui.show()
+        self.ui.treeView.setModel(self.model)
         self.readSettings()
 
+        ### Dialogs ####################
+        # service_url
+        self.d_service_url = QInputDialog(self.ui)
+        self.d_service_url.setLabelText("Service URL:")
+        self.d_service_url.setComboBoxItems(
+            ["http://localhost/machination/hierarchy",
+             "https://mach2-test.see.ed.ac.uk/machination/hierarchy",
+             "https://mach2.see.ed.ac.uk/machination/hierarchy",
+             "--new--"]
+            )
 
         # Signals, slots and events
         self.ui.actionExit.triggered.connect(self.handlerExit)
         self.ui.closeEvent = self.handlerExit
+        self.ui.actionConnect.triggered.connect(self.handlerConnect)
+
+        self.ui.treeView.expanded.connect(self.model.on_expand)
 
     def handlerExit(self, ev = None):
         print("Bye!")
         self.saveSettings()
         sys.exit()
+
+    def handlerConnect(self, ev = None):
+        '''Handler for Service.connect menu item
+        '''
+        ok = self.d_service_url.exec_()
+        if ok:
+            self.connect_to_service(self.d_service_url.textValue())
 
     def saveSettings(self):
         s = QSettings("Machination", "Hierarchy Editor")
@@ -59,45 +84,23 @@ class MGUI():
         self.ui.resize(s.value("size", QSize(900,600)))
         self.ui.move(s.value("pos", QPoint(100,100)))
         s.endGroup()
+
         self.ui.splitter.setSizes(
             [int(x) for x in s.value("splitter/sizes",[300,600])]
             )
 
-
-class MGUIOld(QWidget):
-
-    def __init__(self):
-        super().__init__()
-        self.init_ui()
-
-        self.wcs = {}
-
-        QDir.addSearchPath("icons","")
-        print(QDir.searchPaths("icons"))
-
-        ### Dialogs ####################
-        # service_url
-        self.d_service_url = QInputDialog(self)
-        self.d_service_url.setLabelText("Service URL:")
-        self.d_service_url.setComboBoxItems(
-            ["http://localhost/machination/hierarchy",
-             "https://mach2-test.see.ed.ac.uk/machination/hierarchy",
-             "https://mach2.see.ed.ac.uk/machination/hierarchy",
-             "--new--"]
-            )
-        # credentials
-
-    def menu_service_connect(self):
-        '''Handler for Service.connect menu item
-        '''
-        ok = self.d_service_url.exec_()
-        if ok:
-            self.connect_to_service(self.d_service_url.textValue())
+        s.beginGroup("treeview")
+        for i, sz in enumerate(s.value("colwidths",[200,0,0,0,100])):
+            self.ui.treeView.setColumnWidth(i, int(sz))
+        self.ui.treeView.hideColumn(1)
+        self.ui.treeView.hideColumn(2)
+        self.ui.treeView.hideColumn(3)
+        s.endGroup()
 
     def connect_to_service(self, url):
         '''Connect to a machination hierarchy service.
         '''
-        d = CredentialsDialog(self, url)
+        d = CredentialsDialog(self.ui, url)
         selt = etree.fromstring(
             "<service><hierarchy id='{}'/></service>".format(url)
             )
@@ -115,126 +118,6 @@ class MGUIOld(QWidget):
             cred = d.getCred()
             self.wcs[url] = WebClient(url, d.current_auth_method, 'person', credentials = cred)
             self.model.add_service(self.wcs[url])
-
-    def init_ui(self):
-#        self.model = QFileSystemModel()
-#        self.model.setRootPath('/')
-
-        self.model = HModel()
-
-        # The main layout
-        self.vbox = QVBoxLayout(self)
-        self.setLayout(self.vbox)
-
-        # Menus
-        self.menubar = QMenuBar()
-        self.layout().setMenuBar(self.menubar)
-
-        # Service menu
-        self.service_menu = QMenu("&Service", self)
-        self.menubar.addMenu(self.service_menu)
-        # Connect to a new service
-        action = self.service_menu.addAction(
-            "connect...",
-            self.menu_service_connect
-            )
-
-
-        self.wtitle = QLabel()
-        self.wtitle.setText("Workers")
-        # Generate worker buttons
-        # FIXME: Automate getting a worker list
-        self.wbbox = QVBoxLayout()
-        #self.wbbox.addWidget(self.wtitle)
-        self.wkb = QButtonGroup()
-        wkrs = {1: "New",
-                2: "Environment",
-                3: "Fetcher",
-                4: "Firewall",
-                5: "Packageman",
-                6: "Shortcut",
-                7: "Time",
-                8: "Usergroup"}
-        for wkr in wkrs:
-            b = QPushButton(wkrs[wkr])
-            b.setCheckable(True)
-            self.wkb.addButton(b, wkr)
-            self.wbbox.addWidget(b)
-
-        self.wkb.buttonClicked.connect(self.worker_button_clicked)
-
-        self.librarylist = QListWidget()
-        sPol = QSizePolicy(QSizePolicy.Fixed,
-                                 QSizePolicy.Expanding)
-        self.librarylist.setSizePolicy(sPol)
-        self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
-        self.hbox = QHBoxLayout(self)
-        self.vbox.addLayout(self.hbox)
-        self.view = QTreeView()
-        self.view.setIconSize(QSize(22,22))
-        self.hbox.addWidget(self.view)
-        self.view.setModel(self.model)
-        self.view.expanded.connect(self.model.on_expand)
-        # TODO: hide these after coding/debugging is finished
-        self.view.hideColumn(1)
-        self.view.hideColumn(2)
-        self.view.hideColumn(3)
-#        self.view.hideColumn(4)
-        self.view.sizePolicy().setHorizontalPolicy(QSizePolicy.Expanding)
-        self.view.sizePolicy().setHorizontalStretch(1)
-        self.view.resize(self.view.sizeHint())
-        self.hbox.addLayout(self.wbbox)
-        self.hbox.addWidget(self.librarylist)
-#        self.setLayout(self.hbox)
-        self.contents = QVBoxLayout(self)
-        self.hbox.addLayout(self.contents)
-        self.cframe = QFrame(self)
-        sPol = QSizePolicy(QSizePolicy.Expanding,
-                                 QSizePolicy.Expanding)
-        sPol.setHorizontalStretch(0)
-        sPol.setVerticalStretch(0)
-        self.cframe.setSizePolicy(sPol)
-        self.cframe.setFrameShape(QFrame.StyledPanel)
-        self.cframe.setFrameShadow(QFrame.Sunken)
-        self.contents.addWidget(self.cframe)
-        self.ctitle = QLabel(self.cframe)
-        self.ctitle.setText("Please Select a Worker")
-
-        self.setGeometry(300, 300, 1080, 520)
-        self.setWindowTitle('Machination GUI')
-        self.show()
-
-    def worker_button_clicked(self):
-        btn = self.wkb.checkedButton()
-        self.librarylist.clear()
-        if btn.text() == "New":
-            self.addnew = True
-            self.librarylist.addItem("Environment")
-            self.librarylist.addItem("Fetcher")
-            self.librarylist.addItem("Firewall")
-            self.librarylist.addItem("Packageman")
-            self.librarylist.addItem("Shortcut")
-            self.librarylist.addItem("Time")
-            self.librarylist.addItem("Usergroup")
-        else:
-            self.addnew = False
-            for li in self.get_li(btn.text()):
-                self.librarylist.addItem(li["Name"])
-
-    def worker_list_changed(self):
-        itm = self.librarylist.selectedItems()
-        if itm is None:
-            #Clear contents of c_frame except buttons
-            pass
-        elif self.addnew == True:
-            #Display entry fields
-            pass
-        else:
-            #Display info fields
-            pass
-
-    def refresh_type_info(self):
-        self.type_info = self.wc.call('TypeInfo')
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView

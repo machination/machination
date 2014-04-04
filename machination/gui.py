@@ -1,169 +1,70 @@
 #! /usr/bin/python3
 
-#Force sip to use API version 2. Should just work on Python3, but let's not
-#take any chances
-import sip
-sip.setapi("QString",2)
-sip.setapi("QVariant",2)
-
 import sys
 import time
 import copy
 import functools
 import os
 import context
+import inspect
 from lxml import etree
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+import PyQt5.uic
 from machination.webclient import WebClient
 from collections import OrderedDict
 
-class CredentialsDialog(QDialog):
-    '''Capture the correct credentials to authenticate to a service'''
+class MGUI():
 
-    def __init__(self, parent, url):
-        super().__init__(parent)
-        self.url = url
+    def __init__(self):
 
-        self.setWindowTitle('Connecting to {}'.format(url))
+        self.model = HModel()
 
-        # Precreated text entry widgets for credentials
-        self.cred_inputs = OrderedDict(
-            [
-                ('public', OrderedDict()),
-                ('cosign', OrderedDict(
-                        [
-                            ('login', {
-                                    'label': QLabel('Login Name'),
-                                    'widget': QLineEdit()
-                                    }
-                             ),
-                            ('password', {
-                                    'label': QLabel('Password'),
-                                    'widget': self.makePasswordBox()
-                                    }
-                             ),
-                            ]
-                        )
-                 ),
-                ('cert', OrderedDict(
-                        [
-                            ('key', {
-                                    'label': QLabel('Key File'),
-                                    'widget': QLineEdit()
-                                    }
-                             ),
-                            ('cert', {
-                                    'label': QLabel('Certificate File'),
-                                    'widget': QLineEdit()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ('basic', OrderedDict(
-                        [
-                            ('username', {
-                                    'label': QLabel('User Name'),
-                                    'widget': QLineEdit()
-                                    }
-                             ),
-                            ('password', {
-                                    'label': QLabel('Password'),
-                                    'widget': self.makePasswordBox()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ('debug', OrderedDict(
-                        [
-                            ('name', {
-                                    'label': QLabel('Name'),
-                                    'widget': QLineEdit()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ]
+        self.myfile = inspect.getfile(inspect.currentframe())
+        self.mydir = os.path.dirname(self.myfile)
+        self.ui = PyQt5.uic.loadUi(os.path.join(self.mydir, "gui.ui"))
+        self.ui.show()
+        self.readSettings()
+
+
+        # Signals, slots and events
+        self.ui.actionExit.triggered.connect(self.handlerExit)
+        self.ui.closeEvent = self.handlerExit
+
+    def handlerExit(self, ev = None):
+        print("Bye!")
+        self.saveSettings()
+        sys.exit()
+
+    def saveSettings(self):
+        s = QSettings("Machination", "Hierarchy Editor")
+        s.beginGroup("mainwin")
+        s.setValue("pos", self.ui.pos())
+        s.setValue("size", self.ui.size())
+        s.endGroup()
+
+        s.setValue("splitter/sizes", self.ui.splitter.sizes())
+
+        s.beginGroup("treeview")
+        s.setValue("colwidths",
+                   [self.ui.treeView.columnWidth(i)
+                    for i in range(self.model.columnCount())]
+                   )
+        s.endGroup()
+
+    def readSettings(self):
+        s = QSettings("Machination", "Hierarchy Editor")
+        s.beginGroup("mainwin")
+        self.ui.resize(s.value("size", QSize(900,600)))
+        self.ui.move(s.value("pos", QPoint(100,100)))
+        s.endGroup()
+        self.ui.splitter.setSizes(
+            [int(x) for x in s.value("splitter/sizes",[300,600])]
             )
 
-        # A combobox for the different authentication methods
-        self.auth_method_label = QLabel('Authentication Method:')
-        self.auth_methods = QComboBox()
 
-        # The button box along the bottom
-        self.button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok |
-            QDialogButtonBox.Cancel
-            )
-
-        # Lay out the main widgets
-        self.main_layout = QVBoxLayout()
-        self.cred_layout = QVBoxLayout()
-        self.main_layout.addLayout(self.cred_layout)
-        self.main_layout.addWidget(QLabel(url))
-        self.main_layout.addWidget(self.auth_method_label)
-        self.main_layout.addWidget(self.auth_methods)
-        self.main_layout.addWidget(self.button_box)
-        self.setLayout(self.main_layout)
-
-        # Populate the authentication combobox
-        self.setAuthMethodsList([x for x in self.cred_inputs.keys()])
-
-        # Connect signals and slots
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        self.auth_methods.currentIndexChanged.connect(self.method_chosen)
-
-    def makePasswordBox(self):
-        '''Make a QLineEdit widget with the 'Password' echo mode.'''
-        box = QLineEdit()
-        box.setEchoMode(QLineEdit.Password)
-        return box
-
-    def setAuthMethodsList(self, methods):
-        '''Set the list of authentication methods to choose from.'''
-        self.auth_methods.clear()
-        self.auth_methods.addItems(methods)
-        self.default_auth_method = methods[0]
-
-    def setAuthMethod(self, method):
-        '''Set the current choice of authentication method.'''
-        self.auth_methods.setCurrentIndex(
-            self.auth_methods.findText(method, Qt.MatchExactly)
-            )
-
-    def method_chosen(self, idx):
-        '''Slot called when an authentication method is chosen.'''
-        if idx < 0: return
-        print('choosing index {}'.format(idx))
-        method = self.auth_methods.itemText(idx)
-        print('choosing method {}'.format(method))
-        self.current_auth_method = method
-        self.auth_method_label.setText("(default = {}, current = {}):".format(self.default_auth_method, self.current_auth_method))
-        # Clear cred_layout
-        for i in range(self.cred_layout.count()):
-            self.cred_layout.itemAt(0).itemAt(0).widget().hide()
-            self.cred_layout.itemAt(0).itemAt(1).widget().hide()
-            self.cred_layout.removeItem(self.cred_layout.itemAt(0))
-        # Add entry fields
-        for key, data in (self.cred_inputs.get(method).items()):
-            layout = QHBoxLayout()
-            data.get('label').show()
-            data.get('widget').show()
-            layout.addWidget(data.get('label'))
-            layout.addWidget(data.get('widget'))
-            self.cred_layout.addLayout(layout)
-
-    def getCred(self):
-        '''Get the captured credentials for the current authentication method.'''
-        cred_tmp = self.cred_inputs.get(self.current_auth_method)
-        return {x:y.get('widget').text() for x,y in cred_tmp.items()}
-
-class MGUI(QWidget):
+class MGUIOld(QWidget):
 
     def __init__(self):
         super().__init__()
@@ -532,184 +433,158 @@ class HModel(QStandardItemModel):
                 member['__branch__'] = 'members'
             return members
 
+class CredentialsDialog(QDialog):
+    '''Capture the correct credentials to authenticate to a service'''
 
-# Later we'll make a better model based on QAbstractItemModel. Right
-# now, see HModel -- based on QStandardItemModel
-class HierarchyModel(QAbstractItemModel):
+    def __init__(self, parent, url):
+        super().__init__(parent)
+        self.url = url
 
-    def __init__(self, parent = None, wcp = None):
-        super().__init__(parent = parent)
-        if wcp is not None: self.setwcp(wcp)
+        self.setWindowTitle('Connecting to {}'.format(url))
 
-    def setwcp(self, wcp):
-        self.wcp = wcp
+        # Precreated text entry widgets for credentials
+        self.cred_inputs = OrderedDict(
+            [
+                ('public', OrderedDict()),
+                ('cosign', OrderedDict(
+                        [
+                            ('login', {
+                                    'label': QLabel('Login Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             ),
+                            ]
+                        )
+                 ),
+                ('cert', OrderedDict(
+                        [
+                            ('key', {
+                                    'label': QLabel('Key File'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('cert', {
+                                    'label': QLabel('Certificate File'),
+                                    'widget': QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('basic', OrderedDict(
+                        [
+                            ('username', {
+                                    'label': QLabel('User Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('debug', OrderedDict(
+                        [
+                            ('name', {
+                                    'label': QLabel('Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ]
+            )
 
-    def index(self, row, column, parent):
-        pass
+        # A combobox for the different authentication methods
+        self.auth_method_label = QLabel('Authentication Method:')
+        self.auth_methods = QComboBox()
 
+        # The button box along the bottom
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok |
+            QDialogButtonBox.Cancel
+            )
 
-class HObject(object):
+        # Lay out the main widgets
+        self.main_layout = QVBoxLayout()
+        self.cred_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.cred_layout)
+        self.main_layout.addWidget(QLabel(url))
+        self.main_layout.addWidget(self.auth_method_label)
+        self.main_layout.addWidget(self.auth_methods)
+        self.main_layout.addWidget(self.button_box)
+        self.setLayout(self.main_layout)
 
-    def __init__(self, wcp, type_id = None, obj_id = None):
-        self.wcp = wcp
-        # lastsync needs to be before any possible modifications
-        self.lastsync = 0
-        self.type_id = type_id
-        self.obj_id = obj_id
-        if self.type_id and self.obj_id:
-            self.sync()
+        # Populate the authentication combobox
+        self.setAuthMethodsList([x for x in self.cred_inputs.keys()])
 
-    data_changed = pyqtSignal()
+        # Connect signals and slots
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.auth_methods.currentIndexChanged.connect(self.method_chosen)
 
-    # Not sure if we want this method...
-    def set_data(self, data, timestamp = None):
-        if timestamp is None:
-            timestamp = time.time()
-        self.lastsync = timestamp
-        self.data = data
-        # TODO(colin) emit signal
+    def makePasswordBox(self):
+        '''Make a QLineEdit widget with the 'Password' echo mode.'''
+        box = QLineEdit()
+        box.setEchoMode(QLineEdit.Password)
+        return box
 
-    def sync(self, changes = None, timestamp = None):
-        '''Check lastsync against server changes and sync if necessary.
+    def setAuthMethodsList(self, methods):
+        '''Set the list of authentication methods to choose from.'''
+        self.auth_methods.clear()
+        self.auth_methods.addItems(methods)
+        self.default_auth_method = methods[0]
 
-        changes should be in the form:
-        {
-         # all objects
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ...},
-         # containers
-         'contents': [
-           {'id': oid, 'type_id': tid, 'name': oname, 'changetype': ct},
-           ...
-         ]
-         'attachments': [
-           {'id': oid, 'type_id': tid, 'name': oname, 'channel': c,
-           'changetype': ct},
-           ...
-         ]
-        '''
-        if timestamp is None:
-            timestamp = time.time()
-        if not changes:
-            changes = self.wcp.call(
-                'ChangesSince',
-                self.type_id,
-                self.obj_id,
-                self.lastsync
-                )
-        self.lastsync = timestamp
+    def setAuthMethod(self, method):
+        '''Set the current choice of authentication method.'''
+        self.auth_methods.setCurrentIndex(
+            self.auth_methods.findText(method, Qt.MatchExactly)
+            )
 
-        if not changes: return
+    def method_chosen(self, idx):
+        '''Slot called when an authentication method is chosen.'''
+        if idx < 0: return
+        print('choosing index {}'.format(idx))
+        method = self.auth_methods.itemText(idx)
+        print('choosing method {}'.format(method))
+        self.current_auth_method = method
+        self.auth_method_label.setText("(default = {}, current = {}):".format(self.default_auth_method, self.current_auth_method))
+        # Clear cred_layout
+        for i in range(self.cred_layout.count()):
+            self.cred_layout.itemAt(0).itemAt(0).widget().hide()
+            self.cred_layout.itemAt(0).itemAt(1).widget().hide()
+            self.cred_layout.removeItem(self.cred_layout.itemAt(0))
+        # Add entry fields
+        for key, data in (self.cred_inputs.get(method).items()):
+            layout = QHBoxLayout()
+            data.get('label').show()
+            data.get('widget').show()
+            layout.addWidget(data.get('label'))
+            layout.addWidget(data.get('widget'))
+            self.cred_layout.addLayout(layout)
 
-        # Sync any changes.
-        self._sync_obj(changes, timestamp)
-
-        # Something has changed, we'd better tell anyone who is
-        # interested.
-        self.data_changed.emit()
-
-    def _sync_obj(self, changes, timestamp):
-        '''Changes in the form:
-
-        {
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ... }
-        }
-
-        changetype indicates whether the object has been added,
-        updated or removed since the last sync time. The type 'remove'
-        should never be passed to this method, object removals are
-        handled by deleting the appropriate HObject.
-        '''
-        if changes.get('changetype') == 'remove':
-            raise AttributeError(
-                '_sync_obj should never be called with remove change type'
-                )
-        self.lastsync = timestamp
-        self.data = copy.copy(changes.get('fields'))
-
-class HContainer(HObject):
-    '''Data structure representing hcs
-
-    self.data as HObject
-    self.contents as {
-      ord1: hitem1,
-      ord2: hitem2,
-      ...
-    }
-    self.attachments same form as self.contents
-    '''
-
-    def _sync_obj(self, changes, timestamp):
-        '''Changes in the form:
-
-        {
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ... },
-         'contents': {
-           'remove' : [
-             {
-               'type_id': tid,
-               'id': oid,
-               'ordinal': ord,
-             },
-             ...
-           ],
-           'move': [
-             {
-               'type_id': tid,
-               'id': oid,
-               'old_ordinal': ord,
-               'new_ordinal': ord,
-             },
-             ...
-           ],
-           'add' : [
-             {
-               'type_id': tid,
-               'id': oid,
-               'ordinal': ord,
-             },
-             ...
-           ],
-         ],
-         'attachments': same form as contents
-        }
-        '''
-        # Call _sync_obj from HObject to capture changes to data
-        super()._sync_obj(changes, timestamp)
-
-        # Apply changes to contents
-        self.apply_collection_changes(self.contents, changes)
-
-        # Apply changes to attachments
-        self.apply_collection_changes(self.attachments, changes)
-
-    def apply_collection_changes(self, col, changes):
-
-        # Removes.
-        for change in changes.get('remove', []):
-            del col[change.get('ordinal')]
-
-        # Moves.
-        for change in changes.get('move', []):
-            oldord = change.get('old_ordinal')
-            item = col.get(oldord)
-            del col[oldord]
-            col[change.get('new_ordinal')] = item
-
-        # Adds.
-        for change in changes.get('add', []):
-            col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
+    def getCred(self):
+        '''Get the captured credentials for the current authentication method.'''
+        cred_tmp = self.cred_inputs.get(self.current_auth_method)
+        return {x:y.get('widget').text() for x,y in cred_tmp.items()}
 
 def main():
-    app = QApplication(sys.argv)
     ex = MGUI()
-    sys.exit(app.exec_())
+    return app.exec_()
 
 
 if __name__ == '__main__':
-    main()
+    app = QApplication(sys.argv)
+    sys.exit(main())
 
 
 

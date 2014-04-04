@@ -51,6 +51,8 @@ class MGUI():
 
         self.ui.treeView.expanded.connect(self.model.on_expand)
         self.ui.treeView.wheelEvent = self.treeViewWheelEvent
+        self.ui.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.treeView.customContextMenuRequested.connect(self.treeViewShowContextMenu)
 
     def handlerExit(self, ev = None):
         print("Bye!")
@@ -61,6 +63,12 @@ class MGUI():
         '''Handler for Connect menu item
         '''
         self.connectToService()
+
+    def baseContextMenu(self):
+        '''Base application context menu'''
+        menu = QMenu(self.ui)
+        menu.addAction("Exit", self.handlerExit)
+        return menu
 
     def saveSettings(self):
         s = QSettings("Machination", "Hierarchy Editor")
@@ -143,6 +151,9 @@ class MGUI():
             self.ui.treeView.setIconSize(QSize(isz, isz))
             self.ui.treeView.setIndentation(isz)
 
+    def treeViewHandlerResetScale(self, ev = None):
+        self.treeViewSetScale(1)
+
     def treeViewWheelEvent(self, ev):
         '''Handler for wheel events in ui.treeView'''
         if ev.modifiers() & Qt.ControlModifier:
@@ -152,6 +163,29 @@ class MGUI():
             ev.accept()
         else:
             QTreeView.wheelEvent(self.ui.treeView, ev)
+
+    def treeViewContextMenu(self):
+        '''Construct treeView context menu.'''
+        menu = self.baseContextMenu()
+        aexit = None
+        for a in menu.actions():
+            if a.text() == "Exit":
+                aexit = a
+                break
+        adel = QAction("Delete", self.ui.treeView)
+        adel.triggered.connect(self.treeViewHandlerDeleteItem)
+        menu.insertAction(aexit,adel)
+        return menu
+
+    def treeViewShowContextMenu(self, pos):
+        menu = self.treeViewContextMenu()
+        menu.exec(self.ui.treeView.mapToGlobal(pos))
+
+    def treeViewHandlerDeleteItem(self):
+        for idx in self.ui.treeView.selectedIndexes():
+            if idx.column() != 0:
+                continue
+            print("Deleting {}".format(self.model.get_path(idx)))
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView

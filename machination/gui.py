@@ -50,6 +50,7 @@ class MGUI():
         self.ui.actionConnect.triggered.connect(self.handlerConnect)
 
         self.ui.treeView.expanded.connect(self.model.on_expand)
+        self.ui.treeView.wheelEvent = self.treeViewWheelEvent
 
     def handlerExit(self, ev = None):
         print("Bye!")
@@ -59,9 +60,6 @@ class MGUI():
     def handlerConnect(self, ev = None):
         '''Handler for Connect menu item
         '''
-#        ok = self.d_service_url.exec_()
-#        if ok:
-#            self.connect_to_service(self.d_service_url.textValue())
         self.connectToService()
 
     def saveSettings(self):
@@ -78,6 +76,8 @@ class MGUI():
                    [self.ui.treeView.columnWidth(i)
                     for i in range(self.model.columnCount())]
                    )
+        s.setValue("base_icon_size",self.ui.treeView.baseIconSize)
+        s.setValue("scale",self.ui.treeView.scale)
         s.endGroup()
 
     def readSettings(self):
@@ -94,6 +94,8 @@ class MGUI():
         s.beginGroup("treeview")
         for i, sz in enumerate(s.value("colwidths",[200,0,0,0,100])):
             self.ui.treeView.setColumnWidth(i, int(sz))
+        self.ui.treeView.baseIconSize = int(s.value("base_icon_size", 24))
+        self.treeViewSetScale(float(s.value("scale", 1.0)))
         self.ui.treeView.hideColumn(1)
         self.ui.treeView.hideColumn(2)
         self.ui.treeView.hideColumn(3)
@@ -130,6 +132,26 @@ class MGUI():
 
         self.wcs[url] = WebClient(url, method, 'person', credentials = cred)
         self.model.add_service(self.wcs[url])
+
+    # In lieu of being able to subclass QTreeView, treeView methods
+    # collected here:
+
+    def treeViewSetScale(self, scale):
+        self.ui.treeView.scale = scale
+        isz = int(self.ui.treeView.baseIconSize * scale)
+        if isz != self.ui.treeView.iconSize().height():
+            self.ui.treeView.setIconSize(QSize(isz, isz))
+            self.ui.treeView.setIndentation(isz)
+
+    def treeViewWheelEvent(self, ev):
+        '''Handler for wheel events in ui.treeView'''
+        if ev.modifiers() & Qt.ControlModifier:
+            self.treeViewSetScale(
+                self.ui.treeView.scale + ( float(ev.angleDelta().y()) / 2400)
+                )
+            ev.accept()
+        else:
+            QTreeView.wheelEvent(self.ui.treeView, ev)
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView

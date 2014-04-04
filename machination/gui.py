@@ -49,10 +49,16 @@ class MGUI():
         self.ui.closeEvent = self.handlerExit
         self.ui.actionConnect.triggered.connect(self.handlerConnect)
 
+        self.ui.treeView.drawBranches = self.treeViewDrawBranches
         self.ui.treeView.expanded.connect(self.model.on_expand)
         self.ui.treeView.wheelEvent = self.treeViewWheelEvent
         self.ui.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.treeView.customContextMenuRequested.connect(self.treeViewShowContextMenu)
+        self.ui.treeView.selectionModel().selectionChanged.connect(self.treeViewSlotSelectionChanged)
+
+        # Resources
+        self.treeViewAttachmentsIcon = self.model.get_icon("__branch__attachments")
+        self.treeViewMembersIcon = self.model.get_icon("__branch__members")
 
     def handlerExit(self, ev = None):
         print("Bye!")
@@ -104,9 +110,10 @@ class MGUI():
             self.ui.treeView.setColumnWidth(i, int(sz))
         self.ui.treeView.baseIconSize = int(s.value("base_icon_size", 24))
         self.treeViewSetScale(float(s.value("scale", 1.0)))
-        self.ui.treeView.hideColumn(1)
-        self.ui.treeView.hideColumn(2)
-        self.ui.treeView.hideColumn(3)
+        self.ui.treeView.hideColumn(HModel.columns.index("type_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("obj_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("channel_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("__branch__"))
         s.endGroup()
 
     def connectToService(self, url = None, method = None, cred = None):
@@ -186,6 +193,38 @@ class MGUI():
             if idx.column() != 0:
                 continue
             print("Deleting {}".format(self.model.get_path(idx)))
+
+    def treeViewSlotSelectionChanged(self, selected, deselected):
+        for idx in selected.indexes():
+            if idx.column() != 0:
+                continue
+            print("Sel: {}".format(self.model.get_path(idx)))
+
+    def treeViewDrawBranches(self, painter, rect, idx):
+        ilvl = 0
+        curidx = idx
+        while curidx.parent().isValid():
+            ilvl += 1
+            curidx = curidx.parent()
+        sz = self.ui.treeView.indentation()
+        yoffset = 1
+        h = self.ui.treeView.rowHeight(idx)
+        if h > sz:
+            yoffset = ((h - sz) / 2) + 1
+        idt = sz * ilvl
+#        print("icons = {}, indent by {}".format(self.ui.treeView.iconSize().height(),idt))
+        pixmapSize = QSize(sz - 2, sz - 2)
+        branch = self.model.get_value(idx, "__branch__")
+        pixmap = None
+        if branch == "attachments":
+            pixmap = self.treeViewAttachmentsIcon.pixmap(pixmapSize)
+        elif branch == "members":
+            pixmap = self.treeViewMembersIcon.pixmap(pixmapSize)
+#        painter.drawRect(idt + 1, rect.y() + yoffset, sz - 2, sz - 2)
+        if pixmap:
+            painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)
+        QTreeView.drawBranches(self.ui.treeView, painter, rect, idx)
+
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView

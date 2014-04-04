@@ -67,7 +67,7 @@ class MGUI():
     def baseContextMenu(self):
         '''Base application context menu'''
         menu = QMenu(self.ui)
-        menu.addAction("Exit", self.handlerExit)
+#        menu.addAction("Exit", self.handlerExit)
         return menu
 
     def saveSettings(self):

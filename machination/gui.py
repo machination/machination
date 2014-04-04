@@ -7,6 +7,7 @@ import functools
 import os
 import context
 import inspect
+import argparse
 from lxml import etree
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -56,11 +57,12 @@ class MGUI():
         sys.exit()
 
     def handlerConnect(self, ev = None):
-        '''Handler for Service.connect menu item
+        '''Handler for Connect menu item
         '''
-        ok = self.d_service_url.exec_()
-        if ok:
-            self.connect_to_service(self.d_service_url.textValue())
+#        ok = self.d_service_url.exec_()
+#        if ok:
+#            self.connect_to_service(self.d_service_url.textValue())
+        self.connectToService()
 
     def saveSettings(self):
         s = QSettings("Machination", "Hierarchy Editor")
@@ -97,27 +99,37 @@ class MGUI():
         self.ui.treeView.hideColumn(3)
         s.endGroup()
 
-    def connect_to_service(self, url):
+    def connectToService(self, url = None, method = None, cred = None):
         '''Connect to a machination hierarchy service.
         '''
-        d = CredentialsDialog(self.ui, url)
-        selt = etree.fromstring(
-            "<service><hierarchy id='{}'/></service>".format(url)
-            )
-        tmpwc = WebClient(url, 'public', 'person')
-        istr = tmpwc.call('ServiceConfig')
-        info = etree.fromstring(istr)
-        auth_type_elts = info.xpath('authentication/type')
-        authtypes = [x.get("id") for x in auth_type_elts]
-        d.setAuthMethodsList(authtypes)
-        default_method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
-        d.default_auth_method = default_method
-        d.setAuthMethod(default_method)
-        ok = d.exec_()
-        if ok:
-            cred = d.getCred()
-            self.wcs[url] = WebClient(url, d.current_auth_method, 'person', credentials = cred)
-            self.model.add_service(self.wcs[url])
+        if url is None:
+            ok = self.d_service_url.exec_()
+            if ok:
+                url = self.d_service_url.textValue()
+            else:
+                return
+        if method is None or cred is None:
+            d = CredentialsDialog(self.ui, url)
+            selt = etree.fromstring(
+                "<service><hierarchy id='{}'/></service>".format(url)
+                )
+            tmpwc = WebClient(url, 'public', 'person')
+            istr = tmpwc.call('ServiceConfig')
+            info = etree.fromstring(istr)
+            auth_type_elts = info.xpath('authentication/type')
+            authtypes = [x.get("id") for x in auth_type_elts]
+            d.setAuthMethodsList(authtypes)
+            if method is None:
+                method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
+            d.default_auth_method = method
+            d.setAuthMethod(method)
+            ok = d.exec_()
+            if ok:
+                cred = d.getCred()
+            method = d.current_auth_method
+
+        self.wcs[url] = WebClient(url, method, 'person', credentials = cred)
+        self.model.add_service(self.wcs[url])
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
@@ -462,10 +474,28 @@ class CredentialsDialog(QDialog):
 
 def main():
     ex = MGUI()
+    if args.connect is not None:
+        con_parts = args.connect.split(",")
+        con_url = con_parts[0]
+        con_method = con_parts[1]
+        con_cred = {}
+        for s in con_parts[2:]:
+            (cred_key, cred_val) = s.split('=')
+            con_cred[cred_key] = cred_val
+        print("Connecting {} {} {}".format(con_url, con_method, con_cred))
+        ex.connectToService(con_url, con_method, con_cred)
     return app.exec_()
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--connect', '-c', nargs='?',
+        help='Connect to service url,method,[credkey=val,[key=val],...]'
+        )
+
+    args = parser.parse_args()
+
     app = QApplication(sys.argv)
     sys.exit(main())
 

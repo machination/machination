@@ -2030,6 +2030,56 @@ sub fetch_from_agroup {
 	return @ids;
 }
 
+=item B<is_ag_member>
+
+$ha->is_ag_member($ag_type_id,$ag_id,$member_id,$opts)
+
+=cut
+
+sub is_ag_member {
+  my $self = shift;
+  my ($ag_tid,$ag_id,$member_id,$opts) = @_;
+
+	my $member_tid = $self->type_from_agroup_type($ag_tid);
+	my @rows = $self->
+		fetch("objs_$member_tid",
+					{type=>"multi",
+					 fields=>["id"],
+					 condition=>"agroup=? and id=?",
+					 params=>[$ag_id, $member_id],
+					 order=>[["ag_ordinal"]],
+					 revision=>$opts->{revision},
+					});
+
+  return 1 if(@rows);
+  return 0;
+}
+
+=item B<is_attached>
+
+$ha->is_attached($item_type_id, $item_id, $hc_id)
+
+1 if $item is attached to $hc, 0 otherwise
+
+=cut
+
+sub is_attached {
+  my $self = shift;
+  my ($item_type_id, $item_id, $hc_id) = @_;
+  my $sql = "select obj_id from hcatt_$item_type_id where obj_id=? and hc_id=?";
+  my $sth = $self->read_dbh->
+    prepare_cached($sql,{dbi_dummy=>"HAccessor.is_attached"});
+  $sth->execute($item_id, $hc_id);
+  if($sth->fetchrow_array) {
+    $sth->finish;
+    return 1;
+  } else {
+    $sth->finish;
+    return 0;
+  }
+}
+
+
 =item B<get_attached_handle>
 
 Get a handle to the direct attachments of an hc
@@ -2072,7 +2122,7 @@ sub get_attached_handle {
                   "$sql",9);
   my $sth = $self->read_dbh->
     prepare_cached($sql,{dbi_dummy=>"HAccessor.get_attached_handle"});
-  $sth->execute(@params);
+    $sth->execute(@params);
   return $sth;
 }
 

@@ -172,12 +172,19 @@ sub construct_rep {
           unless($parent->type eq "machination:hc");
     } elsif ($item->branch eq "agroup_members") {
       MalformedPathException->
-        throw($item->full_string . " in " . $parent->full_string .
-              " should be after an agroup or in another branch.\n")
-          unless($parent->type =~ /^agroup_/);
-      MalformedPathException->
         throw($item->full_string . ": agroup_members must be specified with an id.\n")
           unless($item->has_id);
+      MalformedPathException->
+        throw($item->full_string . " in " . $parent->full_string .
+              " should be after an agroup_" . $item->type . " or in another branch.\n")
+          unless(
+                 $self->ha->type_from_agroup_type
+                 (
+                  $self->ha->type_id($parent->type)
+                 )
+                 ==
+                 $self->ha->type_id($item->type)
+                );
     } elsif ($item->branch eq "set_members") {
       MalformedPathException->
         throw($item->full_string . " in " . $parent->full_string .
@@ -534,11 +541,28 @@ sub existing_pos {
           last unless defined $id;
           $item->id($id);
         }
+      } elsif($item->branch eq "attachments") {
+        # Check if id is really attached to parent
+        my $is_attached = $self->ha->is_attached
+          (
+           $self->ha->type_id($item->type),
+           $item->id,
+           $parent->id
+          );
+        last unless $is_attached;
       } elsif($item->branch eq "set_members") {
         # Make sure that $item->id is a member of the parent set
         my $set = Machination::HSet->new($self->ha, $parent->id);
         last unless $set->member_type == $self->ha->type_id($item->type) &&
           $set->has_member("all", $item->id);
+      } elsif($item->branch eq "agroup_members") {
+        # Make sure that $item->id is in agroup $parent->id
+        last unless $self->ha->is_ag_member
+          (
+           $self->ha->type_id($parent->type),
+           $parent->id,
+           $item->id
+          )
       }
       $parent = $item;
       $pos++;

@@ -58,7 +58,7 @@ class MGUI():
 
         # Resources
         self.treeViewAttachmentsIcon = self.model.get_icon("__branch__attachments")
-        self.treeViewMembersIcon = self.model.get_icon("__branch__members")
+        self.treeViewAgroupMembersIcon = self.model.get_icon("__branch__agroup_members")
 
     def handlerExit(self, ev = None):
         print("Bye!")
@@ -198,7 +198,7 @@ class MGUI():
         for idx in selected.indexes():
             if idx.column() != 0:
                 continue
-            print("Sel: {}".format(self.model.get_path(idx)))
+            print("Sel: {}".format(self.model.get_path2(idx)))
 
     def treeViewDrawBranches(self, painter, rect, idx):
         ilvl = 0
@@ -218,8 +218,8 @@ class MGUI():
         pixmap = None
         if branch == "attachments":
             pixmap = self.treeViewAttachmentsIcon.pixmap(pixmapSize)
-        elif branch == "members":
-            pixmap = self.treeViewMembersIcon.pixmap(pixmapSize)
+        elif branch == "agroup_members":
+            pixmap = self.treeViewAgroupMembersIcon.pixmap(pixmapSize)
 #        painter.drawRect(idt + 1, rect.y() + yoffset, sz - 2, sz - 2)
         if pixmap:
             painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)
@@ -261,7 +261,13 @@ class HModel(QStandardItemModel):
 
     def add_object(self, parent, obj, wc=None,
                    peek_children=True):
-        '''Add an object to parent in tree'''
+        '''Add an object to parent in tree.
+
+        args:
+          parent: index or QStandardItem.
+          obj: dictionary of key/value pairs from hierarchy.
+          peek_children: whether or not to look to see if this object has any children.
+        '''
         if not isinstance(parent, QStandardItem):
             # Assume parent is an index
             parent = self.itemFromIndex(parent)
@@ -300,10 +306,10 @@ class HModel(QStandardItemModel):
 
     def get_wc(self, thing):
         '''Find the webclient for an item or index'''
-        obj_path = self.get_obj_path(thing)
-        return self.wcs.get(obj_path[0].text())
+        item_path = self.get_item_path(thing)
+        return self.wcs.get(item_path[0].text())
 
-    def get_obj_path(self, thing):
+    def get_item_path(self, thing):
         '''Return list of StandardItem objects from index or item to root.'''
         if isinstance(thing, QStandardItem):
             index = thing.index()
@@ -313,14 +319,34 @@ class HModel(QStandardItemModel):
         if not index.isValid():
             return []
 
-        path = self.get_obj_path(index.parent())
+        path = self.get_item_path(index.parent())
         path.append(self.itemFromIndex(index))
 
         return path
 
     def get_path(self, thing):
         '''Return a string path to an index or StandardItem'''
-        obj_path = self.get_obj_path(thing)
+        item_path = self.get_item_path(thing)
+
+        wc = self.get_wc(item_path[0])
+        str_path = ['']
+        for item in item_path[1:]:
+            idx = self.indexFromItem(item)
+            branch = self.get_value(idx, '__branch__') + "::"
+            if branch == "contents::":
+                branch = ""
+            objtype = wc.memo('TypeInfo', self.get_value(idx, 'type_id')).get('name') + ":"
+            if objtype == "machination:hc:":
+                objtype = ""
+            str_path.append(branch + objtype + self.itemFromIndex(idx).text())
+
+        if len(str_path) == 1:
+            return '/'
+        return '/'.join(str_path)
+
+    def get_path_old(self, thing):
+        '''Return a string path to an index or StandardItem'''
+        obj_path = self.get_item_path(thing)
 
         last_index = self.indexFromItem(obj_path[-1])
         if self.get_value(last_index, '__branch__') != 'contents':
@@ -392,7 +418,7 @@ class HModel(QStandardItemModel):
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
             members = wc.call('AgroupMembers', self.get_path(index))
             if members:
-                members[0]['__branch__'] = 'members'
+                members[0]['__branch__'] = 'agroup_members'
                 return members[0]
             else:
                 return False
@@ -420,7 +446,7 @@ class HModel(QStandardItemModel):
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
             members = wc.call('AgroupMembers', self.get_path(index))
             for member in members:
-                member['__branch__'] = 'members'
+                member['__branch__'] = 'agroup_members'
             return members
 
 class CredentialsDialog(QDialog):

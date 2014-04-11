@@ -128,6 +128,7 @@ sub BUILD {
   MalformedPathException->
     throw("HPath is not rooted and ensure_rooted is true.")
       if($self->ensure_rooted && ! $self->is_rooted);
+
 }
 
 =item B<construct_rep>
@@ -142,15 +143,52 @@ sub construct_rep {
   my $self = shift;
   my $path = shift;
 
+  my $rep;
   if(eval {$path->isa('Machination::HPath')}) {
     # clone an existing object
-    return $self->clone_rep($path->rep);
+    $rep = $self->clone_rep($path->rep);
   } elsif(ref $path eq "ARRAY") {
     # ARRAY ref - should be an hpath rep
-    return $self->clone_rep($path);
+    $rep = $self->clone_rep($path);
   } else {
-    return $self->string_to_rep($path);
+    $rep = $self->string_to_rep($path);
   }
+
+  # Check that the representation we just made is valid
+  my $parent = undef;
+  foreach my $item (@$rep) {
+#    print Dumper($parent);
+#    print Dumper($item);
+    if($item->branch eq "contents") {
+      next if ! defined $parent;
+        MalformedPathException->
+          throw($item->full_string . " in " . $parent->full_string .
+                " should be after an hc or in another branch.\n")
+            unless($parent->type eq "machination:hc");
+    } elsif ($item->branch eq "attachments") {
+        MalformedPathException->
+          throw($item->full_string . " in " . $parent->full_string .
+                " should be after an hc or in another branch.\n")
+            unless($parent->type eq "machination:hc");
+    } elsif ($item->branch eq "agroup_members") {
+        MalformedPathException->
+          throw($item->full_string . " in " . $parent->full_string .
+                " should be after an agroup or in another branch.\n")
+            unless($parent->type =~ /^agroup_/);
+    } elsif ($item->branch eq "set_members") {
+        MalformedPathException->
+          throw($item->full_string . " in " . $parent->full_string .
+                " should be after a set or another branch.\n")
+            unless($parent->type eq "set");
+    } elsif ($item->branch eq "machination_root") {
+
+    } else {
+      die "unkown branch '" . $item->branch . "'";
+    }
+    $parent = $item;
+  }
+
+  return $rep;
 }
 
 =item B<clone_rep>
@@ -254,9 +292,9 @@ sub string_to_rep {
      ['PATH_SEP', qr/\//],
      ['BRANCH_SEP', qr/::/],
      ['TYPENAME_SEP', qr/:/],
-#     ['ID', qr/\#\d+/, sub {
-#        return ['ID', substr($_[1],1)]
-#      }],
+     ['ID', qr/\#\d+/, sub {
+        return ['ID', substr($_[1],1)]
+      }],
      ['NAME', qr/.*/],
      );
   my $lexer = string_lexer($path, @input_tokens);
@@ -431,6 +469,8 @@ sub populate_ids {
                    $parent_id
                   )
                  );
+      } elsif($item->branch eq "set_members") {
+        # Make sure that $item->id is a member of the parent set
       }
     }
     if(defined $item->id) {

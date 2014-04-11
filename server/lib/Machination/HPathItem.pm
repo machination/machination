@@ -57,7 +57,7 @@ has 'branch' => (is=>'ro',
                  writer=>'_set_branch');
 
 has 'name' => (is=>'rw',
-               required=>1,
+               required=>0,
                isa=>'Maybe[Str]',
                clearer=>'clear_name',
                predicate=>'has_name');
@@ -100,10 +100,10 @@ around BUILDARGS => sub {
     if($args->{special} eq "root") {
       $args->{name} = "machination:root"
         unless defined $args->{name};
-      $args->{type} = "machination:hc"
-        unless defined $args->{type};
     }
   }
+  $args->{type} = "machination:hc"
+    unless defined $args->{type};
   return $class->$orig($args);
 };
 
@@ -117,6 +117,9 @@ sub BUILD {
     }
   }
 
+  # One or other of name or id must be defined
+  die "Must define one of name or id"
+    unless($self->has_name or $self->has_id);
 }
 
 =item B<to_string>
@@ -129,11 +132,40 @@ sub to_string {
 
   return '' if $self->is_root;
   my $str = "";
+
+  # Branch spec required for branches other than contents
   $str .= $self->quote_name($self->branch) . "::"
     if($self->branch ne 'contents');
+
+  # Object type for anything other than an hc
   $str .= $self->quote_name($self->type) . ":"
     if(! $self->is_hc);
-  $str .= $self->quote_name($self->name);
+
+  # Name for contents branch, id for any other branch
+  if($self->branch eq 'contents') {
+    if($self->name) {
+      $str .= $self->quote_name($self->name);
+    } else {
+      $str .= "#" . $self->id;
+    }
+  } else {
+    $str .= "#" . $self->id;
+  }
+
+  return $str;
+}
+
+=item B<full_string>
+
+=cut
+
+sub full_string {
+  my $self = shift;
+
+  my $str .= $self->quote_name($self->branch) . "::";
+  $str .= $self->quote_name($self->type);
+  $str .= ":" . $self->quote_name($self->name) if $self->has_name;
+  $str .= ":#" . $self->id if $self->has_id;
   return $str;
 }
 

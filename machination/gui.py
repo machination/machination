@@ -198,7 +198,7 @@ class MGUI():
         for idx in selected.indexes():
             if idx.column() != 0:
                 continue
-            print("Sel: {}".format(self.model.get_path2(idx)))
+            print("Sel: {}".format(self.model.get_path(idx)))
 
     def treeViewDrawBranches(self, painter, rect, idx):
         ilvl = 0
@@ -332,17 +332,32 @@ class HModel(QStandardItemModel):
         str_path = ['']
         for item in item_path[1:]:
             idx = self.indexFromItem(item)
-            branch = self.get_value(idx, '__branch__') + "::"
-            if branch == "contents::":
-                branch = ""
+            branch = self.get_value(idx, '__branch__')
+            if branch == "contents":
+                branch_txt = ""
+            else:
+                branch_txt = "contents::"
             objtype = wc.memo('TypeInfo', self.get_value(idx, 'type_id')).get('name') + ":"
             if objtype == "machination:hc:":
                 objtype = ""
-            str_path.append(branch + objtype + self.itemFromIndex(idx).text())
+            if branch == "contents":
+                identifier = self.itemFromIndex(idx).text()
+            else:
+                identifier = self.get_value(idx, 'obj_id')
+            str_path.append(branch_txt + objtype + identifier)
 
         if len(str_path) == 1:
             return '/'
         return '/'.join(str_path)
+
+    def get_spec(self, thing):
+        '''Return an object spec for an index or StandardItem'''
+        if isinstance(thing, QStandardItem):
+            idx = thing.index()
+        else:
+            idx = thing
+        objtype = self.get_wc(idx).memo('TypeInfo', self.get_value(idx, 'type_id')).get('name')
+        return "{}:{}".format(objtype, self.get_value(idx, 'obj_id'))
 
     def get_path_old(self, thing):
         '''Return a string path to an index or StandardItem'''
@@ -399,6 +414,8 @@ class HModel(QStandardItemModel):
         '''Look to see if an item which could have children actually has any.'''
         wc = self.get_wc(index)
         type_id = self.get_value(index, 'type_id')
+
+        # Check for hc contents and attachments
         if type_id == 'machination:hc':
             attachments = wc.call(
                 'ListAttachments',
@@ -415,10 +432,21 @@ class HModel(QStandardItemModel):
                 return contents[0]
             else:
                 return False
+
+        # Check for agroup members
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
-            members = wc.call('AgroupMembers', self.get_path(index))
+            members = wc.call('AgroupMembers', self.get_spec(index))
             if members:
                 members[0]['__branch__'] = 'agroup_members'
+                return members[0]
+            else:
+                return False
+
+        # Check for set members
+        if wc.memo('TypeInfo', type_id).get('name') == 'set':
+            members = wc.call('SetMembers', self.get_spec(index))
+            if members:
+                members[0]['__branch__'] = 'set_members'
                 return members[0]
             else:
                 return False
@@ -444,7 +472,7 @@ class HModel(QStandardItemModel):
             return_list.extend(contents)
             return return_list
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
-            members = wc.call('AgroupMembers', self.get_path(index))
+            members = wc.call('AgroupMembers', self.get_spec(index))
             for member in members:
                 member['__branch__'] = 'agroup_members'
             return members

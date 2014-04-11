@@ -88,6 +88,9 @@ my %calls =
    # agroups
    AgroupMembers => undef,
 
+   # sets
+   SetMembers => undef,
+
    # objects
    FetchObject => undef,
    IdPair => undef,
@@ -812,6 +815,66 @@ sub call_AgroupMembers {
   return $ha->
     get_ag_member_handle($type_id, $id)->
       fetchall_arrayref({}, $opts->{max_objects});
+}
+
+=item B<SetMembers>
+
+$members = SetMembers($path_or_spec, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an set object (/path/to/set:blah). Otherwise it is interpreted as a
+constructor string for a MooseHObject (e.g. 'set:id').
+
+=cut
+
+sub call_SetMembers {
+  my ($owner,$approval,$path_or_spec,$opts) = @_;
+  $opts->{max_objects} = undef unless exists $opts->{max_objects};
+
+#  my $type_id;
+  my $id;
+  my $parent_hpath;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    die "$path_or_spec must be a set. This looks like a " . $hp->type
+      unless($hp->type eq "set");
+    if($hp->exists) {
+#      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    my $type_name = $ha->type_name($o->type_id);
+    die "$path_or_spec must be a set. This looks like a $type_name"
+      unless($type_name eq "set");
+    if($o->exists) {
+#      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+  }
+
+#  my $type_name = $ha->type_name($type_id);
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"listchildren",
+             mpath=>"/contents/set\[$id\]/members",
+             owner=>$owner,
+             approval=>$approval};
+
+  die "could not get listchildren permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$parent_hpath->id));
+
+  my $set = Machination::HSet->new($ha, $id);
+
+  my $members = $set->fetch_members("all");
+
+  return keys %$members;
 }
 
 

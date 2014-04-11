@@ -24,7 +24,7 @@ class MGUI():
         self.model = HModel()
 
         QDir.addSearchPath("icons","")
-        print(QDir.searchPaths("icons"))
+#        print(QDir.searchPaths("icons"))
 
         self.myfile = inspect.getfile(inspect.currentframe())
         self.mydir = os.path.dirname(self.myfile)
@@ -276,10 +276,15 @@ class HModel(QStandardItemModel):
 
         name_item = QStandardItem(obj.get('name'))
         type_id = obj.get('type_id')
-        type_name = wc.memo('TypeInfo', type_id).get('name')
+        if type_id.startswith('__set_member_external_'):
+            type_name = '__set_member_external__'
+        else:
+            type_name = wc.memo('TypeInfo', type_id).get('name')
 
         if not obj.get('__branch__'):
             obj['__branch__'] = 'contents'
+
+#        print('adding {}'.format(obj))
 
         if  type_id == 'machination:hc':
             name_item.setIcon(self.get_icon('folder'))
@@ -294,6 +299,9 @@ class HModel(QStandardItemModel):
             QStandardItem(obj.get('channel_id')),
             QStandardItem(obj.get('__branch__')),
             ]
+#        print("about to add child:")
+#        for col, item in enumerate(row):
+#            print("  {}: {}".format(HModel.columns[col],item.text()))
         parent.appendRow(row)
 
         if peek_children:
@@ -336,8 +344,12 @@ class HModel(QStandardItemModel):
             if branch == "contents":
                 branch_txt = ""
             else:
-                branch_txt = "contents::"
-            objtype = wc.memo('TypeInfo', self.get_value(idx, 'type_id')).get('name') + ":"
+                branch_txt = "{}::".format(branch)
+            type_id = self.get_value(idx, 'type_id')
+            if type_id.startswith('__set_member_external_'):
+                objtype = type_id + ":"
+            else:
+                objtype = wc.memo('TypeInfo', type_id).get('name') + ":"
             if objtype == "machination:hc:":
                 objtype = ""
             if branch == "contents":
@@ -400,15 +412,25 @@ class HModel(QStandardItemModel):
         '''Refresh a node from the hierarchy'''
         print('refreshing {}'.format(self.get_path(index)))
         wc = self.get_wc(index)
-        type_id = self.get_value(index, 'type_id')
-        if type_id == 'machination:hc':
-            self.removeRows(0,self.rowCount(index),index)
-            for child in self.get_children(index):
-                self.add_object(index, child)
-        elif wc.memo('TypeInfo', type_id).get('is_attachable') == '1':
-            pass
-        else:
-            raise Exception("Don't know how to refresh {}".format(type_id))
+#        type_id = self.get_value(index, 'type_id')
+#        type_name = wc.memo('TypeInfo', type_id).get('name')
+#        branch = self.get_value(index, '__branch__')
+#        if type_id == 'machination:hc' or type_name == 'set' or branch == 'attachments':
+        self.removeRows(0,self.rowCount(index),index)
+        for child in self.get_children(index):
+            self.add_object(index, child)
+#            child_idx = self.add_object(index, child)
+#            print("added child:")
+#            for i in range(5):
+#                print("  {}: {}".format(
+#                        HModel.columns[i],
+#                        self.itemFromIndex(
+#                            self.index(
+#                                child_idx.row(), i, index
+#                                )
+#                            ).text()
+#                        )
+#                      )
 
     def peek_children(self, index):
         '''Look to see if an item which could have children actually has any.'''
@@ -433,9 +455,13 @@ class HModel(QStandardItemModel):
             else:
                 return False
 
+        # Can't look up external set members
+        if type_id.startswith('__set_member_external_'):
+            return
+
         # Check for agroup members
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
-            members = wc.call('AgroupMembers', self.get_spec(index))
+            members = wc.call('AgroupMembers', self.get_spec(index), {'max_objects': 1})
             if members:
                 members[0]['__branch__'] = 'agroup_members'
                 return members[0]
@@ -444,10 +470,10 @@ class HModel(QStandardItemModel):
 
         # Check for set members
         if wc.memo('TypeInfo', type_id).get('name') == 'set':
-            members = wc.call('SetMembers', self.get_spec(index))
+            members = wc.call('SetMembers', self.get_spec(index), {'max_objects': 1})
             if members:
-                members[0]['__branch__'] = 'set_members'
-                return members[0]
+                return {'name': 'fake', 'type_id': '1', 'obj_id': '1',
+                        '__branch__': 'set_members'}
             else:
                 return False
 
@@ -471,11 +497,42 @@ class HModel(QStandardItemModel):
                 newobj['__branch__'] = 'contents'
             return_list.extend(contents)
             return return_list
+
+        # Can't look up external set members
+        if type_id.startswith('__set_member_external_'):
+            return
+
+        # Fetch agroup_members
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
             members = wc.call('AgroupMembers', self.get_spec(index))
             for member in members:
                 member['__branch__'] = 'agroup_members'
             return members
+
+        # Fetch set_members
+        if wc.memo('TypeInfo', type_id).get('name') == 'set':
+            members = wc.call('SetMembers', self.get_spec(index))
+            objs = []
+            for member in members:
+                if member[0] == '1':
+                    # internal member
+                    obj = wc.call(
+                        'FetchObject', '{}:{}'.format(
+                            wc.memo('TypeInfo', member[1]).get('name'), member[2]
+                            )
+                        )
+#                    print("found member {}".format(obj))
+                    obj['__branch__'] = 'set_members'
+                    obj['obj_id'] = obj['id']
+                    obj['type_id'] = member[1]
+                else:
+                    # external member
+                    obj = {'name': member[2], '__branch__': 'set_members',
+                           'type_id': '__set_member_external_{}__'.format(member[1])}
+                objs.append(obj)
+            return objs
+#            return [{'name': 'fake2', 'type_id': '1', 'obj_id': '1',
+#                    '__branch__': 'set_members'}]
 
 class CredentialsDialog(QDialog):
     '''Capture the correct credentials to authenticate to a service'''

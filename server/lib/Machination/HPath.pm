@@ -161,25 +161,31 @@ sub construct_rep {
 #    print Dumper($item);
     if($item->branch eq "contents") {
       next if ! defined $parent;
-        MalformedPathException->
-          throw($item->full_string . " in " . $parent->full_string .
-                " should be after an hc or in another branch.\n")
-            unless($parent->type eq "machination:hc");
+      MalformedPathException->
+        throw($item->full_string . " in " . $parent->full_string .
+              " should be after an hc or in another branch.\n")
+          unless($parent->type eq "machination:hc");
     } elsif ($item->branch eq "attachments") {
-        MalformedPathException->
-          throw($item->full_string . " in " . $parent->full_string .
-                " should be after an hc or in another branch.\n")
-            unless($parent->type eq "machination:hc");
+      MalformedPathException->
+        throw($item->full_string . " in " . $parent->full_string .
+              " should be after an hc or in another branch.\n")
+          unless($parent->type eq "machination:hc");
     } elsif ($item->branch eq "agroup_members") {
-        MalformedPathException->
-          throw($item->full_string . " in " . $parent->full_string .
-                " should be after an agroup or in another branch.\n")
-            unless($parent->type =~ /^agroup_/);
+      MalformedPathException->
+        throw($item->full_string . " in " . $parent->full_string .
+              " should be after an agroup or in another branch.\n")
+          unless($parent->type =~ /^agroup_/);
+      MalformedPathException->
+        throw($item->full_string . ": agroup_members must be specified with an id.\n")
+          unless($item->has_id);
     } elsif ($item->branch eq "set_members") {
-        MalformedPathException->
-          throw($item->full_string . " in " . $parent->full_string .
-                " should be after a set or another branch.\n")
-            unless($parent->type eq "set");
+      MalformedPathException->
+        throw($item->full_string . " in " . $parent->full_string .
+              " should be after a set or another branch.\n")
+          unless($parent->type eq "set");
+      MalformedPathException->
+        throw($item->full_string . ": set_members must be specified with an id.\n")
+          unless($item->has_id);
     } elsif ($item->branch eq "machination_root") {
 
     } else {
@@ -487,17 +493,71 @@ sub populate_ids {
   return;
 }
 
+=item B<existing_pos>
+
+=cut
+
+sub existing_pos {
+  my $self = shift;
+  my $recheck = 0;
+  $recheck = shift if @_;
+
+  croak "An ha is required to check existing_pos"
+    unless $self->has_ha;
+
+  if(!exists $self->{_existing_pos} || $recheck) {
+    # initialise loop
+    my $pos = -1;
+    my $parent;
+    foreach my $item (@{$self->rep}) {
+      if($item->branch eq "machination_root") {
+        $item->id($self->ha->fetch_root_id);
+      } elsif($item->branch eq "contents") {
+        if($item->has_id) {
+          # Check if id exists in parent
+          my $inhc = $self->ha->object_in_hc
+            (
+             $self->ha->type_id($item->type),
+             $item->id,
+             $parent->id
+            );
+          last unless defined $inhc;
+        } else {
+          # Fetch id of name
+          my $id = $self->ha->fetch_id
+            (
+             $self->ha->type_id($item->type),
+             $item->name,
+             $parent->id
+            );
+          # exit loop if no id was found
+          last unless defined $id;
+          $item->id($id);
+        }
+      } elsif($item->branch eq "set_members") {
+        # Make sure that $item->id is a member of the parent set
+        my $set = Machination::HSet->new($self->ha, $parent->id);
+        last unless $set->member_type == $self->ha->type_id($item->type) &&
+          $set->has_member("all", $item->id);
+      }
+      $parent = $item;
+      $pos++;
+    }
+    $self->{_existing_pos} = $pos;
+  }
+
+  return $self->{_existing_pos};
+}
+
 =item B<existing>
 
 =cut
 
 sub existing {
   my $self = shift;
-  $self->populate_ids unless($self->_ids_populated);
-
-  my $last = $self->_last_id_index;
-  return if $last == -1;
-  return $self->slice('0:' . $last);
+  my $pos = $self->existing_pos;
+  return if $pos == -1;
+  return $self->slice('0:' . $pos);
 }
 
 =item B<remainder>
@@ -506,11 +566,10 @@ sub existing {
 
 sub remainder {
   my $self = shift;
-  $self->populate_ids unless($self->_ids_populated);
 
-  my $last = $self->_last_id_index;
-  return if $last == @{$self->rep};
-  return $self->slice(($last+1) . ":");
+  my $pos = $self->existing_pos;
+  return if $pos == @{$self->rep};
+  return $self->slice(($pos+1) . ":");
 }
 
 =item B<exists>
@@ -519,10 +578,7 @@ sub remainder {
 
 sub exists {
   my $self = shift;
-  $self->populate_ids unless($self->_ids_populated);
-
-  my $last = $self->_last_id_index;
-  return 1 if ($last+1) == @{$self->rep};
+  return 1 if ($self->existing_pos + 1) == @{$self->rep};
   return 0;
 }
 

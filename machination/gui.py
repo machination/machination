@@ -56,9 +56,7 @@ class MGUI():
         self.ui.treeView.customContextMenuRequested.connect(self.treeViewShowContextMenu)
         self.ui.treeView.selectionModel().selectionChanged.connect(self.treeViewSlotSelectionChanged)
 
-        # Resources
-        self.treeViewAttachmentsIcon = self.model.get_icon("__branch__attachments")
-        self.treeViewAgroupMembersIcon = self.model.get_icon("__branch__agroup_members")
+
 
     def handlerExit(self, ev = None):
         print("Bye!")
@@ -216,10 +214,7 @@ class MGUI():
         pixmapSize = QSize(sz - 2, sz - 2)
         branch = self.model.get_value(idx, "__branch__")
         pixmap = None
-        if branch == "attachments":
-            pixmap = self.treeViewAttachmentsIcon.pixmap(pixmapSize)
-        elif branch == "agroup_members":
-            pixmap = self.treeViewAgroupMembersIcon.pixmap(pixmapSize)
+        pixmap = self.model.get_icon('__branch__{}'.format(branch)).pixmap(pixmapSize)
 #        painter.drawRect(idt + 1, rect.y() + yoffset, sz - 2, sz - 2)
         if pixmap:
             painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)

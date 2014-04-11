@@ -872,7 +872,15 @@ sub call_SetMembers {
 
   my $set = Machination::HSet->new($ha, $id);
 
-  my @members = $set->fetch_members("all");
+  my @members;
+  if($opts->{max_objects}) {
+    my $fetcher = $set->fetcher("all");
+    $fetcher->prepare_cached;
+    $fetcher->execute;
+    @members = $fetcher->fetch_some($opts->{max_objects})
+  } else {
+    @members = $set->fetch_members("all");
+  }
   return \@members;
 
 }

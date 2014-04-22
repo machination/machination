@@ -169,21 +169,33 @@ class MGUI():
         else:
             QTreeView.wheelEvent(self.ui.treeView, ev)
 
-    def treeViewContextMenu(self):
+    def treeViewContextMenu(self, pos):
         '''Construct treeView context menu.'''
         menu = self.baseContextMenu()
-        aexit = None
-        for a in menu.actions():
-            if a.text() == "Exit":
-                aexit = a
-                break
-        adel = QAction("Delete", self.ui.treeView)
-        adel.triggered.connect(self.treeViewHandlerDeleteItem)
-        menu.insertAction(aexit,adel)
+#        aexit = None
+#        for a in menu.actions():
+#            if a.text() == "Exit":
+#                aexit = a
+#                break
+#        adel = QAction("Delete", self.ui.treeView)
+#        adel.triggered.connect(self.treeViewHandlerDeleteItem)
+#        menu.insertAction(aexit,adel)
+        idx = self.ui.treeView.indexAt(pos)
+        print("context menu over {}".format(self.model.get_path(idx)))
+        type_name = self.model.get_type_name(idx)
+        branch = self.model.get_value(idx, '__branch__')
+        if type_name == 'machination:hc':
+            menu.addAction("New...", self.treeViewHandlerNewObject)
+            menu.addAction("Add items")
+        else:
+            if branch == 'contents':
+                menu.addAction("Add to hc")
+                menu.addAction("Remove from hc")
+        menu.addAction("Delete", self.treeViewHandlerDeleteItem)
         return menu
 
     def treeViewShowContextMenu(self, pos):
-        menu = self.treeViewContextMenu()
+        menu = self.treeViewContextMenu(pos)
         menu.exec(self.ui.treeView.mapToGlobal(pos))
 
     def treeViewHandlerDeleteItem(self):
@@ -191,6 +203,9 @@ class MGUI():
             if idx.column() != 0:
                 continue
             print("Deleting {}".format(self.model.get_path(idx)))
+
+    def treeViewHandlerNewObject(self):
+        pass
 
     def treeViewSlotSelectionChanged(self, selected, deselected):
         for idx in selected.indexes():
@@ -220,6 +235,25 @@ class MGUI():
             painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)
         QTreeView.drawBranches(self.ui.treeView, painter, rect, idx)
 
+class HItem(QStandardItem):
+    '''Items to put in an HModel'''
+
+    def __init__(self, text = None, model = None):
+        self.model = model
+        if text is not None:
+            super().__init__(text)
+        else:
+            super().__init__()
+
+    def setData(self, data, role):
+        '''Every time the item's data is edited we need to try to update the hierarchy'''
+        if role == Qt.EditRole:
+            print("Attempting to change name of {} from {} to {}".format(
+                    self.model.get_path(self),
+                    self.text(), data))
+            wc = self.model.get_wc(self)
+            wc.call('RenameObject', self.model.get_spec(self), data)
+        super().setData(data, role)
 
 class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
@@ -234,6 +268,7 @@ class HModel(QStandardItemModel):
             self.add_service(wc)
 
         self.setHorizontalHeaderLabels(HModel.columns)
+        self.itemChanged.connect(self.on_item_changed)
 
     def add_service(self, wc):
         '''Add a new service at the root of the tree.'''
@@ -269,7 +304,7 @@ class HModel(QStandardItemModel):
         if wc is None:
             wc = self.get_wc(parent)
 
-        name_item = QStandardItem(obj.get('name'))
+        name_item = HItem(obj.get('name'), self)
         type_id = obj.get('type_id')
         if type_id.startswith('__set_member_external_'):
             type_name = '__set_member_external__'
@@ -341,10 +376,7 @@ class HModel(QStandardItemModel):
             else:
                 branch_txt = "{}::".format(branch)
             type_id = self.get_value(idx, 'type_id')
-            if type_id.startswith('__set_member_external_'):
-                objtype = type_id + ":"
-            else:
-                objtype = wc.memo('TypeInfo', type_id).get('name') + ":"
+            objtype = self.get_type_name(idx) + ":"
             if objtype == "machination:hc:":
                 objtype = ""
             if branch == "contents":
@@ -399,9 +431,22 @@ class HModel(QStandardItemModel):
         '''Return the text stored in column col_name given a row or index'''
         return self.get_item(index, col_name).text()
 
+    def get_type_name(self, idx):
+        '''Return type name given an index'''
+        type_id = self.get_value(idx, 'type_id')
+        if type_id.startswith('__'):
+            # An internal invented type_id
+            return type_id
+        else:
+            return self.get_wc(idx).memo('TypeInfo', type_id).get('name')
+
     def on_expand(self, index):
         '''Slot for 'expanded' signal.'''
         self.refresh(index)
+
+    def on_item_changed(self, idx):
+        '''Slot for itemChanged'''
+        print('item {} has changed'.format(self.get_path(idx)))
 
     def refresh(self, index):
         '''Refresh a node from the hierarchy'''

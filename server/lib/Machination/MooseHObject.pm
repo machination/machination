@@ -43,7 +43,11 @@ sub BUILD {
 
   if(defined $args->{from}) {
     $self->ha->log->dmsg("moosehobject","building moosehobject from " . $args->{from},10);
-    my ($type, $id) = $args->{from} =~ /^(.*?):(.*)$/;
+    my ($type, $id);
+    unless(($type,$id) = $args->{from} =~ /^(machination:hc):(.*)/) {
+      ($type, $id) = $args->{from} =~ /^(.*?):(.*)$/;
+    }
+
     $self->_set_id($id);
     if($type =~ s/^\#//) {
       $self->_set_type_id($type);

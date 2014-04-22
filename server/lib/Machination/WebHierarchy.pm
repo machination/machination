@@ -93,6 +93,7 @@ my %calls =
 
    # objects
    FetchObject => undef,
+   RenameObject => undef,
    IdPair => undef,
    EntityId => undef,
 
@@ -938,6 +939,62 @@ sub call_FetchObject {
     unless($ha->action_allowed($req,$parent_hpath->id));
 
   return $obj->fetch_data;
+}
+
+=item B<RenameObject>
+
+$members = RenameObject($path_or_spec, $newname, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an object in the hierarchy (/path/to/type_name:blah). Otherwise it is
+interpreted as a constructor string for a MooseHObject
+(e.g. 'type_name:id').
+
+=cut
+
+sub call_RenameObject {
+  my ($owner,$approval,$path_or_spec, $newname, $opts) = @_;
+
+  my $type_id;
+  my $id;
+  my $parent_hpath;
+  my $obj;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    if($hp->exists) {
+      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+    $obj = Machination::MooseHObject->
+      new(ha=>$ha, id=>$hp->id, type_id=>$hp->type_id)
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    if($o->exists) {
+      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+    $obj = $o;
+  }
+
+  my $type_name = $ha->type_name($type_id);
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"settext",
+             mpath=>"/contents/$type_name\[$id\]/field[name]",
+             owner=>$owner,
+             approval=>$approval};
+
+  die "could not get settext permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$parent_hpath->id));
+
+  # now we're allowed to try to change the name
+  $ha->modify_obj({actor=>$owner}, $obj->type_id, $obj->id, {name=>$newname});
 }
 
 

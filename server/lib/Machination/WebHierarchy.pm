@@ -93,7 +93,7 @@ my %calls =
 
    # objects
    FetchObject => undef,
-   RenameObject => undef,
+   ModifyObject => undef,
    IdPair => undef,
    EntityId => undef,
 
@@ -941,9 +941,9 @@ sub call_FetchObject {
   return $obj->fetch_data;
 }
 
-=item B<RenameObject>
+=item B<ModifyObject>
 
-$members = RenameObject($path_or_spec, $newname, $opts)
+$members = ModifyObject($path_or_spec, $newfields, $opts)
 
 If $path_or_spec starts with '/' then it is interpreted as a path to
 an object in the hierarchy (/path/to/type_name:blah). Otherwise it is
@@ -952,8 +952,8 @@ interpreted as a constructor string for a MooseHObject
 
 =cut
 
-sub call_RenameObject {
-  my ($owner,$approval,$path_or_spec, $newname, $opts) = @_;
+sub call_ModifyObject {
+  my ($owner,$approval,$path_or_spec, $newfields, $opts) = @_;
 
   my $type_id;
   my $id;
@@ -984,17 +984,30 @@ sub call_RenameObject {
   }
 
   my $type_name = $ha->type_name($type_id);
+  my $allowed = 0;
+
+  # First try to get settext permission for the whole object
   my $req = {channel_id=>hierarchy_channel(),
              op=>"settext",
-             mpath=>"/contents/$type_name\[$id\]/field[name]",
+             mpath=>"/contents/$type_name\[$id\]",
              owner=>$owner,
              approval=>$approval};
 
-  die "could not get settext permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$parent_hpath->id));
+  # If that didn't work try to get permission for the fields individually
+  if(!$ha->action_allowed($req,$parent_hpath->id)) {
+    foreach my $field (keys %$newfields) {
+      my $req = {channel_id=>hierarchy_channel(),
+                 op=>"settext",
+                 mpath=>"/contents/$type_name\[$id\]/field[$field]",
+                 owner=>$owner,
+                 approval=>$approval};
+      die "could not get settext permission for " . $req->{mpath}
+        unless($ha->action_allowed($req,$parent_hpath->id));
+    }
+  }
 
-  # now we're allowed to try to change the name
-  $ha->modify_obj({actor=>$owner}, $obj->type_id, $obj->id, {name=>$newname});
+  # now we're allowed to try to change the object
+  $ha->modify_obj({actor=>$owner}, $obj->type_id, $obj->id, $newfields);
 }
 
 

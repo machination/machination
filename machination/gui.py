@@ -252,7 +252,9 @@ class HItem(QStandardItem):
                     self.model.get_path(self),
                     self.text(), data))
             wc = self.model.get_wc(self)
-            wc.call('RenameObject', self.model.get_spec(self), data)
+            wc.call('ModifyObject',
+                    self.model.get_spec(self),
+                    {'name': data})
         super().setData(data, role)
 
 class HModel(QStandardItemModel):
@@ -744,6 +746,3 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     sys.exit(main())
-
-
-

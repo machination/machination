@@ -4324,10 +4324,6 @@ sub op_modify_obj {
   my $cat = "HAccessor.op_modify_object";
 	$type_id = "machination:hc" unless defined $type_id;
 	my $dbh = $self->write_dbh;
-	if ($type_id eq "machination:hc") {
-		MachinationException->
-			throw("can't modify hcs with modify_obj");
-  }
 
   # don't allow $fields to set certain columns
 	delete $fields->{parent};			# use move_hc instead
@@ -4335,7 +4331,12 @@ sub op_modify_obj {
 	delete $fields->{id};					# a very bad idea!
 	delete $fields->{ordinal};		# derived
 
-  my $table = "objs_" . $type_id;
+  my $table;
+  if($type_id eq "machination:hc") {
+    $table = 'hcs';
+  } else {
+    $table = "objs_" . $type_id;
+  }
 	my @updates = ("rev_id=?");
 	my @values = ($rev);
   #	my @q = qw(?);
@@ -4359,6 +4360,9 @@ sub op_modify_obj {
 		}
 	}
   push @values, $obj_id;
+
+  #TODO(Colin): if is_mp is changed to false on an hc then we should
+  #check whether the hc would have invalid children.
 
 	# update the data
   my $sql = "update $table set " . join(",",@updates) . " where id=?";

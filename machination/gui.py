@@ -52,6 +52,7 @@ class MGUI():
         self.ui.treeView.drawBranches = self.treeViewDrawBranches
         self.ui.treeView.expanded.connect(self.model.on_expand)
         self.ui.treeView.wheelEvent = self.treeViewWheelEvent
+        self.ui.treeView.keyPressEvent = self.treeViewKeyPressEvent
         self.ui.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.treeView.customContextMenuRequested.connect(self.treeViewShowContextMenu)
         self.ui.treeView.selectionModel().selectionChanged.connect(self.treeViewSlotSelectionChanged)
@@ -169,6 +170,14 @@ class MGUI():
         else:
             QTreeView.wheelEvent(self.ui.treeView, ev)
 
+    def treeViewKeyPressEvent(self, ev):
+        '''Handle treeView key press events'''
+        if ev.key() == Qt.Key_Delete:
+            self.treeViewHandlerDeleteSelection()
+            ev.accept()
+        else:
+            QTreeView.keyPressEvent(self.ui.treeView, ev)
+
     def treeViewContextMenu(self, pos):
         '''Construct treeView context menu.'''
         menu = self.baseContextMenu()
@@ -178,7 +187,7 @@ class MGUI():
 #                aexit = a
 #                break
 #        adel = QAction("Delete", self.ui.treeView)
-#        adel.triggered.connect(self.treeViewHandlerDeleteItem)
+#        adel.triggered.connect(self.treeViewHandlerDeleteSelection)
 #        menu.insertAction(aexit,adel)
         idx = self.ui.treeView.indexAt(pos)
         print("context menu over {}".format(self.model.get_path(idx)))
@@ -191,20 +200,35 @@ class MGUI():
             if branch == 'contents':
                 menu.addAction("Add to hc")
                 menu.addAction("Remove from hc")
-        menu.addAction("Delete", self.treeViewHandlerDeleteItem)
+        menu.addAction("Delete", self.treeViewHandlerDeleteSelection)
         return menu
 
     def treeViewShowContextMenu(self, pos):
         menu = self.treeViewContextMenu(pos)
         menu.exec(self.ui.treeView.mapToGlobal(pos))
 
-    def treeViewHandlerDeleteItem(self):
+    def treeViewHandlerDeleteSelection(self):
+        '''Delete all the objects in the current selection after an 'are you sure?' dialog'''
+        todelete = []
         for idx in self.ui.treeView.selectedIndexes():
-            if idx.column() != 0:
-                continue
-            print("Deleting {}".format(self.model.get_path(idx)))
+            if idx.column() == 0:
+                todelete.append(idx)
+        msg = QMessageBox()
+        msg.setText("Are you sure?")
+        msg.setInformativeText("Do you really want to delete these objects?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+        msg.setDetailedText(
+            "The following items will be deleteed:\n" +
+            "\n".join([self.model.get_path(idx) for idx in todelete])
+        )
+        ret = msg.exec()
+        if ret == QMessageBox.Yes:
+            for idx in todelete:
+                print("Deleting {}".format(self.model.get_path(idx)))
 
     def treeViewHandlerNewObject(self):
+        '''Start new object dialog.'''
         pass
 
     def treeViewSlotSelectionChanged(self, selected, deselected):
@@ -248,9 +272,6 @@ class HItem(QStandardItem):
     def setData(self, data, role):
         '''Every time the item's data is edited we need to try to update the hierarchy'''
         if role == Qt.EditRole:
-            print("Attempting to change name of {} from {} to {}".format(
-                    self.model.get_path(self),
-                    self.text(), data))
             wc = self.model.get_wc(self)
             wc.call('ModifyObject',
                     self.model.get_spec(self),

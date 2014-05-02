@@ -1,0 +1,8 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+  <start>
+    <element name='help'>
+      <attribute name='short'/>
+      <text/>
+    </element>
+  </start>
+</grammar>

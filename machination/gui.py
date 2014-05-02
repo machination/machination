@@ -201,6 +201,7 @@ class MGUI():
                 menu.addAction("Add to hc")
                 menu.addAction("Remove from hc")
         menu.addAction("Delete", self.treeViewHandlerDeleteSelection)
+        menu.addAction("Modify...", self.treeViewHandlerModifyObject)
         return menu
 
     def treeViewShowContextMenu(self, pos):
@@ -219,7 +220,7 @@ class MGUI():
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         msg.setDetailedText(
-            "The following items will be deleteed:\n" +
+            "The following items will be deleted:\n" +
             "\n".join([self.model.get_path(idx) for idx in todelete])
         )
         ret = msg.exec()
@@ -230,6 +231,21 @@ class MGUI():
     def treeViewHandlerNewObject(self):
         '''Start new object dialog.'''
         pass
+
+    def treeViewHandlerModifyObject(self):
+        '''Start object editor'''
+        sel = self.ui.treeView.selectionModel().selectedRows()
+        if len(sel) > 1:
+            raise Exception("Only one item should be selected when ModifyObject is called")
+        idx = sel[0]
+        dialog = QDialog(self.ui.treeView)
+        dialog.setModal(False)
+        editor = ObjectEditor(
+            dialog,
+            model = self.model,
+            objectIndex = idx
+        )
+        dialog.show()
 
     def treeViewSlotSelectionChanged(self, selected, deselected):
         for idx in selected.indexes():
@@ -258,6 +274,46 @@ class MGUI():
         if pixmap:
             painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)
         QTreeView.drawBranches(self.ui.treeView, painter, rect, idx)
+
+class ObjectEditor(QScrollArea):
+    '''Widget for modifying hierarchy object data.'''
+
+    def __init__(self, parent, model = None, objectIndex = None):
+        super().__init__(parent)
+        self.frame = QFrame(self)
+        self.frame.setLayout(QVBoxLayout())
+        self.titleLabel = QLabel(self.frame)
+        self.setWidget(self.frame)
+        self.setModel(model)
+        self.setObject(objectIndex)
+
+    def setModel(self, model):
+        '''Set the model used to communicate with the hierarchy.'''
+        self.model = model
+
+    def setTitle(self, title):
+        '''Change the editor title.'''
+        self.titleLabel.setText(title)
+
+    def setObject(self, objectIndex):
+        '''Specify the object to be modified.'''
+        # TODO(Colin): clear children
+        self.objectIndex = objectIndex
+        if objectIndex is None:
+            self.setTitle("No item specified!")
+            return
+        if self.model is None:
+            raise Exception("Cannot setObject when model is not set.")
+        self.setTitle("Modifying: {}".format(self.model.get_path(objectIndex)))
+        wc = self.model.get_wc(objectIndex)
+        type_info = wc.memo(
+            "TypeInfo",
+            self.model.get_value(objectIndex, "type_id")
+        )
+        obj = wc.call("FetchObject", self.model.get_spec(objectIndex))
+        print(obj)
+
+
 
 class HItem(QStandardItem):
     '''Items to put in an HModel'''

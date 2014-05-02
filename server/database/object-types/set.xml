@@ -1,0 +1,29 @@
+<objectType name='set' plural='sets'
+            isAttachable='1'
+            needsAg='1'
+            >
+  <help short='A set of other objects'>
+    Longer text
+  </help>
+
+  <col name='is_internal' type='boolean'
+          nullAllowed='0'/>
+  <col name='member_type' type='varchar'
+          nullAllowed='0'/>
+  <col name='direct' type='varchar'/>
+  <col name='expression' type='varchar'/>
+
+  <foreignKey refTable='setmember_types'
+              makesEnumeration='1'>
+    <column name='member_type' references='type'/>
+  </foreignKey>
+
+  <table name='setmember_types'
+         history='1'>
+    <primaryKey>type</primaryKey>
+    <col name='type' type='varchar'/>
+    <col name='is_internal' type='boolean' nullAllowed='0'/>
+    <col name='is_set' type='boolean' nullAllowed='0'/>
+  </table>
+
+</objectType>

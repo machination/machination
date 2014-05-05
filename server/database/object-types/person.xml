@@ -1,0 +1,16 @@
+<objectType name='person' plural='people'
+            isEntity='1'
+            >
+  <depends name='set'/>
+  <help short='Person object.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='display_name' type='varchar'/>
+  <column name='sn' type='varchar'/>
+  <column name='given_name' type='varchar'/>
+  <column name='unix_uid' type='bigint'/>
+  <column name='uname' type='varchar'/>
+
+</objectType>

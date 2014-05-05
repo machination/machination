@@ -11,7 +11,7 @@
       </optional>
       <oneOrMore>
         <element name='primaryKey'>
-          <text/>
+          <attribute name='name'/>
         </element>
       </oneOrMore>
       <oneOrMore>
@@ -28,7 +28,7 @@
 
   <!-- Columns -->
   <define name='column'>
-    <element name="col">
+    <element name="column">
       <attribute name="name"/>
       <attribute name="type"/>
       <optional>
@@ -75,6 +75,24 @@
           <attribute name='references'/>
         </element>
       </oneOrMore>
+    </element>
+  </define>
+
+  <!-- UNIQUE constraint -->
+  <define name='uniqueConstraint'>
+    <element name='uniqueConstraint'>
+      <oneOrMore>
+        <element name='column'>
+          <attribute name='name'/>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+  <!-- General constraints. -->
+  <define name='constraint'>
+    <element name='constraint'>
+      <text/>
     </element>
   </define>
 

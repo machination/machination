@@ -9,28 +9,50 @@
 
   <start>
     <element name="objectType">
-      <!-- Mandatory attributes. -->
-      <attribute name="name"/>
-      <attribute name='plural'/>
 
-      <!-- Optional attributes -->
+      <!-- Mandatory attributes. -->
+
+      <!-- Type name. -->
+      <attribute name="name"/>
+
+      <!-- Pluralisation of the type name. Only used if the plural is
+           not formed by adding an 's'. -->
+      <optional>
+        <attribute name='plural'/>
+      </optional>
+
+      <!-- Optional attributes. -->
+
+      <!-- 'Entities' are objects capable of action. -->
       <optional>
         <attribute name='isEntity'>
           <!-- Default value: 0 -->
           <ref name='bool'/>
         </attribute>
       </optional>
+      <!-- Can objects of this type be attached? -->
       <optional>
         <attribute name='isAttachable'>
           <!-- Default value: 0 -->
           <ref name='bool'/>
         </attribute>
       </optional>
+      <!-- Must objects of this type be placed in an attachment group
+           before attaching? Only consulted for attachable types. -->
       <optional>
         <attribute name='needsAg'>
           <!-- Default value: 1 -->
           <ref name='bool'/>
         </attribute>
+      </optional>
+
+      <!-- elements -->
+
+      <optional>
+        <!-- Other type that must be set up first. -->
+        <element name='depends'>
+          <attribute name='name'/>
+        </element>
       </optional>
 
       <!-- Maybe some help -->
@@ -42,9 +64,9 @@
         <ref name='column'/>
       </oneOrMore>
 
-      <oneOrMore>
+      <zeroOrMore>
         <ref name='foreignKey'/>
-      </oneOrMore>
+      </zeroOrMore>
 
       <!-- Extra tables needed for this object type. -->
       <oneOrMore>

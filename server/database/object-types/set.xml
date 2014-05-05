@@ -1,17 +1,22 @@
-<objectType name='set' plural='sets'
+<objectType name='set'
             isAttachable='1'
-            needsAg='1'
+            needsAg='0'
             >
-  <help short='A set of other objects'>
-    Longer text
+  <help short='A set of other objects.'>
+    <long>
+      Sets have members which are other objects in the hierarchy. This
+      may include other sets. Some sets may have members outside the
+      hierarchy (external members). The main example of this is
+      'string' members which are used for authorisation lists.
+    </long>
   </help>
 
-  <col name='is_internal' type='boolean'
+  <column name='is_internal' type='boolean'
           nullAllowed='0'/>
-  <col name='member_type' type='varchar'
+  <column name='member_type' type='varchar'
           nullAllowed='0'/>
-  <col name='direct' type='varchar'/>
-  <col name='expression' type='varchar'/>
+  <column name='direct' type='varchar'/>
+  <column name='expression' type='varchar'/>
 
   <foreignKey refTable='setmember_types'
               makesEnumeration='1'>
@@ -20,10 +25,10 @@
 
   <table name='setmember_types'
          history='1'>
-    <primaryKey>type</primaryKey>
-    <col name='type' type='varchar'/>
-    <col name='is_internal' type='boolean' nullAllowed='0'/>
-    <col name='is_set' type='boolean' nullAllowed='0'/>
+    <primaryKey name='type'/>
+    <column name='type' type='varchar'/>
+    <column name='is_internal' type='boolean' nullAllowed='0'/>
+    <column name='is_set' type='boolean' nullAllowed='0'/>
   </table>
 
 </objectType>

@@ -1,0 +1,16 @@
+<objectType name='os_instance'
+            isEntity='1'
+            >
+  <depends name='set'/>
+  <help short='Instance of an operating system.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='os_id' type='{IDREF_TYPE}' nullAllowed='0'/>
+
+  <foreignKey refTable='valid_oses'>
+    <column name='os_id' references='id'/>
+  </foreignKey>
+
+</objectType>

@@ -659,6 +659,44 @@ sub config_table_constraints {
   return $changed;
 }
 
+=item B<constraint_name>
+
+$con_name = $self->constraint_name($con_elt);
+
+Auto-generate a constraint name from a constraint element.
+
+=cut
+sub constraint_name {
+  my $self = shift;
+  my $table_name = shift;
+  my $con_elt = shift;
+
+  # If $con_elt has a name attribute, return that.
+  if($con_elt->hasAttribute('name')) {
+    return $con_elt->getAttribute('name');
+  }
+
+  # Autoconstruct a name.
+  my @name = ('c', $table_name);
+  # Primary keys are dealt with differently.
+  if($elt->nodeName eq 'primaryKey') {
+    push @name, "pk";
+  } else {
+    # Constraint names are somewhat limited: use short versions of
+    # constraint types.
+    my $ctype = $con_elt->getAttribute('type');
+    if($ctype eq "foreignKey") {
+      push @name, "fk";
+    } elsif($ctype eq 'unique') {
+      push @name, "un";
+    } elsif($ctype eq 'generic') {
+      push @name, "gn";
+    }
+    # Put the columns involved in the constraint into the name.
+    push @name, map {$_->nodeValue} $con_elt->findnodes('column/@name');
+  }
+}
+
 sub config_table_foreign_keys {
     my $self = shift;
     my ($table_elt,$opts) = @_;

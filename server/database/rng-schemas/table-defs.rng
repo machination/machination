@@ -56,6 +56,12 @@
   <!-- Constraints. -->
   <define name='constraint'>
     <element name='constraint'>
+      <!-- If the name attribute is present it will be used as the
+           name of the constraint, otherwise a name will be
+           auto-generated -->
+      <optional>
+        <attribute name='name'/>
+      </optional>
       <choice>
 
         <!-- uniqueness constraints -->

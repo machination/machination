@@ -321,7 +321,8 @@ $cfg->config_table_cols($table_elt, $opts)
 Add or modify columns as specified in XML element. $table_elt may be
 an XML::LibXML::Element or a string containing the appropriate XML.
 
-A full relax-ng schema for tables should be in $self->schema_path()
+A full relax-ng schema file for tables should be in
+$self->schema_path()
 
 =cut
 sub config_table_cols {
@@ -478,161 +479,184 @@ sub config_table_cols {
   return $changed;
 }
 
+=item B<config_table_triggers>
+
+$cfg->config_table_triggers($table_elt, $opts)
+
+Add or modify triggers as specified in XML element. $table_elt may be
+an XML::LibXML::Element or a string containing the appropriate XML.
+
+A full relax-ng schema file for tables should be in
+$self->schema_path()
+
+=cut
+
 sub config_table_triggers {
-    my $self = shift;
-    my ($table_elt) = @_;
-    unless(ref($table_elt)) {
-	$table_elt = $self->parser->parse_string($table_elt)->documentElement;
-    }
-    my $dbh = $self->dbh;
-    my $tname = $table_elt->getAttribute("name");
-    my $info = $self->table_info($tname);
-    my $changed = $self->ensure_table_exists($table_elt);
+  my $self = shift;
+  my ($table_elt) = @_;
+  unless(ref($table_elt)) {
+    $table_elt = $self->parser->parse_string($table_elt)->documentElement;
+  }
+  my $dbh = $self->dbh;
+  my $tname = $table_elt->getAttribute("name");
+  my $info = $self->table_info($tname);
+  my $changed = $self->ensure_table_exists($table_elt);
 
-    # Deal with triggers.
-    # There doesn't seem to be any way to tell the difference between
-    # triggers automatically added by postgres and those added
-    # explicitly. We'll only add and modify triggers listed in the XML
-    foreach my $trig_elt ($table_elt->findnodes("trigger")) {
-	eval {
+  # Deal with triggers.
+  # There doesn't seem to be any way to tell the difference between
+  # triggers automatically added by postgres and those added
+  # explicitly. We'll only add and modify triggers listed in the XML
+  foreach my $trig_elt ($table_elt->findnodes("trigger")) {
+    eval {
 	    $dbh->do("drop trigger if exists " .
-		     $trig_elt->getAttribute("name") .
-		     " on $tname");
+               $trig_elt->getAttribute("name") .
+               " on $tname");
 	    $dbh->do("create trigger " .
-		$trig_elt->getAttribute("name") . " " .
-		$trig_elt->getAttribute("when") . " on $tname for each " .
-		$trig_elt->getAttribute("each") . " execute procedure " .
-		$trig_elt->getAttribute("execute") . "()");
+               $trig_elt->getAttribute("name") . " " .
+               $trig_elt->getAttribute("when") . " on $tname for each " .
+               $trig_elt->getAttribute("each") . " execute procedure " .
+               $trig_elt->getAttribute("execute") . "()");
 	    $changed = 1;
-	}
     }
+  }
 
-    return $changed;
+  return $changed;
 }
 
+=item B<config_table_constraints>
+
+$cfg->config_table_constraints($table_elt, $opts)
+
+Add or modify constraints as specified in XML element. $table_elt may be
+an XML::LibXML::Element or a string containing the appropriate XML.
+
+A full relax-ng schema file for tables should be in
+$self->schema_path()
+
+=cut
 sub config_table_constraints {
-    my $self = shift;
-    my ($table_elt,$opts) = @_;
-    unless(ref($table_elt)) {
-	$table_elt = $self->parser->parse_string($table_elt)->documentElement;
-    }
-    my $dbh = $self->dbh;
-    my $tname = $table_elt->getAttribute("name");
-    my $info = $self->table_info($tname);
-    my $changed = $self->ensure_table_exists($table_elt);
+  my $self = shift;
+  my ($table_elt,$opts) = @_;
+  unless(ref($table_elt)) {
+    $table_elt = $self->parser->parse_string($table_elt)->documentElement;
+  }
+  my $dbh = $self->dbh;
+  my $tname = $table_elt->getAttribute("name");
+  my $info = $self->table_info($tname);
+  my $changed = $self->ensure_table_exists($table_elt);
 
-    # make sure the constraints are correct, apart from foreign
-    # key constraints, which must be dealt with seperately because
-    # they touch multiple tables (the target table/key may not exist
-    # yet)
+  # make sure the constraints are correct, apart from foreign
+  # key constraints, which must be dealt with seperately because
+  # they touch multiple tables (the target table/key may not exist
+  # yet)
 
-#    print Dumper($info);
-#    print "constraints found:\n" . Dumper($info->{"constraints"});
+  #    print Dumper($info);
+  #    print "constraints found:\n" . Dumper($info->{"constraints"});
 
-    my %xml_cons;
-    foreach my $celt ($table_elt->findnodes("constraint")) {
-	$xml_cons{lc($celt->getAttribute('id'))} = $celt;
-    }
+  my %xml_cons;
+  foreach my $celt ($table_elt->findnodes("constraint")) {
+    $xml_cons{lc($celt->getAttribute('id'))} = $celt;
+  }
 
-    # make sure any constraints *not* in the XML file are removed
-    foreach my $con (keys %{$info->{"constraints"}}) {
-	$con = lc $con;
-	next if(exists $xml_cons{$con});
-	# remove db constraint
-	print "  remove constraint $con\n";
-	eval {
+  # make sure any constraints *not* in the XML file are removed
+  foreach my $con (keys %{$info->{"constraints"}}) {
+    $con = lc $con;
+    next if(exists $xml_cons{$con});
+    # remove db constraint
+    print "  remove constraint $con\n";
+    eval {
 	    $dbh->do("alter table $tname drop constraint $con;");
-	};
-	if($@) {
+    };
+    if($@) {
 	    croak("could not drop constraint $con:\n$@");
-	}
-	$changed = 1;
     }
+    $changed = 1;
+  }
 
-    # make sure all constraints specified in XML are present and
-    # correct (except foreign keys).
-    foreach my $con_elt ($table_elt->findnodes("constraint")) {
-	my $type = $con_elt->getAttribute("type");
-	my $id = lc($con_elt->getAttribute("id"));
+  # make sure all constraints specified in XML are present and
+  # correct (except foreign keys).
+  foreach my $con_elt ($table_elt->findnodes("constraint")) {
+    my $type = $con_elt->getAttribute("type");
+    my $id = lc($con_elt->getAttribute("id"));
 
-	# check to see if constraint is there
-	my $addcon = 1;
-	if(exists $info->{"constraints"}->{$id}) {
+    # check to see if constraint is there
+    my $addcon = 1;
+    if(exists $info->{"constraints"}->{$id}) {
 	    $addcon = 0;
 	    if($type ne $info->{"constraints"}->{$id}) {
-		print "  constraint $id is different from XML - removing\n";
-		eval {
-		    $dbh->do("alter table $tname drop constraint $id;");
-		};
-		if($@) {
-		    croak("could not drop constraint $id:\n$@");
-		}
-		$addcon = 1;
-		$changed=1;
+        print "  constraint $id is different from XML - removing\n";
+        eval {
+          $dbh->do("alter table $tname drop constraint $id;");
+        };
+        if($@) {
+          croak("could not drop constraint $id:\n$@");
+        }
+        $addcon = 1;
+        $changed=1;
 	    }
 	    print "  constraint $id exists\n" unless($addcon);
-	}
+    }
 
-	# deal with foreign keys later
-	if($type eq "FOREIGN KEY") {
+    # deal with foreign keys later
+    if($type eq "FOREIGN KEY") {
 	    print "  deferring foreign key constraint $id till later\n";
 	    next;
-	}
-
-	if($addcon) {
-    print "  add constraint $id\n";
-    if($type eq "PRIMARY KEY") {
-      my @cols;
-      foreach my $col ($con_elt->findnodes("col")) {
-		    push @cols, $col->getAttribute("name");
-      }
-      croak("no \"col\" elements found in " .
-            "$type constraint $id")
-		    unless @cols;
-      eval {
-		    $dbh->do("alter table $tname add constraint $id $type (" .
-                 join(",",@cols) .
-                 ");");
-      };
-      if($@) {
-		    croak("could not add constraint $id:\n$@");
-      }
-      $changed=1;
-    } elsif ($type eq "UNIQUE") {
-      my @cols;
-      foreach my $col ($con_elt->findnodes("col")) {
-		    push @cols, $col->getAttribute("name");
-      }
-      croak("no \"col\" elements found in " .
-            "$type constraint $id")
-		    unless @cols;
-      eval {
-		    $dbh->do("alter table $tname add constraint $id $type (" .
-                 join(",",@cols) .
-                 ");");
-      };
-      if($@) {
-		    croak("could not add constraint $id:\n$@");
-      }
-      $changed=1;
-    } elsif ($type eq "general") {
-      my $sql = "alter table $tname add constraint $id " .
-		    $con_elt->textContent;
-      eval {
-		    $dbh->do($sql);
-      };
-      if($@) {
-		    croak("could not add constraint $id " .
-              "with SQL:\n$sql\n$@\n");
-      }
-      $changed=1;
-    } else {
-      croak("unknown constraint type \"$type\"\n");
     }
-	}
-}
 
-    return $changed;
+    if($addcon) {
+      print "  add constraint $id\n";
+      if($type eq "PRIMARY KEY") {
+        my @cols;
+        foreach my $col ($con_elt->findnodes("col")) {
+          push @cols, $col->getAttribute("name");
+        }
+        croak("no \"col\" elements found in " .
+              "$type constraint $id")
+          unless @cols;
+        eval {
+          $dbh->do("alter table $tname add constraint $id $type (" .
+                   join(",",@cols) .
+                   ");");
+        };
+        if($@) {
+          croak("could not add constraint $id:\n$@");
+        }
+        $changed=1;
+      } elsif ($type eq "UNIQUE") {
+        my @cols;
+      foreach my $col ($con_elt->findnodes("col")) {
+		    push @cols, $col->getAttribute("name");
+      }
+        croak("no \"col\" elements found in " .
+              "$type constraint $id")
+          unless @cols;
+        eval {
+          $dbh->do("alter table $tname add constraint $id $type (" .
+                   join(",",@cols) .
+                   ");");
+        };
+        if($@) {
+          croak("could not add constraint $id:\n$@");
+        }
+        $changed=1;
+      } elsif ($type eq "general") {
+        my $sql = "alter table $tname add constraint $id " .
+          $con_elt->textContent;
+        eval {
+          $dbh->do($sql);
+        };
+        if($@) {
+          croak("could not add constraint $id " .
+                "with SQL:\n$sql\n$@\n");
+        }
+        $changed=1;
+      } else {
+        croak("unknown constraint type \"$type\"\n");
+      }
+    }
+  }
+
+  return $changed;
 }
 
 sub config_table_foreign_keys {

@@ -1,7 +1,7 @@
 use strict;
 package DB::Config;
 
-# Copyright 2008 Colin Higgs and Matthew Richardson
+# Copyright 2008, 2014 Colin Higgs and Matthew Richardson
 #
 # This file is part of Machination.
 #
@@ -18,209 +18,320 @@ package DB::Config;
 # You should have received a copy of the GNU General Public License
 # along with Machination.  If not, see <http://www.gnu.org/licenses/>.
 
+=pod
+
+=head1 DB::Config
+
+=head2 Configure database tables based on XML definitions
+
+=head2 Synopsis
+
+=head2 DB::Config Moose Object
+
+=cut
+
+use Moose;
+use namespace::autoclean;
+
 use XML::LibXML;
 use Data::Dumper;
 use Carp;
-our $AUTOLOAD;
 
-my %fields = (
-              dbh => undef,
-              prepared_queries => {},
-              test_table => "test_table",
-              types => {},
-              verbosity => 1,
-             );
+=head3 Constructing
 
-sub new {
-  my $class = shift;
-  my ($dbh) = @_;
-  my $self = {
-              _permitted => \%fields,
-              %fields,
-             };
-  bless $self,$class;
-  $self->dbh($dbh) if(defined $dbh);
-  return $self;
-}
+$dbc = DB::Config->new(dbh=>$dbh);
 
-sub AUTOLOAD {
+or
+
+$dbc = DB::Config->new($dbh);
+
+=head3 Properties
+
+=over
+
+=cut
+
+=item B<dbh> (required)
+
+Database handle.
+
+=cut
+has 'dbh' => (is=>'ro',
+              required=>1);
+
+=item B<schema_path>
+
+Where to find relax-ng schemas. Default
+/var/lib/machination/server/database/rng-schemas.
+
+=cut
+has 'schema_path' => (is=>'rw',
+                      default=>'/var/lib/machination/server/database/rng-schemas');
+
+=item B<table_schema>
+
+Relax-ng schema for table XML.
+
+=cut
+has 'table_schema' => (is=>'rw',
+                       lazy=>1,
+                       builder=>'_build_table_schema');
+
+sub _build_table_schema {
   my $self = shift;
-  my $type = ref($self)
-    or croak "$self is not an object";
 
-  my $name = $AUTOLOAD;
-  $name =~ s/.*://;   # strip fully-qualified portion
+  return XML::LibXML::RelaxNG->new
+    (location=>$self->schema_path . "/table.rng");
+}
 
-  unless (exists $self->{_permitted}->{$name} ) {
-    croak "Can't access `$name' field in class $type";
+=item B<test_table>
+
+Name of a table where test columns can be created.
+
+=cut
+has 'test_table' => (is=>'rw',
+                     default=>'test_table');
+
+=item B<types>
+
+Store major and minor ids of types by name. Used to memo-ise find_type_ids.
+
+=cut
+has 'types' => (is=>'rw',
+                default=>sub {{}});
+
+=item B<verbosity>
+
+
+
+=cut
+has 'verbosity' => (is=>'rw',
+                    default=>1);
+
+=item B<parser>
+
+XML parser for re-use.
+
+=cut
+has 'parser' => (is=>'rw',
+                 default=>sub {XML::LibXML->new});
+
+=item B<prepared_queries>
+
+=cut
+has 'prepared_queries' => (is=>'rw',
+                           default=>sub {{}});
+
+around BUILDARGS => sub {
+  my $orig  = shift;
+  my $class = shift;
+
+  if ( @_ == 1 && !ref $_[0] ) {
+    return $class->$orig( dbh => $_[0] );
   }
+  else {
+    return $class->$orig(@_);
+  }
+};
 
-  if (@_) {
-    return $self->{$name} = shift;
+=back
+
+=head3 Methods
+
+=over
+
+=item B<validate_xml>
+
+$dbc->validate_xml($table_elt or $string);
+
+Validate XMl describing a table against $dbc->table_schema.
+
+=cut
+
+sub validate_xml {
+  my $self = shift;
+  my $table_elt = shift;
+
+  # We pass elements around but libxml2 can only validate documents.
+  my $table_doc;
+  if(ref($table_elt)) {
+    # We can't just go adding elements to documents willy-nilly:
+    # better make a clone.
+    $table_elt = $table_elt->cloneNode(1);
+    $table_doc = XML::LibXML->createDocument;
+    $table_doc->setDocumentElement($table_elt);
   } else {
-    return $self->{$name};
+    $table_doc = $self->parser->parse_string($table_elt);
+    $table_elt = $table_doc->documentElement;
   }
+  # Check the table XML against the schema
+  $self->table_schema->validate($table_doc);
 }
 
-sub parser {
-    my $self = shift;
-    $self->{parser} = XML::LibXML->new unless($self->{parser});
-    return $self->{parser};
-}
+=item B<find_type_ids>
 
-sub generate_array {
-    my $self = shift;
-    my ($entry,$size) = @_;
-    my @arr;
-    foreach (1..$size) {
-	push @arr, $entry;
-    }
-    return @arr;
-}
+($major, $minor) = $dbc->find_type_ids($str);
 
+Find the (postgresql) major and minor type ids of the type named $str
+
+=cut
 sub find_type_ids {
-    my $self = shift;
-    my ($str) = @_;
-    my $major; my $minor;
-    my $table = $self->test_table;
-    my $test_col = "type_test";
-    my $dbh = $self->dbh;
+  my $self = shift;
+  my ($str) = @_;
+  my $major; my $minor;
+  my $table = $self->test_table;
+  my $test_col = "type_test";
+  my $dbh = $self->dbh;
 
-    if(exists $self->types->{$str}) {
-	return @{$self->types->{$str}};
-    }
+  # memo-isation
+  if(exists $self->types->{$str}) {
+    return @{$self->types->{$str}};
+  }
 
-    my $save_auto_commit = $dbh->{AutoCommit};
-    $dbh->begin_work if($save_auto_commit);
-    $dbh->pg_savepoint("find_type_ids");
-    my $abort = sub {
-	$dbh->pg_rollback_to("find_type_ids");
-	$dbh->pg_release("find_type_ids");
-	croak(@_);
-    };
-    
-    unless($self->table_exists($table)) {
-	eval {$dbh->do("create table $table ();")};
-	if($@) {
-	    &$abort("find_type_ids could not create" .
-		  "test table $table:\n$@");
-	}
-    }
-    my $info = $self->table_info($table);
-    if(exists $info->{"atts"}->{$test_col}) {
-	eval {
-	    $dbh->do("alter table $table drop $test_col;");
-	};
-	if($@) {
-	    &$abort("could not drop test column $test_col:\n$@");
-	}
-    }
-    eval {
-	$dbh->do("alter table $table add $test_col $str;");
-    };
-    if($@) {
-	&$abort("Could not add test column $test_col:\n$@");
-    }
-    $info = $self->table_info($table);
-    
+  my $save_auto_commit = $dbh->{AutoCommit};
+  $dbh->begin_work if($save_auto_commit);
+  $dbh->pg_savepoint("find_type_ids");
+  my $abort = sub {
     $dbh->pg_rollback_to("find_type_ids");
     $dbh->pg_release("find_type_ids");
-    $dbh->{AutoCommit} = $save_auto_commit;
+    croak(@_);
+  };
 
-    $self->types->{$str} = \@{$info->{"atts"}->{$test_col}->{"typeids"}};
+  unless($self->table_exists($table)) {
+    eval {$dbh->do("create table $table ();")};
+    if($@) {
+	    &$abort("find_type_ids could not create" .
+              "test table $table:\n$@");
+    }
+  }
+  my $info = $self->table_info($table);
+  if(exists $info->{"atts"}->{$test_col}) {
+    eval {
+	    $dbh->do("alter table $table drop $test_col;");
+    };
+    if($@) {
+	    &$abort("could not drop test column $test_col:\n$@");
+    }
+  }
+  eval {
+    $dbh->do("alter table $table add $test_col $str;");
+  };
+  if($@) {
+    &$abort("Could not add test column $test_col:\n$@");
+  }
+  $info = $self->table_info($table);
 
-    return @{$self->types->{$str}};
+  $dbh->pg_rollback_to("find_type_ids");
+  $dbh->pg_release("find_type_ids");
+  $dbh->{AutoCommit} = $save_auto_commit;
+
+  $self->types->{$str} = \@{$info->{"atts"}->{$test_col}->{"typeids"}};
+
+  return @{$self->types->{$str}};
 }
 
+# configure a named sequence. Not used any more?
 sub config_sequence {
-    my $self = shift;
-    my ($seq_elt,$opts) = @_;
-    unless(ref($seq_elt)) {
-	$seq_elt = $self->parser->parse_string($seq_elt)->documentElement;
-    }
-    my $dbh = $self->dbh;
+  my $self = shift;
+  my ($seq_elt,$opts) = @_;
+  unless(ref($seq_elt)) {
+    $seq_elt = $self->parser->parse_string($seq_elt)->documentElement;
+  }
+  my $dbh = $self->dbh;
 
-    my $delete;
-    if(exists $opts->{"delete"}) {
-	$delete = $opts->{"delete"};
-    }
+  my $delete;
+  if(exists $opts->{"delete"}) {
+    $delete = $opts->{"delete"};
+  }
 
-    my $sname = $seq_elt->getAttribute("name");
-    print "Checking sequence \"$sname\"\n";
-    my $start = $seq_elt->getAttribute("start");
-    my $increment = $seq_elt->getAttribute("increment");
-    my $minvalue = $seq_elt->getAttribute("minvalue");
-    my $maxvalue = $seq_elt->getAttribute("maxvalue");
-    my $cache = $seq_elt->getAttribute("cache");
-    my $cycle = $seq_elt->getAttribute("cycle");
-    $increment = undef if($increment eq "");
-    $minvalue = undef if($minvalue eq "");
-    $maxvalue = undef if($maxvalue eq "");
-    $start = undef if($start eq "");
-    $cache = undef if($cache eq "");
-    $cycle = undef if($cycle eq "");
+  my $sname = $seq_elt->getAttribute("name");
+  print "Checking sequence \"$sname\"\n";
+  my $start = $seq_elt->getAttribute("start");
+  my $increment = $seq_elt->getAttribute("increment");
+  my $minvalue = $seq_elt->getAttribute("minvalue");
+  my $maxvalue = $seq_elt->getAttribute("maxvalue");
+  my $cache = $seq_elt->getAttribute("cache");
+  my $cycle = $seq_elt->getAttribute("cycle");
+  $increment = undef if($increment eq "");
+  $minvalue = undef if($minvalue eq "");
+  $maxvalue = undef if($maxvalue eq "");
+  $start = undef if($start eq "");
+  $cache = undef if($cache eq "");
+  $cycle = undef if($cycle eq "");
 
-    unless($self->sequence_exists($sname)) {
-	# no such sequence exists - create one
-	my $sql = "create sequence $sname";
-	print "  creating sequence \"$sname\"\n";
-	$sql .= " start $start" if(defined $start); 
-	$sql .= " increment $increment" if(defined $increment);
-	$sql .= " minvalue $minvalue" if(defined $minvalue);
-	$sql .= " maxvalue $maxvalue" if(defined $maxvalue);
-	$sql .= " cache $cache" if(defined $cache);
-	$sql .= " cycle" if($cycle);
-	$sql .= ";";
-	eval {
+  unless($self->sequence_exists($sname)) {
+    # no such sequence exists - create one
+    my $sql = "create sequence $sname";
+    print "  creating sequence \"$sname\"\n";
+    $sql .= " start $start" if(defined $start);
+    $sql .= " increment $increment" if(defined $increment);
+    $sql .= " minvalue $minvalue" if(defined $minvalue);
+    $sql .= " maxvalue $maxvalue" if(defined $maxvalue);
+    $sql .= " cache $cache" if(defined $cache);
+    $sql .= " cycle" if($cycle);
+    $sql .= ";";
+    eval {
 	    $dbh->do($sql);
-	};
-	if($@) {
+    };
+    if($@) {
 	    croak("could not create sequence $sname:\n$@");
-	}
+    }
+  }
+
+  # the sequence should now exist - make any alterations necessary
+  my $info = $self->sequence_info($sname);
+  my $changes;
+  if($seq_elt) {
+    if (defined $increment && $increment != $info->{'increment_by'}) {
+	    $changes .= " increment $increment";
     }
 
-    # the sequence should now exist - make any alterations necessary
-    my $info = $self->sequence_info($sname);
-    my $changes;
-    if($seq_elt) {
-	if (defined $increment && $increment != $info->{'increment_by'}) {
-	    $changes .= " increment $increment";
-	}
-	
-	$changes .= " minvalue $minvalue" 
+    $changes .= " minvalue $minvalue"
 	    if(defined $minvalue && $minvalue != $info->{'min_value'});
-	
-	$changes .= " maxvalue $maxvalue"
+
+    $changes .= " maxvalue $maxvalue"
 	    if(defined $maxvalue && $maxvalue != $info->{'max_value'});
-	
-	$changes .= " cache $cache"
+
+    $changes .= " cache $cache"
 	    if(defined $cache && $cache != $info->{'cache_value'});
 
-	$cycle = 0 if(lc($cycle) eq "false");
-	$cycle = 1 if($cycle);
-	if(defined $cycle && $cycle != $info->{'is_cycled'}) {
+    $cycle = 0 if(lc($cycle) eq "false");
+    $cycle = 1 if($cycle);
+    if(defined $cycle && $cycle != $info->{'is_cycled'}) {
 	    if($cycle) {
-		$changes .= " cycle";
+        $changes .= " cycle";
 	    } else {
-		$changes .= " no cycle";
+        $changes .= " no cycle";
 	    }
-	}
-	
     }
 
-    if($changes) {
-	my $sql = "alter sequence $sname$changes;";
-	print "  $sql\n";
-	$dbh->do($sql);
-    }
+  }
+
+  if($changes) {
+    my $sql = "alter sequence $sname$changes;";
+    print "  $sql\n";
+    $dbh->do($sql);
+  }
 }
 
+=item B<config_table_cols>
+
+$cfg->config_table_cols($table_elt, $opts)
+
+Add or modify columns as specified in XML element. $table_elt may be
+an XML::LibXML::Element or a string containing the appropriate XML.
+
+A full relax-ng schema for tables should be in $self->schema_path()
+
+=cut
 sub config_table_cols {
   my $self = shift;
   my ($table_elt,$opts) = @_;
-  unless(ref($table_elt)) {
+
+  if(!ref($table_elt)) {
     $table_elt = $self->parser->parse_string($table_elt)->documentElement;
   }
+
   my $dbh = $self->dbh;
 
   my $do_types = 1;
@@ -257,7 +368,7 @@ sub config_table_cols {
   my %db_cols_set;
   @db_cols_set{keys %{$info->{"atts"}}} = (undef);
   my %xml_cols_set;
-  foreach my $xml_col ($table_elt->findnodes("col")) {
+  foreach my $xml_col ($table_elt->findnodes("column")) {
     $xml_cols_set{$xml_col->getAttribute("name")} = undef;
   }
   my %union_set;
@@ -295,7 +406,7 @@ sub config_table_cols {
     $changed = 1;
     foreach my $col (keys %xmlonly_set) {
 	    my $col_elt = ($table_elt->
-                     findnodes("col[\@name=\"$col\"]"))[0];
+                     findnodes("column[\@name=\"$col\"]"))[0];
 	    my $type = $col_elt->getAttribute("type");
 	    my $null = $col_elt->getAttribute("nullAllowed");
 	    (defined $null && !$null) ? $null = " not null" : $null="";
@@ -323,7 +434,7 @@ sub config_table_cols {
 	    }
 
 	    my $celt = ($table_elt->
-                  findnodes("col[\@name=\"$col\"]"))[0];
+                  findnodes("column[\@name=\"$col\"]"))[0];
 	    my $type = $celt->getAttribute("type");
 	    my $nullable = 1;
 	    $nullable = $celt->getAttribute("nullAllowed")
@@ -531,7 +642,7 @@ sub config_table_foreign_keys {
     unless(ref($table_elt)) {
 	$table_elt = $self->parser->parse_string($table_elt)->documentElement;
     }
-    
+
     my $changed = 0;
 
     my $tname = $table_elt->getAttribute("name");
@@ -610,7 +721,7 @@ sub ensure_table_exists {
 	push @both, $col->getAttribute("name") . " " .
 	    $col->getAttribute("type");
     }
-    $sql .= join(",\n",@both); 
+    $sql .= join(",\n",@both);
     $sql .= ");";
 #    print "  using sql:\n$sql\n";
 
@@ -633,18 +744,18 @@ sub table_info {
     my $self = shift;
     my ($name,$opts) = @_;
     my $dbh = $self->dbh;
-    
+
     my $do_types = 1;
     if(exists $opts->{"types"} && ! $opts->{"types"}) {
 	$do_types = 0;
     }
-    
+
     my $info;
 
     return undef unless($self->table_exists($name));
 
     $info->{"name"} = $name;
-    
+
     my $sql;
     $sql = "select c.oid from pg_catalog.pg_class c where c.relname = ?;";
     my $sth = $self->prepare_query("find_oid",$sql);
@@ -843,9 +954,12 @@ sub config_function {
 sub cleanup {
     my $self = shift;
     my $prepared_queries = $self->prepared_queries;
-    
+
     foreach my $qname (keys %$prepared_queries) {
 	$prepared_queries->{$qname}->{"sth"}->finish;
     }
 }
 
+=back
+
+=cut

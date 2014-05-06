@@ -5,7 +5,7 @@
   <include href='rngDataTypes.rng'/>
 
   <!-- Table and related definitions -->
-  <include href='table.rng'/>
+  <include href='table-defs.rng'/>
 
   <start>
     <element name="objectType">

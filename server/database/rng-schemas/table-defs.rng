@@ -21,7 +21,7 @@
         <ref name='trigger'/>
       </zeroOrMore>
       <zeroOrMore>
-        <ref name='foreignKey'/>
+        <ref name='constraint'/>
       </zeroOrMore>
     </element>
   </define>
@@ -53,46 +53,58 @@
     </element>
   </define>
 
-  <!-- Foreign keys. -->
-  <define name='foreignKey'>
-    <element name='foreignKey'>
-      <attribute name='refTable'/>
-      <optional>
-        <!--
-            makesEnumeration is a hint to UIs that there should be a
-            drop-down widget or tab completion based on the contents
-            of the referenced table. It does not change any aspect of
-            the table in the database.
-        -->
-        <attribute name='makesEnumeration'>
-          <!-- Default Value: 1 -->
-          <ref name='bool'/>
-        </attribute>
-      </optional>
-      <oneOrMore>
-        <element name='column'>
-          <attribute name='name'/>
-          <attribute name='references'/>
-        </element>
-      </oneOrMore>
-    </element>
-  </define>
-
-  <!-- UNIQUE constraint -->
-  <define name='uniqueConstraint'>
-    <element name='uniqueConstraint'>
-      <oneOrMore>
-        <element name='column'>
-          <attribute name='name'/>
-        </element>
-      </oneOrMore>
-    </element>
-  </define>
-
-  <!-- General constraints. -->
+  <!-- Constraints. -->
   <define name='constraint'>
     <element name='constraint'>
-      <text/>
+      <choice>
+
+        <!-- uniqueness constraints -->
+        <group>
+          <attribute name='type'>
+            <value>unique</value>
+          </attribute>
+          <oneOrMore>
+            <element name='column'>
+              <attribute name='name'/>
+            </element>
+          </oneOrMore>
+        </group>
+
+        <!-- foreign key constraints -->
+        <group>
+          <attribute name='type'>
+            <value>foreignKey</value>
+          </attribute>
+          <attribute name='refTable'/>
+          <optional>
+            <!--
+                makesEnumeration is a hint to UIs that there should be
+                a drop-down widget or tab completion based on the
+                contents of the referenced table. It does not change
+                any aspect of the table in the database.
+            -->
+            <attribute name='makesEnumeration'>
+              <!-- Default Value: 1 -->
+              <ref name='bool'/>
+            </attribute>
+          </optional>
+          <oneOrMore>
+            <element name='column'>
+              <attribute name='name'/>
+              <attribute name='references'/>
+            </element>
+          </oneOrMore>
+        </group>
+
+        <!-- Generic constraints. -->
+        <group>
+          <attribute name='type'>
+            <value>generic</value>
+          </attribute>
+          <text/>
+        </group>
+
+      </choice>
     </element>
   </define>
 

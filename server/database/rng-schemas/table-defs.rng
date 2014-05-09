@@ -9,27 +9,29 @@
           <ref name='bool'/>
         </attribute>
       </optional>
-      <oneOrMore>
-        <element name='primaryKey'>
-          <optional>
-            <attribute name='name'/>
-          </optional>
-          <oneOrMore>
-            <element name='column'>
+      <interleave>
+        <oneOrMore>
+          <element name='primaryKey'>
+            <optional>
               <attribute name='name'/>
-            </element>
-          </oneOrMore>
-        </element>
-      </oneOrMore>
-      <oneOrMore>
-        <ref name='column'/>
-      </oneOrMore>
-      <zeroOrMore>
-        <ref name='trigger'/>
-      </zeroOrMore>
-      <zeroOrMore>
-        <ref name='constraint'/>
-      </zeroOrMore>
+            </optional>
+            <oneOrMore>
+              <element name='column'>
+                <attribute name='name'/>
+              </element>
+            </oneOrMore>
+          </element>
+        </oneOrMore>
+        <oneOrMore>
+          <ref name='column'/>
+        </oneOrMore>
+        <zeroOrMore>
+          <ref name='trigger'/>
+        </zeroOrMore>
+        <zeroOrMore>
+          <ref name='constraint'/>
+        </zeroOrMore>
+      </interleave>
     </element>
   </define>
 

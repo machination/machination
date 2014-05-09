@@ -126,7 +126,7 @@ around BUILDARGS => sub {
   my $orig  = shift;
   my $class = shift;
 
-  if ( @_ == 1 && !ref $_[0] ) {
+  if ( @_ == 1 && (ref($_[0]) ne "HASH")) {
     return $class->$orig( dbh => $_[0] );
   }
   else {
@@ -390,7 +390,7 @@ sub config_table_cols {
   #    print "dbonly: " . Dumper(\%dbonly_set);
   #    print "xmlonly: " . Dumper(\%xmlonly_set);
 
-  my $changed = 0;
+#  my $changed = 0;
 
   # delete columns which are only in the db (not yet implemented)
   if(keys %dbonly_set) {
@@ -615,7 +615,7 @@ sub config_table_constraints {
       print "  add constraint $id\n";
       if($type eq "primaryKey") {
         my @cols;
-        foreach my $col ($con_elt->findnodes("col")) {
+        foreach my $col ($con_elt->findnodes("column")) {
           push @cols, $col->getAttribute("name");
         }
         croak("no \"col\" elements found in " .
@@ -687,7 +687,7 @@ sub constraint_name {
   # Autoconstruct a name.
   my @name = ('c', $table_name);
   # Primary keys are dealt with differently.
-  if($elt->nodeName eq 'primaryKey') {
+  if($con_elt->nodeName eq 'primaryKey') {
     push @name, "pk";
   } else {
     # Constraint name lengths are somewhat limited: use short versions of
@@ -703,7 +703,7 @@ sub constraint_name {
     # Put the columns involved in the constraint into the name.
     push @name, map {$_->nodeValue} $con_elt->findnodes('column/@name');
   }
-  @name = map {s/(_+)(.)/\u$2/g} @name;
+  map {$_ =~ s/(_+)(.)/\u$2/g} @name;
   return join("_", @name);
 }
 
@@ -1052,3 +1052,5 @@ sub cleanup {
 =back
 
 =cut
+
+1;

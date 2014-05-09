@@ -490,7 +490,6 @@ A full relax-ng schema file for tables should be in
 $self->schema_path()
 
 =cut
-
 sub config_table_triggers {
   my $self = shift;
   my ($table_elt) = @_;
@@ -555,10 +554,13 @@ sub config_table_constraints {
 
   my %xml_cons;
   foreach my $celt ($table_elt->findnodes("constraint")) {
-    $xml_cons{lc($celt->getAttribute('id'))} = $celt;
+    $xml_cons{lc($self->constraint_name($tname, $celt))} = $celt;
   }
 
-  # make sure any constraints *not* in the XML file are removed
+  # Make sure any constraints *not* in the XML file are removed. This
+  # won't check primary key constraints since they come in their own
+  # 'primaryKey' elements, but we probably don't want to delete the
+  # primary key anyway.
   foreach my $con (keys %{$info->{"constraints"}}) {
     $con = lc $con;
     next if(exists $xml_cons{$con});
@@ -575,9 +577,15 @@ sub config_table_constraints {
 
   # make sure all constraints specified in XML are present and
   # correct (except foreign keys).
-  foreach my $con_elt ($table_elt->findnodes("constraint")) {
-    my $type = $con_elt->getAttribute("type");
-    my $id = lc($con_elt->getAttribute("id"));
+  foreach my $con_elt ($table_elt->findnodes("constraint"),
+                       $table_elt->findnodes("primaryKey")) {
+    my $type;
+    if($con_elt->nodeName eq "primaryKey") {
+      $type = 'primaryKey';
+    } else {
+      $type = $con_elt->getAttribute("type");
+    }
+    my $id = lc $self->constraint_name($tname, $con_elt);
 
     # check to see if constraint is there
     my $addcon = 1;
@@ -598,14 +606,14 @@ sub config_table_constraints {
     }
 
     # deal with foreign keys later
-    if($type eq "FOREIGN KEY") {
+    if($type eq "foreignKey") {
 	    print "  deferring foreign key constraint $id till later\n";
 	    next;
     }
 
     if($addcon) {
       print "  add constraint $id\n";
-      if($type eq "PRIMARY KEY") {
+      if($type eq "primaryKey") {
         my @cols;
         foreach my $col ($con_elt->findnodes("col")) {
           push @cols, $col->getAttribute("name");
@@ -622,12 +630,12 @@ sub config_table_constraints {
           croak("could not add constraint $id:\n$@");
         }
         $changed=1;
-      } elsif ($type eq "UNIQUE") {
+      } elsif ($type eq "unique") {
         my @cols;
-      foreach my $col ($con_elt->findnodes("col")) {
-		    push @cols, $col->getAttribute("name");
-      }
-        croak("no \"col\" elements found in " .
+        foreach my $col ($con_elt->findnodes("column")) {
+          push @cols, $col->getAttribute("name");
+        }
+        croak("no \"column\" elements found in " .
               "$type constraint $id")
           unless @cols;
         eval {
@@ -639,7 +647,7 @@ sub config_table_constraints {
           croak("could not add constraint $id:\n$@");
         }
         $changed=1;
-      } elsif ($type eq "general") {
+      } elsif ($type eq "generic") {
         my $sql = "alter table $tname add constraint $id " .
           $con_elt->textContent;
         eval {
@@ -661,7 +669,7 @@ sub config_table_constraints {
 
 =item B<constraint_name>
 
-$con_name = $self->constraint_name($con_elt);
+$con_name = $self->constraint_name($table_name, $con_elt);
 
 Auto-generate a constraint name from a constraint element.
 
@@ -682,7 +690,7 @@ sub constraint_name {
   if($elt->nodeName eq 'primaryKey') {
     push @name, "pk";
   } else {
-    # Constraint names are somewhat limited: use short versions of
+    # Constraint name lengths are somewhat limited: use short versions of
     # constraint types.
     my $ctype = $con_elt->getAttribute('type');
     if($ctype eq "foreignKey") {
@@ -695,6 +703,8 @@ sub constraint_name {
     # Put the columns involved in the constraint into the name.
     push @name, map {$_->nodeValue} $con_elt->findnodes('column/@name');
   }
+  @name = map {s/(_+)(.)/\u$2/g} @name;
+  return join("_", @name);
 }
 
 sub config_table_foreign_keys {

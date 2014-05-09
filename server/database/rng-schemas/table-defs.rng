@@ -11,7 +11,14 @@
       </optional>
       <oneOrMore>
         <element name='primaryKey'>
-          <attribute name='name'/>
+          <optional>
+            <attribute name='name'/>
+          </optional>
+          <oneOrMore>
+            <element name='column'>
+              <attribute name='name'/>
+            </element>
+          </oneOrMore>
         </element>
       </oneOrMore>
       <oneOrMore>

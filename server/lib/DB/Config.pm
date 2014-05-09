@@ -622,7 +622,7 @@ sub config_table_constraints {
               "$type constraint $id")
           unless @cols;
         eval {
-          $dbh->do("alter table $tname add constraint $id $type (" .
+          $dbh->do("alter table $tname add constraint $id PRIMARY KEY (" .
                    join(",",@cols) .
                    ");");
         };
@@ -639,7 +639,7 @@ sub config_table_constraints {
               "$type constraint $id")
           unless @cols;
         eval {
-          $dbh->do("alter table $tname add constraint $id $type (" .
+          $dbh->do("alter table $tname add constraint $id UNIQUE (" .
                    join(",",@cols) .
                    ");");
         };
@@ -707,105 +707,122 @@ sub constraint_name {
   return join("_", @name);
 }
 
+=item B<config_table_foreign_keys>
+
+$self->config_table_foreign_keys($table_elt, $opts);
+
+Add or remove foreign key constraints for table described in $table_elt.
+
+=cut
 sub config_table_foreign_keys {
-    my $self = shift;
-    my ($table_elt,$opts) = @_;
-    my $dbh = $self->dbh;
-    unless(ref($table_elt)) {
-	$table_elt = $self->parser->parse_string($table_elt)->documentElement;
-    }
+  my $self = shift;
+  my ($table_elt,$opts) = @_;
+  my $dbh = $self->dbh;
+  unless(ref($table_elt)) {
+    $table_elt = $self->parser->parse_string($table_elt)->documentElement;
+  }
 
-    my $changed = 0;
+  my $changed = 0;
 
-    my $tname = $table_elt->getAttribute("name");
-    print "Checking foreign keys for table $tname\n";
-    unless($self->table_exists($tname)) {
-	croak("config_table_foreign_keys: " .
-	      "table \"$tname\" does not exist\n");
-    }
+  my $tname = $table_elt->getAttribute("name");
+  print "Checking foreign keys for table $tname\n";
+  unless($self->table_exists($tname)) {
+    croak("config_table_foreign_keys: " .
+          "table \"$tname\" does not exist\n");
+  }
 
-    my $info = $self->table_info($tname);
-    foreach my $con_elt
-	($table_elt->findnodes("constraint[\@type=\"FOREIGN KEY\"]"))
-    {
-	my $id = lc $con_elt->getAttribute("id");
-	print "  checking foreign key constraint $id\n";
+  my $info = $self->table_info($tname);
+  foreach my $con_elt
+    ($table_elt->findnodes("constraint[\@type=\"foreignKey\"]"))
+      {
+        my $id = lc($self->constraint_name($tname, $con_elt));
+        print "  checking foreign key constraint $id\n";
 
-	# check to see if constraint is there
-#	my $addcon = 1;
-#	print Dumper($info->{"constraints"});
-	if(exists $info->{"constraints"}->{$id}) {
-	    print "  constraint $id exists\n";
-	} else {
-	    print "  adding foreign key constraint $id\n";
-	    my $ftable = $con_elt->getAttribute("refTable");
-	    my @cols;
-	    my @fcols;
-	    foreach my $col ($con_elt->findnodes("col")) {
-		push @cols, $col->getAttribute("name");
-		push @fcols, $col->getAttribute("refKey");
-	    }
-	    croak("no \"col\" elements found " .
-		  "in FOREIGN KEY constraint $id\n")
-		unless @cols;
-	    eval {
-		$dbh->do("alter table $tname add constraint $id " .
-			 "FOREIGN KEY (" .
-			 join(",",@cols) .
-			 ") references $ftable (" .
-			 join(",",@fcols) . ");");
-	    };
-	    if($@) {
-		croak("Could not add FOREIGN KEY to $tname:\n$@");
-	    }
-	    $changed=1;
-	}
-    }
-    print "table $tname done\n";
-    return $changed;
+        # check to see if constraint is there
+        #	my $addcon = 1;
+        #	print Dumper($info->{"constraints"});
+        if(exists $info->{"constraints"}->{$id}) {
+          print "  constraint $id exists\n";
+        } else {
+          print "  adding foreign key constraint $id\n";
+          my $ftable = $con_elt->getAttribute("refTable");
+          my @cols;
+          my @fcols;
+          foreach my $col ($con_elt->findnodes("column")) {
+            push @cols, $col->getAttribute("name");
+            push @fcols, $col->getAttribute("references");
+          }
+          croak("no \"column\" elements found " .
+                "in foreignKey constraint $id\n")
+            unless @cols;
+          eval {
+            $dbh->do("alter table $tname add constraint $id " .
+                     "FOREIGN KEY (" .
+                     join(",",@cols) .
+                     ") references $ftable (" .
+                     join(",",@fcols) . ");");
+          };
+          if($@) {
+            croak("Could not add FOREIGN KEY to $tname:\n$@");
+          }
+          $changed=1;
+        }
+      }
+  print "table $tname done\n";
+  return $changed;
 }
 
+=item B<config_table_all>
+
+$cfg->config_table_all($table_elt);
+
+=cut
 sub config_table_all {
-    my $self = shift;
-    my ($t) = @_;
-    $self->config_table_cols($t);
-    $self->config_table_constraints($t);
-    $self->config_table_foreign_keys($t);
-    $self->config_table_triggers($t);
+  my $self = shift;
+  my ($t) = @_;
+  $self->config_table_cols($t);
+  $self->config_table_constraints($t);
+  $self->config_table_foreign_keys($t);
+  $self->config_table_triggers($t);
 }
 
+=item B<ensure_table_exists>
+
+$cfg->ensure_table_exists($table_elt);
+
+=cut
 sub ensure_table_exists {
-    my $self = shift;
-    my ($table_elt) = @_;
-    unless(ref($table_elt)) {
-	$table_elt = $self->parser->parse_string($table_elt)->documentElement;
-    }
-    my $dbh = $self->dbh;
-    my $tname = $table_elt->getAttribute("name");
+  my $self = shift;
+  my ($table_elt) = @_;
+  unless(ref($table_elt)) {
+    $table_elt = $self->parser->parse_string($table_elt)->documentElement;
+  }
+  my $dbh = $self->dbh;
+  my $tname = $table_elt->getAttribute("name");
 
-    return undef if($self->table_exists($tname));
+  return undef if($self->table_exists($tname));
 
-#    print "  Creating table " . $table_elt->getAttribute("name") . "\n";
+  #    print "  Creating table " . $table_elt->getAttribute("name") . "\n";
 
-    my $sql = "create table $tname (\n";
-    my @both;
-    foreach my $col ($table_elt->findnodes("col")) {
-	push @both, $col->getAttribute("name") . " " .
+  my $sql = "create table $tname (\n";
+  my @both;
+  foreach my $col ($table_elt->findnodes("column")) {
+    push @both, $col->getAttribute("name") . " " .
 	    $col->getAttribute("type");
-    }
-    $sql .= join(",\n",@both);
-    $sql .= ");";
-#    print "  using sql:\n$sql\n";
+  }
+  $sql .= join(",\n",@both);
+  $sql .= ");";
+  #    print "  using sql:\n$sql\n";
 
-    eval {
-	$dbh->do($sql);
-    };
-    if($@) {
-	croak("Error creating table $tname using sql:\n" .
-	      $sql . ":\n$@");
-    }
+  eval {
+    $dbh->do($sql);
+  };
+  if($@) {
+    croak("Error creating table $tname using sql:\n" .
+          $sql . ":\n$@");
+  }
 
-    return 1;
+  return 1;
 }
 
 sub find_tables {

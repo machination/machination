@@ -1,0 +1,24 @@
+<objectType name='assertion'
+            isAttachable='1'
+            libraries='1'
+            >
+  <depends name='set'/>
+  <help short='Assertion object.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='mpath' type='varchar' nullAllowed='0'/>
+  <column name='ass_op' type='varchar' nullAllowed='0'/>
+  <column name='ass_arg' type='varchar'/>
+  <column name='action_op' type='varchar' nullAllowed='0'/>
+  <column name='action_arg' type='varchar'/>
+
+  <foreignKey refTable='valid_assertion_ops' makesEnumeration='1'>
+    <column name='ass_op' references='op'/>
+  </foreignKey>
+  <foreignKey refTable='valid_action_ops' makesEnumeration='1'>
+    <column name='action_op' references='op'/>
+  </foreignKey>
+
+</objectType>

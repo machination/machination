@@ -45,6 +45,13 @@
           <ref name='bool'/>
         </attribute>
       </optional>
+      <!-- Can objects (or AGs) of this type be collected into libraries? -->
+      <optional>
+        <attribute name='libraries'>
+          <!-- Default value: 0 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
 
       <!-- elements -->
 

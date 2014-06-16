@@ -1,0 +1,12 @@
+<status>
+  <worker id="printer">
+    <printer id="xeroxal">
+      <descriptiveName>{id}-{model}-{location}</descriptiveName>
+      <location>AL116</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/al116</remotePath>
+      <model>Kyocera FS-3900DN</model>
+    </printer>
+    <model id="Kyocera FS-3900DN">
+    </model>
+  </worker>
+</status>

@@ -112,7 +112,7 @@ class Worker(object):
         bundle_elts = model_elt.xpath('machinationFetcherBundle')
         if bundle_elts:
             # We needed to download it. Fetcher should have done the
-            # download already, we just have to point to the fil
+            # download already, we just have to point to the file
             printer.extend(
                 [
                     '/if', '/f',

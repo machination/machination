@@ -14,6 +14,7 @@ import subprocess
 from lxml import etree
 import re
 import logging
+import sys
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -43,27 +44,45 @@ def get_authen_info():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        '--url', '-u', nargs='?',
-        help='hierarchy url'
-        )
-    parser.add_argument('--inst_id', '-i', nargs='?',
+    parser.add_argument('--url', '-u',
+                        default='http://localhost/machination/hierarchy',
+                        help='hierarchy url')
+    parser.add_argument('--inst_id', '-i', required=True,
                         help='os_instance id')
-    parser.add_argument('--service_id', '-s', nargs='?',
-                        help='service id')
+    parser.add_argument('--entitytype', '-t',
+                        default='person',
+                        help='type of entity to authenticate as')
     parser.add_argument(
-        '--authen_type', '-a', nargs='?',
+        '--authtype', '-a',
         help='authentication type (basic, cert, cosign, ...)'
         )
-    parser.add_argument('--location', '-l', nargs='?',
+    parser.add_argument(
+        '--cred', '-c', action='append',
+        help='credentials entry separated by "=" (e.g. name=foo)'
+        )
+    parser.add_argument('--location', '-l', default='/system/os_instances',
                         help='parent hc')
-    parser.add_argument('--openssl', nargs='?',
+    parser.add_argument('--service_id', '-s',
+                        help='service id')
+    parser.add_argument('--openssl',
                         help='openssl command')
-    parser.add_argument('--opensslcfg', nargs='?',
+    parser.add_argument('--opensslcfg',
                         help='openssl config file')
-    parser.add_argument('--certbits', nargs='?',
+    parser.add_argument('--certbits',
                         help='No of bits for certificate cipher')
+    parser.add_argument('--rejoin', default='',
+                        help='Rejoin service if os instance exists (y or n)')
+    parser.add_argument('--new_osid', action='store_true',
+                        help="Create new os_id if one doesn't exist")
     args = parser.parse_args()
+
+#    print(args)
+#    sys.exit()
+
+    if args.cred:
+        cred = dict(s.split('=',1) for s in args.cred)
+    else:
+        cred = {}
 
     try:
         services_elt = context.machination_worker_elt.xpath('services')[0]
@@ -185,29 +204,14 @@ if __name__ == '__main__':
     if opensslcfg is not None:
         cmd.extend(['-config',opensslcfg])
     cmd.extend(['-key', pending_keyfile])
+
     # Find the base DN for certs for this service.
-    wc = WebClient.from_service_elt(service_elt, 'person')
-    dnform = wc.call('CertInfo').get('dnform', {})
-    # Fill in any blanks.
-    required = ['C','ST','L','O','OU','CN']
-    try:
-        # Anything not from server comes from desired_status
-        defaults = service_elt.xpath('certInfo')[0]
-    except IndexError:
-        # If there is no element then we need to call get() on something
-        defaults = {}
-    defaults['CN'] = 'os_instance:{}'.format(inst_id)
-    subject = ''
-    for field in required:
-        value = dnform.get(field)
-        if value is None:
-            value = defaults.get(field)
-        while value is None:
-            value = input('##{} required: '.format(field))
-            if value == '':
-                value = None
-        print('{}: {}'.format(field, value))
-        subject = '{}/{}={}'.format(subject, field, value)
+    print(etree.tostring(service_elt))
+    wc = WebClient(args.url, args.authtype, args.entitytype, credentials=cred)
+    basedn = wc.call('CertInfo').get('basedn_string_slash')
+    cn = 'os_instance:{}'.format(inst_id)
+    subject = '{}/CN={}'.format(basedn,cn)
+
     # now continue building the command
     cmd.extend(['-subj', subject])
     print('Generating certificate request')
@@ -218,6 +222,13 @@ if __name__ == '__main__':
 
     path = '{}/os_instance:{}'.format(location, inst_id)
     os_id = wc.call('OsId', *machination.utils.os_info())
+    if os_id is None:
+        if args.new_osid:
+            # Try to make a new os_id
+            wc.call('AddValidOs', *machination.utils.os_info())
+            os_id = wc.call('OsId', *machination.utils.os_info())
+        else:
+            raise Exception("Could not find os_id for {}".format(" ".join([str(x) for x in machination.utils.os_info()])))
     # try to create the object
     try:
         wc.call('Create', path, {'os_id': os_id})
@@ -241,14 +252,14 @@ if __name__ == '__main__':
         # Didn't get all the way to a cert for some reason
         if(re.search(r'A valid certificate for', e.args[0])):
             # Currently the only allowed reason is cert exists.
-            ans = ''
+            ans = args.rejoin
             while ans.lower() not in ['y', 'n']:
                 ans = input('certificate for {} exists, are you sure [y/N]? '.format(inst_id))
                 if ans == '':
                     ans = 'n'
-                if ans.lower() == 'n':
-                    print('Aborting service join')
-                    exit()
+            if ans.lower() == 'n':
+                print('Aborting service join')
+                exit()
             # Try again with force = True
             cert = wc.call("SignIdentityCert", csr.decode('utf8'), 1)
         else:

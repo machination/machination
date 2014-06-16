@@ -1,0 +1,9 @@
+{$system_perllib_dir}/*
+{$system_bin_dir}/*
+--config=noreplace {$mach_config_dir}/server/config.xml
+--owner=root:{$mach_group} --perms=0750 {$mach_config_dir}/server/secrets/
+--config=noreplace --owner=root:{$mach_group} --perms=0640 {$mach_config_dir}/server/secrets/machination-server-ca.key
+--config=noreplace --owner=root:{$mach_group} --perms=0640 {$mach_config_dir}/server/secrets/dbcred.xml
+--config=noreplace {$mach_apache_conf_file}
+--owner={$mach_user}:{$mach_group} --perms=0750 {$mach_log_dir}/server/
+{$mach_lib_dir}/server/

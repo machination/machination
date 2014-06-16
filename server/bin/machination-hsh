@@ -178,8 +178,8 @@ sub _ls {
 
   my $path = shift;
   $path = __abs_path($path);
-  my $hp = Machination::HPath->new($ha, $path);
-  die "$path does not exist" unless $hp->id;
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
+  die "$path does not exist" unless $hp->exists;
   my $maxlen = 0;
 
   my @res;
@@ -221,8 +221,8 @@ sub _ls {
       ($hp->id, [@type_ids]);
     while (my $ent = $sth->fetchrow_hashref) {
       my $name = $ent->{name};
-      my $type = $ha->type_name($ent->{type});
-      if($ent->{type} eq 'machination:hc') {
+      my $type = $ha->type_name($ent->{type_id});
+      if($ent->{type_id} eq 'machination:hc') {
         $name .= "/";
         $name = colored([$colors->{container}], $name);
       } else {
@@ -247,31 +247,15 @@ sub _show {
   my ($path) = @_;
   my @paths;
   if($path =~ s/^\*//) {
-    my ($type,$id) = $path =~ /^([^\/].*):(\d+)$/;
-    my $type_id;
-    $type =~ /^\d+$/ ?
-      $type_id = $type : $type_id = $ha->type_id($type);
-    my $type_name = $ha->type_name($type_id);
-    my @parents = $ha->fetch_parents($type_id,$id);
-    foreach my $p (@parents) {
-      my $php = Machination::HPath->new($ha, $p);
-      my $last = pop @{$php->{rep}};
-      push @{$php->{rep}}, $last->[2];
-      my $rep = [@{$php->{rep}},
-                 ['contents',
-                  $type_name,
-                  $ha->fetch_name($type_id, $id)
-                 ]
-                ];
-      push @paths, Machination::HPath->new($ha, $rep);
-    }
+    @paths = Machination::HPath->new(ha=>$ha, from=>__abs_path($path))->
+      paths;
   } else {
-    @paths = (Machination::HPath->new($ha,__abs_path($path)));
+    @paths = (Machination::HPath->new(ha=>$ha, from=>__abs_path($path)));
   }
   my @ret;
   my $hp;
   foreach my $php (@paths) {
-    die "$path does not exist" unless $php->id;
+    die "$path does not exist" unless $php->exists;
     push @ret, __colorize_path($php);
     $hp = $php;
   }
@@ -291,18 +275,20 @@ sub _show {
 
 sub _create {
   my $path = __abs_path(shift);
-  my $hp = Machination::HPath->new($ha, $path);
-  die "$path already exists" if $hp->id;
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
+  die "$path already exists" if $hp->exists;
   my $fields = {};
   foreach my $argstr (@_) {
     my ($name, $value) = $argstr =~ /^(.*?)=(.*)$/;
     $fields->{$name} = $value;
   }
 
+  my $php = $hp->parent;
+  $php->populate_ids;
   return $ha->create_obj({actor=>$user},
                          $hp->type_id,
                          $hp->name,
-                         $hp->parent_id,
+                         $php->id,
                          $fields);
 }
 
@@ -310,7 +296,7 @@ sub _delete {
   my @deleted;
   foreach my $path (@_) {
     $path = __abs_path($path);
-    my $hp = Machination::HPath->new($ha, $path);
+    my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
 
     eval {$ha->delete_obj({actor=>$user},$hp->type_id, $hp->id)};
     if($@) {
@@ -331,9 +317,11 @@ sub _xml2lib {
     $opts->{$name} = $value;
   }
   $channel = $ha->channel_id($channel) unless($channel=~/^\d+$/);
-  my $hp = Machination::HPath->new($ha, $path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
+  my $parenthp = $hp->parent;
+  $parenthp->populate_ids;
   $ha->assertion_group_from_xml({actor=>$user},
-                                $hp->parent_id,
+                                $parenthp->id,
                                 $hp->name,
                                 $channel,
                                 $xml,
@@ -343,11 +331,11 @@ sub _xml2lib {
 
 sub _attach {
   my ($apath,$hcpath,$mandatory,$active,$setpath) = @_;
-  my $ap = Machination::HPath->new($ha, __abs_path($apath));
-  my $hcp = Machination::HPath->new($ha, __abs_path($hcpath));
+  my $ap = Machination::HPath->new(ha=>$ha, from=>__abs_path($apath));
+  my $hcp = Machination::HPath->new(ha=>$ha, from=>__abs_path($hcpath));
   my $set_id;
   if(defined $setpath) {
-    $set_id = Machination::HPath->new($ha, __abs_path($setpath))->id;
+    $set_id = Machination::HPath->new(ha=>$ha, from=>__abs_path($setpath))->id;
   }
   $mandatory = 0 unless(defined $mandatory);
   $active = 1 unless(defined $active);
@@ -364,8 +352,8 @@ sub _attach {
 
 sub _addtohc {
   my ($obj, $hc) = @_;
-  my $ohp = Machination::HPath->new($ha, __abs_path($obj));
-  my $hcp = Machination::HPath->new($ha, __abs_path($hc));
+  my $ohp = Machination::HPath->new(ha=>$ha, from=>__abs_path($obj));
+  my $hcp = Machination::HPath->new(ha=>$ha, from=>__abs_path($hc));
   $ha->add_to_hc
     (
      {actor=>$user},
@@ -378,7 +366,7 @@ sub _addtohc {
 
 sub __colorize_path {
   my $path = shift;
-  my $hp = Machination::HPath->new($ha, $path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
   if ($hp->type eq "machination:hc") {
     return colored([$colors->{container}], $hp->name);
   } else {

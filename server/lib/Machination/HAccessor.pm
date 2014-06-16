@@ -20,6 +20,7 @@ package Machination::HAccessor;
 
 use Carp;
 use File::Temp qw(tempfile);
+use Scalar::Util qw(openhandle);
 use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBConstructor;
@@ -33,6 +34,8 @@ use Machination::XML::Element;
 use Machination::XMLConstructor;
 use Machination::Log;
 use Machination::XML2Assertions;
+use Machination::MooseHObject;
+use Machination::MooseHC;
 
 use Data::Dumper;
 
@@ -235,7 +238,9 @@ sub new {
 	my $self = {};
 	bless $self,$class;
 
-	$self->dbc(Machination::DBConstructor->new($conf)) if($conf);
+  # our hard coded super default
+  $conf = '/etc/machination/server/config.xml' unless $conf;
+	$self->dbc(Machination::DBConstructor->new($conf));
   $self->dbc->dbh->{RaiseError} = 1;
 	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
@@ -564,6 +569,136 @@ sub ssl_get_dn {
   return $dn;
 }
 
+=item B<ssl_dn_from_string>
+
+$dnstring = $ha->ssl_dn_from_string($string, $type)
+
+$type must be one of 'x509' or 'req', default x509.
+
+=cut
+
+sub ssl_dn_from_string {
+  my $self = shift;
+  my $thing = shift;
+  my $type = shift;
+
+  # put the thing into a temporary file so that openssl can find it
+  my $thingfh = File::Temp->new;
+  $thingfh->unlink_on_destroy(1);
+  my $thingfile = $thingfh->filename;
+  print $thingfh $thing;
+
+  my $fulldn = $self->ssl_dn_from_file($thingfh->filename, $type);
+
+  # we are now finished with the temporary file
+  $thingfh->DESTROY;
+
+  return $fulldn;
+}
+
+=item B<ssl_dn_from_file>
+
+$dnstring = $ha->ssl_dn_from_file($filename, $filetype)
+
+$filetype must be one of 'x509' or 'req', default x509.
+
+=cut
+
+sub ssl_dn_from_file {
+  my $self = shift;
+  my $file = shift;
+  my $type = shift;
+  $type = 'x509' unless defined $type;
+  croak "\$filetype must be either 'x509' or 'req'"
+    unless($type eq "x509" or $type eq "req");
+
+  # A place to put stderr from the openssl cmd
+  my $errfh = File::Temp->new;
+  $errfh->unlink_on_destroy(1);
+  my $errfile = $errfh->filename;
+
+  # parse out the various fields from the subject
+  my $fulldn =
+    qx"openssl $type -in $file -noout -subject -nameopt RFC2253 2>$errfile";
+  if($?) {
+    my $msg;
+    {
+      local($/);
+      $msg = <$errfh>;
+    }
+    $errfh->DESTROY;
+    die $msg;
+  }
+  $errfh->DESTROY;
+  chomp $fulldn;
+  $fulldn =~ s/^subject=\s*//;
+
+  $self->log->dmsg('ssl_dn_from_file', $fulldn, 10);
+
+  return $fulldn;
+}
+
+=item B<ssl_split_dn>
+
+\@dn = $ha->ssl_split_dn($fulldn)
+
+example return value:
+ [
+  ['CN'='os_instance:foo'],
+  ['DC','example'],
+  ['DC','com']
+ ]
+
+=cut
+
+sub ssl_split_dn {
+  my $self = shift;
+  my $fulldn = shift;
+
+  my @fields = quotewords(",", 0,$fulldn);
+  my @dn;
+  foreach my $field (@fields) {
+    my ($name, $value) = quotewords("=",0,$field);
+    push @dn, [$name,$value];
+  }
+  return \@dn;
+}
+
+=item B<ssl_dnlist_to_string>
+
+$string = $ha->ssl_dnlist_to_string($list, $string_type)q
+
+=cut
+
+sub ssl_dnlist_to_string {
+  my $self = shift;
+  my $list = shift;
+  my $strtype = shift;
+  $strtype = "rfc" unless defined $strtype;
+
+  if ($strtype eq "rfc") {
+    return join(",", map {$_->[0] . "=" . $_->[1]} @$list);
+  } elsif ($strtype eq "slash") {
+    return "/" . join("/", map {$_->[0] . "=" . $_->[1]} reverse(@$list));
+  } else {
+    croak "Don't know how to convert dnlist to string of type '$strtype'";
+  }
+}
+
+=item B<ssl_server_dn>
+
+$fulldn = $ha->ssl_server_dn
+
+=cut
+
+sub ssl_server_dn {
+  my $self = shift;
+  my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
+  my $cafile = $haccess_node->
+    findvalue('authentication/certSign/ca/@certfile');
+  return $self->ssl_dn_from_file($cafile);
+}
+
 =item B<ssl_entity_from_cn>
 
 ($type, $name) = $ha->ssl_entity_from_cn($cn)
@@ -605,12 +740,26 @@ sub sign_csr {
     $keyfile = $self->conf->get_dir("dir.CONFIG") . "/" . $keyfile;
   }
 
-  # store the fields and values in $dn
-  my $dn = $self->ssl_get_dn($csr, "req");
-  my $fulldn = $dn->{fulldn};
+  # Get the DN from the request
+  my $fulldn = $self->ssl_dn_from_string($csr,"req");
+  my @fulldn = @{$self->ssl_split_dn($fulldn)};
+  my @basedn = @fulldn;
+  my $cnitem = shift @basedn;
+  my $cn = $cnitem->[1];
+
+  # Check that the server basedn is the same as the csr basedn
+  my @serverdn = @{$self->ssl_split_dn($self->ssl_server_dn)};
+  # Drop the CN.
+  shift @serverdn;
+  # Compare with @basedn
+  my $basedn = join(",", map {$_->[0] . "=" . $_->[1]} @basedn);
+  my $server_basedn = join(",", map {$_->[0] . "=" . $_->[1]} @serverdn);
+  die "Could not sign csr: basedn not equal to server_basedn " .
+    "('$basedn' cf '$server_basedn')"
+      unless($basedn eq $server_basedn);
 
   # check that obj exists
-  my ($obj_type, $obj_name) = $self->ssl_entity_from_cn($dn->{CN});
+  my ($obj_type, $obj_name) = $self->ssl_entity_from_cn($cn);
   die "Could not sign csr: object $obj_type:$obj_name does not exist"
     unless($self->entity_id($self->type_id($obj_type), $obj_name));
 
@@ -626,20 +775,19 @@ sub sign_csr {
   die "A valid certificate for $obj_type:$obj_name exists and force not set"
     if(@$existing_rows and not $force);
 
-  # check conformance for various fields of $dn
-  foreach my $node ($cs_elt->findnodes("clientDNForm/node")) {
+  # check conformance of request CN
+  foreach my $node ($cs_elt->findnodes("clientCNForm")) {
     my $name = $node->findvalue('@id');
     my $check = $node->findvalue('@check');
     my $cfg_val = $node->findvalue('@value');
-    my $dn_val = $dn->{$name};
     if($check eq "equal") {
-      die "Could not sign csr: failed equality check on $name " .
-        "('$dn_val' cf '$cfg_val')"
-          unless($cfg_val eq $dn_val);
+      die "Could not sign csr: failed equality check on CN " .
+        "('$cn' cf '$cfg_val')"
+          unless($cfg_val eq $cn);
     } elsif($check eq "re") {
-      die "Could not sign csr: failed regex check on $name " .
-        "('$dn_val' matches '$cfg_val')"
-          unless($dn_val =~ /$cfg_val/);
+      die "Could not sign csr: failed regex check on CN " .
+        "('$cn' matches '$cfg_val')"
+          unless($cn =~ /$cfg_val/);
     } else {
       die "Could not sign csr: invalid check ($check) specified";
     }
@@ -785,6 +933,39 @@ sub valid_op {
 		return undef;
 	}
 }
+
+=item B<valid_action_op>
+
+$bool = $self->valid_action_op($op,$opts)
+
+True if $op is a valid action op (authorisable action), false
+otherwise.
+
+=cut
+
+sub valid_action_op {
+	my $self = shift;
+	my ($op,$opts) = @_;
+
+	$self->{vaops} = {} unless exists($self->{vaops});
+	if ($opts->{reread}) {
+		delete $self->{vaops}->{$op};
+	}
+	unless (exists $self->{vaops}->{$op}) {
+		if (exists $self->dbc->dbh->
+				selectall_hashref
+        ("select op from valid_action_ops where op=?",
+         "op",{},$op)->{$op}) {
+			$self->{vaops}->{$op} = undef;
+		}
+	}
+	if (exists $self->{vaops}->{$op}) {
+		return 1;
+	} else {
+		return undef;
+	}
+}
+
 
 =item B<object_types>
 
@@ -941,7 +1122,8 @@ sub type_id {
 	my ($self,$type,$opts) = @_;
   $opts->{cache} = 1 unless(exists $opts->{cache});
 
-	return "machination:hc" if($type eq "machination:hc");
+	return "machination:hc" if($type eq "machination:hc" || !defined $type);
+
 	return $self->{type_id}->{$type} if
 		(exists $self->{type_id}->{$type} && $opts->{cache});
 	my $info = $self->fetch("object_types",
@@ -1108,7 +1290,7 @@ sub fetch_path_id {
   my $self = shift;
   my ($path) = @_;
 
-  my $hp = Machination::HPath->new($self,$path);
+  my $hp = Machination::HPath->new(ha=>$self,from=>$path);
   return $hp->id;
 }
 
@@ -1409,7 +1591,7 @@ sub fetch_hc_path_string {
 #	if (eval{$path->isa("Machination::HPath")}) {
 #		return $path->id;
 #	} else {
-#		return Machination::HPath->new($self,$path,$opts->{revision})->id;
+#		return Machination::HPath->new(ha=>$self,from=>$path)->id;
 #	}
 #}
 
@@ -1848,6 +2030,56 @@ sub fetch_from_agroup {
 	return @ids;
 }
 
+=item B<is_ag_member>
+
+$ha->is_ag_member($ag_type_id,$ag_id,$member_id,$opts)
+
+=cut
+
+sub is_ag_member {
+  my $self = shift;
+  my ($ag_tid,$ag_id,$member_id,$opts) = @_;
+
+	my $member_tid = $self->type_from_agroup_type($ag_tid);
+	my @rows = $self->
+		fetch("objs_$member_tid",
+					{type=>"multi",
+					 fields=>["id"],
+					 condition=>"agroup=? and id=?",
+					 params=>[$ag_id, $member_id],
+					 order=>[["ag_ordinal"]],
+					 revision=>$opts->{revision},
+					});
+
+  return 1 if(@rows);
+  return 0;
+}
+
+=item B<is_attached>
+
+$ha->is_attached($item_type_id, $item_id, $hc_id)
+
+1 if $item is attached to $hc, 0 otherwise
+
+=cut
+
+sub is_attached {
+  my $self = shift;
+  my ($item_type_id, $item_id, $hc_id) = @_;
+  my $sql = "select obj_id from hcatt_$item_type_id where obj_id=? and hc_id=?";
+  my $sth = $self->read_dbh->
+    prepare_cached($sql,{dbi_dummy=>"HAccessor.is_attached"});
+  $sth->execute($item_id, $hc_id);
+  if($sth->fetchrow_array) {
+    $sth->finish;
+    return 1;
+  } else {
+    $sth->finish;
+    return 0;
+  }
+}
+
+
 =item B<get_attached_handle>
 
 Get a handle to the direct attachments of an hc
@@ -1858,9 +2090,9 @@ $sth = $ha->get_attached_handle($hc, \@channel_ids, \@type_ids)
 
 sub get_attached_handle {
   my $self = shift;
-  my ($hc, $channels, $type_ids) = @_;
+  my ($hc_id, $channels, $type_ids) = @_;
 
-  my $hp = Machination::HPath->new($self,$hc);
+#  my $hp = Machination::HPath->new(ha=>$self,from=>$hc);
 
   my @params;
   my @subqs;
@@ -1876,7 +2108,7 @@ sub get_attached_handle {
     $sq .= "from hcatt_$tid as a, objs_$tid as o " .
       "where a.hc_id=?";
     $sq .= " and a.obj_id=o.id";
-    push @params, $hp->id;
+    push @params, $hc_id;
     unless($tid == $self->type_id("set")) {
       $sq .= " and o.channel_id in (" . join(",",('?') x @$channels) . ")";
       push @params, @$channels;
@@ -1890,7 +2122,7 @@ sub get_attached_handle {
                   "$sql",9);
   my $sth = $self->read_dbh->
     prepare_cached($sql,{dbi_dummy=>"HAccessor.get_attached_handle"});
-  $sth->execute(@params);
+    $sth->execute(@params);
   return $sth;
 }
 
@@ -1925,13 +2157,13 @@ sub get_attachments_handle {
   my ($channel,$hlist,$type,$opts) = @_;
 
 
-  if(ref($hlist) ne "ARRAY") {
-    my $hpath = Machination::HPath->new($self,$hlist,$opts->{revision});
-    HierarchyException->throw
-      ("Can only fetch attachment list for an hc")
-        unless $hpath->type_id eq 'machination:hc';
-    $hlist = [ reverse @{$hpath->id_path} ];
-  }
+#  if(ref($hlist) ne "ARRAY") {
+#    my $hpath = Machination::HPath->new(ha=>$self,from=>$hlist);
+#    HierarchyException->throw
+#      ("Can only fetch attachment list for an hc")
+#        unless $hpath->type_id eq 'machination:hc';
+#    $hlist = [ reverse @{$hpath->id_path} ];
+#  }
 
   my @q;
   my @params = ($channel);
@@ -2014,8 +2246,7 @@ sub get_attachments_handle {
 
 =item B<get_authz_handle>
 
-$ha->fetch_authz_list($channel,$hpath,$op,$opts)
-$ha->fetch_authz_list($channel,$hc_id,$op,$opts)
+$ha->fetch_authz_list($channel,$hc_id_list,$op,$opts)
 
 fetch a list of authorisation instructions relavent to $channel and
 $op attached to $hc_id and its parents.
@@ -2046,16 +2277,14 @@ match when checking authorisation.
 
 sub get_authz_handle {
   my $self = shift;
-  my ($channel,$hpath,$op,$opts) = @_;
+  my ($channel,$hlist,$op,$opts) = @_;
 
   $opts->{obj_fields} = ["op","is_allow","entities","xpath"];
   $opts->{att_fields} = [];
   $opts->{obj_conditions} = [["(o.op=? or o.op=?)",[$op,"ALL"]]];
-#  $self->log->dmsg("Haccessor.fetch_authz_list","args:\n $channel, " .
-#                   "$hpath, 'authz_inst', " .
-#                   Data::Dumper->Dump([$opts],[qw(opts)]),9);
+
   return $self->get_attachments_handle
-    ($channel,$hpath,"authz_inst",$opts);
+    ($channel,$hlist,"authz_inst",$opts);
 }
 
 =item B<fetch_set_attachments>
@@ -2111,7 +2340,7 @@ sub authz_hash_from_object {
 
 =item B<action_allowed>
 
-$ha->action_allowed($request,$hc_id)
+$ha->action_allowed($request,$hpath_or_id)
 
 $request  = hash ref with following representation:
  {
@@ -2138,9 +2367,40 @@ if it is.
 
 sub action_allowed {
 	my $self = shift;
-  my ($req,$hc_id,$opts) = @_;
+  my ($req,$hpath_or_id,$opts) = @_;
   my $cat = "HAccessor.action_allowed";
   $self->log->dmsg($cat,"\n" . Dumper($req),8);
+
+  # Make sure $req->{op} is valid
+  AuthzException->throw("Invalid authz op '$req->{op}'")
+    unless($self->valid_action_op($req->{op}));
+
+  # Decide whether we were given an id or an hpath.
+  my $hc_id;
+  my $hp;
+  if(eval {$hpath_or_id->isa("Machination::HPath")}) {
+    $hp = $hpath_or_id;
+    MalformedPathException->throw
+      (
+       "HPath used in action_allowed must be rooted"
+      )
+        unless($hp->is_rooted);
+    $hc_id = $hp->id if($hp->exists);
+  } else {
+    $hc_id = $hpath_or_id;
+  }
+
+  # $hc_id should now be defined and exist unless we are after
+  # listchildren in the hierarchy_channel. We return permission denied
+  # otherwise we're giving information away.
+  return 0
+    unless(
+       ($req->{channel_id} == $self->channel_id('machination:hierarchy')
+       and
+       $req->{op} eq 'listchildren')
+       or
+       defined($hc_id)
+      );
 
   if($req->{channel_id} == $self->channel_id('machination:hierarchy')) {
     # The hierarchy channel must be treated specially for three reasons:
@@ -2157,11 +2417,26 @@ sub action_allowed {
     # 3) If the hc is /system/special/authz/objects then populate the
     #    object element as long as it exists (even if not in that hc)
 
+    # For 'listchildren' in the hierarchy_channel we need to accept a
+    # Machination::HPath instead of an hc_id. Otherwise we wouldn't be
+    # able to deal with the case that the hc to authorise against
+    # doesn't exist (a real possibility when authorising checks on
+    # object existence).
+    if($req->{op} eq 'listchildren') {
+      if(defined $hp) {
+        # Look for the nearest existing parent
+        while(!$hp->exists) {
+          $hp = $hp->parent;
+        }
+        $hc_id = $hp->id;
+      }
+    }
+
     # the mpath must be of the form /$branch or /$branch/type[id]
 
     my ($branch, $type_name, $obj_id) =
       $req->{mpath} =~ /^\/(contents|attachments)(?:\/(\w+:?\w*)(?:\[(\d+)\])?)?/;
-    croak "don't know how to authorise branch " .
+    croak "don't know how to authorise branch '$branch' " .
       "in hierarchy channel when processing mpath " . $req->{mpath}
         unless(defined $branch);
     $type_name =~ s/:$//;
@@ -2169,22 +2444,28 @@ sub action_allowed {
     $type_id = $self->type_id($type_name) if(defined $type_name);
 
     my @hcs = ($hc_id);
-    # if $hc_id corresponds to /system/special/authz/objects then we really
-    # need to check all parents of the object in question
+    # if $hc_id corresponds to /system/special/authz/objects then we
+    # really need to check all parents of the object in question
     if(defined $obj_id) {
       if($hc_id == Machination::HPath->
-         new($self,'/system/special/authz/objects')->id) {
+         new(ha=>$self,from=>'/system/special/authz/objects')->id) {
         push @hcs, $self->fetch_parents($type_id,$obj_id);
       }
     }
 
     my $is_allow = undef;
     foreach my $cur_hc_id (@hcs) {
+      $self->log->dmsg($cat,"checking $cur_hc_id for authz",10);
+      my $cur_hc = Machination::MooseHC->new(ha=>$self, id=>$cur_hc_id);
+      my @rev_idpath = reverse(@{$cur_hc->id_path});
       my $sth = $self->
-        get_authz_handle($req->{channel_id},$cur_hc_id,$req->{op},$opts);
+        get_authz_handle($req->{channel_id},\@rev_idpath,$req->{op},$opts);
       my $it = $self->att_iterator($sth);
-      my $cur_hc_hp = Machination::HPath->new($self,$cur_hc_id);
-      my @cur_hc_ancestors = reverse @{$cur_hc_hp->id_path};
+      my @cur_hc_ancestors = reverse @{
+        Machination::MooseHC->
+            new(ha=>$self, id=>$cur_hc_id)->
+              id_path
+        };
 
       my $obj_elt;
       if(defined $type_name) {
@@ -2193,10 +2474,10 @@ sub action_allowed {
         $obj_elt = Machination::MPath->new($obj_mp)->construct_elt;
         # fill the object's fields if it exists
         if(defined $obj_id) {
-          my $obj_hp = Machination::HPath->new($self,"$type_name:$obj_id");
-          if($obj_hp->id) {
-            my $hobj = Machination::HObject->new($self, $type_id, $obj_id);
-            my $data = $hobj->fetch_data;
+          my $mhobj = Machination::MooseHObject->
+            new(ha=>$self, type_id=>$type_id, id=>$obj_id);
+          if($mhobj->exists) {
+            my $data = $mhobj->fetch_data;
             foreach my $k (keys %$data) {
               my $child = XML::LibXML::Element->new('field');
               $child->setAttribute("id", $k);
@@ -2910,9 +3191,7 @@ sub bootstrap_all {
   $self->bootstrap_oses;
   $self->bootstrap_assertions;
 	$self->bootstrap_channels;
-#  $self->bootstrap_hierarchy;
   $self->bootstrap_special_sets;
-#  $self->bootstrap_hierarchy2;
 }
 
 =item B<bootstrap_functions>
@@ -2963,9 +3242,10 @@ sub bootstrap_basehcs {
     );
 
   foreach my $i (@info) {
-    my $hp = Machination::HPath->new($self,$i->[0]);
-    print $hp->to_string . "\n";
-    $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]});
+    my $hp = Machination::HPath->new(from=>$i->[0], ha=>$self);
+    print $hp->to_string . "," . $hp->exists . "\n";
+    $self->create_path({actor=>'Machination:System'}, $hp, {is_mp=>$i->[1]})
+      unless($hp->exists);
   }
 }
 
@@ -3284,385 +3564,6 @@ sub mexpand {
 	return $outstack[0];
 }
 
-=item B<bootstrap_hierarchy>
-
-Create hcs, objects, attachments and links from XML file
-(file.hierarchy.BOOTSTRAP from config.xml).
-
-bootstrap_hierarchy runs after all object types are created, but
-before some other bootstrap tasks which need an hc path to run (like
-creating UNIVERSAL and EMPTY sets for all object types for
-example). Sometimes one needs to refer to these things that are
-bootstrapped later in order to create some piece of hierarchy (create
-an authz instruction using a UNIVERSAL set, for example). For this,
-use bootstrap_hierarchy2, which runs after everything else.
-
-=cut
-
-sub bootstrap_hierarchy {
-	my ($self) = @_;
-	my $hfile = $self->dbc->conf->get_file("file.hierarchy.BOOTSTRAP");
-  $self->_bootstrap_hierarchy($hfile);
-}
-
-=item B<bootstrap_hierarchy2>
-
-=cut
-
-sub bootstrap_hierarchy2 {
-	my ($self) = @_;
-	my $hfile = $self->dbc->conf->get_file("file.hierarchy2.BOOTSTRAP");
-  $self->_bootstrap_hierarchy($hfile);
-}
-
-sub _bootstrap_hierarchy {
-  my ($self,$hfile) = @_;
-  my $hdoc = $self->dbc->conf->parser->parse_file($hfile);
-	my $h = $hdoc->documentElement;
-  my $cat = "HAccessor._bootstrap_hierarchy";
-
-  my $macrosets = {};
-  my $labels = {};
-  my $todo = {"/"=>undef};
-  my $changed = 1;
-
-  while (keys %$todo && $changed) {
-    $todo = {};
-    $changed = 0;
-    my @stack = ($h);
-  OBJECT: while (my $e = pop @stack) {
-      my $strpath = $self->path_from_xml_rep($e);
-#      $todo->{$strpath} = undef;
-      my $hpath = Machination::HPath->new($self,$strpath);
-      my $owner = $e->getAttribute("owner");
-      # set the owner to the same as the parent object if not otherwise defined
-      if(!defined $owner || $owner eq "") {
-        if($hpath->parent_id) {
-          $owner = Machination::HObject->
-            new($self,"machination:hc",$hpath->parent_id)->
-              fetch_data("owner")->{owner};
-        }
-      }
-
-      # any node could have a label attribute
-      my $nodelabel = $e->getAttribute("label");
-
-      if ($e->nodeName eq "hc") {
-        $todo->{$strpath} = undef;
-        $self->log->lmsg($cat,"dealing with $strpath",1);
-        my $id = $hpath->id;
-        my $macros = {};
-        if(exists $macrosets->{$hpath->parent_id}) {
-          %$macros = %{$macrosets->{$hpath->parent_id}};
-        };
-        if (! $id) {
-          # hc doesn't exist yet, create it
-          $owner = $self->mexpand($owner,{macros=>$macros,labels=>$labels});
-          my $is_mp = $e->getAttribute("is_mp");
-          $is_mp = 0 unless defined $is_mp;
-          $id = $self->create_obj({actor=>$owner},undef,
-                                  $e->getAttribute("name"),
-                                  $hpath->parent_id,
-                                  {is_mp=>$is_mp});
-          # we've made a change
-          $changed = 1;
-        }
-        foreach my $m ($e->findnodes("macro")) {
-          $macros->{$m->getAttribute("name")} = $m->textContent;
-        }
-        $macrosets->{$id} = $macros;
-
-        # remember the label, if any
-        if(defined $nodelabel && ! exists $labels->{$nodelabel}) {
-          $labels->{$nodelabel} = {type=>"machination:hc",id=>$id};
-          $changed = 1;
-        }
-
-        # put contents onto the stack
-        push @stack, reverse($e->findnodes("contents/*"));
-
-        # done with this path
-        delete $todo->{$strpath};
-      } elsif ($e->nodeName eq "object") {
-        my $todoname = $strpath;
-        $todo->{$todoname} = undef;
-        $self->log->lmsg($cat,"dealing with $todoname",1);
-        my $macros = $macrosets->{$hpath->parent};
-        $owner = $self->mexpand($owner,{labels=>$labels,macros=>$macros});
-        my $id = $hpath->id;
-        my $type_name = $e->getAttribute("type");
-        my $type_id = $self->type_id($type_name);
-
-        #      my $owner = $self->mexpand($macros,$e->getAttribute("owner"));
-
-        # try to create the object if it doesn't exist
-        if (! $id) {
-          my %fields;
-          foreach my $fe ($e->findnodes("field")) {
-            eval {
-              $fields{$fe->getAttribute("name")} =
-                $self->mexpand($fe->textContent,
-                               {labels=>$labels,macros=>$macros});
-            };
-            if($@) {
-              if($@ =~ /^label not found:/) {
-                # The object to be created has a field that depends on another
-                # object labelled object which hasn't been created yet.
-                # Skip this object until label is resolved
-                next OBJECT;
-              } else {
-                die $@;
-              }
-            }
-          }
-          #               print "creating " . $hpath->to_string . "  with fields:\n " . Dumper(\%fields) . "\n";
-          $id = $self->create_obj
-            ({actor=>$owner},
-             $type_id,
-             $e->getAttribute("name"),
-             $hpath->parent_id,
-             \%fields);
-
-          # we've made a change
-          $changed = 1;
-        }
-
-        # add members to stack if this is a set and there are any listed
-        if($type_name eq "set") {
-          push @stack, $e->findnodes("member");
-        }
-
-        # remember this object's label if there is one
-        if(defined $nodelabel && ! exists $labels->{$nodelabel}) {
-          $labels->{$nodelabel} = {type=>$type_id,id=>$id};
-          $changed = 1;
-        }
-
-        # object is done if we get this far
-        delete $todo->{$todoname};
-
-      } elsif ($e->nodeName eq "member") {
-        # $hpath is the containing set object
-
-        my $todoname = "$strpath/member:" . $e->textContent;
-        $todo->{$todoname} = undef;
-        $self->log->lmsg($cat,"dealing with $todoname",1);
-
-        my $macros = $macrosets->{$hpath->parent};
-        $owner = $self->mexpand($owner,{labels=>$labels,macros=>$macros});
-
-        # <member>ref_id(/path/to/member)</member>
-        # <member>string</member>
-        my $member;
-        eval {$member = $self->
-                mexpand($e->textContent,{macros=>$macros,labels=>$labels});};
-        if($@) {
-          if($@ =~ /^label not found:/) {
-            # trying to add a member that hasn't been created yet
-            next OBJECT;
-          } else {
-            die $@;
-          }
-        }
-
-        my $set = Machination::HSet->new($self,$hpath->id);
-        unless($set->has_member("direct",$member)) {
-          # add $member to the set
-          $self->add_to_set({actor=>$owner},$hpath->id,$member);
-
-          # we've made a change
-          $changed = 1;
-        }
-
-        # member is done if we get this far
-        delete $todo->{$todoname};
-      } elsif ($e->nodeName eq "objlink") {
-        # $hpath,$strpath are containing hc
-
-        my $macros = $macrosets->{$hpath->parent};
-        my $ref = $e->getAttribute("ref");
-        my $todoname = "$strpath/::objlink:$ref";
-        $todo->{$todoname} = undef;
-        $self->log->lmsg($cat,"dealing with $todoname",1);
-        $owner = $self->mexpand($owner,{labels=>$labels,macros=>$macros});
-
-        eval {$ref = $self->mexpand($ref,{macros=>$macros,labels=>$labels});};
-        if($@) {
-          if($@ =~ /^label not found:/) {
-            # trying to add a member that hasn't been created yet
-            next OBJECT;
-          } else {
-            die $@;
-          }
-        }
-        my ($type_id,$obj_id) = split(":",$ref);
-        my $obj = Machination::HObject->new($self,$type_id,$obj_id);
-        my $obj_data = $obj->fetch_data;
-
-        eval {
-          $self->add_to_hc({actor=>$owner},
-                          $type_id,$obj_id,$hpath->id);
-        };
-        my $e;
-        if($e=Exception::Class->caught('HierarchyNameExistsException')) {
-          # probably means we made this link before - do nothing
-        } else {
-          # a "real" error
-          $e = Exception::Class->caught;
-          ref $e ? $e->rethrow : die Dumper($e);
-        }
-
-        # link is done if we get this far
-        delete $todo->{$todoname};
-      }
-    }
-  }
-  die "_bootstrap_hierarchy: no change and things to do:\n" .
-    Dumper($todo) if(keys %$todo);
-
-}
-
-sub _bootstrap_hierarchy_old {
-  my ($self, $hfile) = @_;
-	my $hdoc = $self->dbc->conf->parser->parse_file($hfile);
-	my $h = $hdoc->documentElement;
-
-  my $macrosets = {};
-  my $refs = {};
-	my @stack = ($h);
-	while (my $e = pop @stack) {
-		print "dealing with " . $self->path_from_xml_rep($e) . "\n";
-		my $hpath = Machination::HPath->new($self,$self->path_from_xml_rep($e));
-    my $owner = $e->getAttribute("owner");
-    # set the owner to the same as the parent object if not otherwise defined
-    if(!defined $owner || $owner eq "") {
-      if($hpath->parent) {
-        $owner = Machination::HObject->
-          new($self,"machination:hc",$hpath->parent)->
-            fetch_data("owner")->{owner};
-      }
-    }
-		if ($e->nodeName eq "hc") {
-      my $id = $hpath->id;
-      my $macros = {};
-      if(exists $macrosets->{$hpath->parent}) {
-        %$macros = %{$macrosets->{$hpath->parent}};
-      };
-			if (! $id) {
-        $owner = $self->mexpand($macros,$owner);
-				my $is_mp = $e->getAttribute("is_mp");
-				$is_mp = 0 unless defined $is_mp;
-				$id = $self->create_obj({actor=>$owner},undef,
-                                $e->getAttribute("name"),
-                                $hpath->parent,
-                                {is_mp=>$is_mp});
-			}
-      foreach my $m ($e->findnodes("macro")) {
-        $macros->{$m->getAttribute("name")} = $m->textContent;
-      }
-      $macrosets->{$id} = $macros;
-			push @stack, reverse($e->findnodes("contents/*"));
-		} elsif ($e->nodeName eq "object") {
-      my $macros = $macrosets->{$hpath->parent};
-      $owner = $self->mexpand($macros,$owner);
-			my $id = $hpath->id;
-      my $type_name = $e->getAttribute("type");
-      my $type_id = $self->type_id($type_name);
-#      my $owner = $self->mexpand($macros,$e->getAttribute("owner"));
-      # create the object if it doesn't exist
-			if (! $id) {
-				my %fields;
-				foreach my $fe ($e->findnodes("field")) {
-					$fields{$fe->getAttribute("name")} =
-						$self->mexpand($macros,$fe->textContent);
-				}
-				#               print "creating " . $hpath->get_string . "  with fields:\n " . Dumper(\%fields) . "\n";
-				$id = $self->create_obj
-          ({actor=>$owner},
-           $type_id,
-           $e->getAttribute("name"),
-           $hpath->parent,
-           \%fields);
-
-        # add members if this is a set and there are any listed
-        if($type_name eq "set") {
-          my @members;
-          foreach my $me ($e->findnodes("member")) {
-            if(my $ref = $me->getAttribute("ref")) {
-              $refs->{$ref} = {__pending=>1}
-                unless(exists $refs->{$ref});
-              if($refs->{$ref}->{__pending}) {
-                $refs->{$ref}->{member} = []
-                  unless(exists $refs->{$ref}->{member});
-                push @{$refs->{$ref}->{member}}, $id;
-              } else {
-                # $refs->{$ref} represents the member object
-                push @members, $refs->{$ref}->{obj_id};
-              }
-            } else {
-              push @members, $self->mexpand($macros,$me->textContent);
-            }
-          }
-          $self->add_to_set({actor=>$owner},$id,@members);
-        }
-			}
-
-      # remember the ref to this object if there is one and add any
-      # outstanding links, members etc
-      if(my $ref = $e->getAttribute("ref")) {
-        if(exists $refs->{$ref}) {
-          # either an object with this ref already exists or there are
-          # pending references waiting to be resolved
-          if($refs->{$ref}->{__pending}) {
-            # add any pending link references to the appropriate hcs
-            foreach my $hc (@{$refs->{$ref}->{objlink}}) {
-              $self->add_to_hc({actor=>$owner},
-                               $type_id,
-                               $id,
-                               $hpath->parent)
-                unless($self->object_is_in($type_id,$id,$hpath->parent));
-            }
-            # add any pending member references to the appropriate sets
-            foreach my $set_id (@{$refs->{$ref}->{member}}) {
-              $self->add_to_set({actor=>$owner},$set_id,$id);
-            }
-          } else {
-            # an object with this ref already exists
-            die "there seems to be more than one object " .
-              "with the reference $ref";
-          }
-        }
-        $refs->{$ref} = {type_id=>$type_id,
-                         obj_id=>$id, owner=>$owner};
-      }
-
-    } elsif ($e->nodeName eq "objlink") {
-      my $ref = $e->getAttribute("ref");
-      if(!exists $refs->{$ref}) {
-        # object not created yet and no other pending actions
-        $refs->{$ref} = {__pending=>1};
-      }
-      if($refs->{$ref}->{__pending}) {
-        $refs->{$ref}->{objlink} = []
-          unless(exists $refs->{$ref}->{objlink});
-        push @{$refs->{$ref}->{objlink}}, $hpath->id;
-      } else {
-        # object to link to
-        my $objname = $self->fetch_name
-          ($refs->{$ref}->{type_id},$refs->{$ref}->{obj_id});
-        $self->add_to_hc({actor=>$refs->{$ref}->{owner}},
-                         $refs->{$ref}->{type_id},
-                         $refs->{$ref}->{obj_id},
-                         $hpath->id)
-          unless($self->fetch_id($refs->{$ref}->{type_id},
-                                 $objname,
-                                 $hpath->id));
-      }
-    }
-	}
-
-}
-
 =item B<bootstrap_special_sets>
 
 =cut
@@ -3696,13 +3597,13 @@ sub create_special_sets {
 
 #  print "$univ_hpath\n$empty_hpath\n";
 
-  my $uhp = Machination::HPath->new($self,$univ_hpath);
-  my $ehp = Machination::HPath->new($self,$empty_hpath);
+  my $uhp = Machination::HPath->new(ha=>$self,from=>$univ_hpath);
+  my $ehp = Machination::HPath->new(ha=>$self,from=>$empty_hpath);
 
   die "create_special_sets: $univ_hpath doesn't exist"
-    unless($uhp->id);
+    unless($uhp->exists);
   die "create_special_sets: $empty_hpath doesn't exist"
-    unless($ehp->id);
+    unless($ehp->exists);
 
   my $uhc = Machination::HObject->new($self,"machination:hc",$uhp->id);
   my $ehc = Machination::HObject->new($self,"machination:hc",$ehp->id);
@@ -4035,30 +3936,23 @@ sub op_add_object_type {
 #  return $type_id;
   print "here2\n";
   # create a universal and empty set for this type
-  my $uhp = Machination::HPath->new($self, "/system/sets/universal");
-  my $ehp = Machination::HPath->new($self, "/system/sets/empty");
-  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
-               $set_type_id,
-               $type, # as the name of the set
-               $uhp->id,
+  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
+               "/system/sets/universal/set:$type",
                {
                 is_internal=>1,
                 member_type=>$type_id,
                 direct=>'UNIVERSAL',
                }
               );
-  $self->do_op("create_obj",{actor=>$actor, parent=>$rev},
-               $set_type_id,
-               $type, # as the name of the set
-               $ehp->id,
+  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
+               "/system/sets/empty/set:$type",
                {
                 is_internal=>1,
                 member_type=>$type_id,
                 direct=>'EMPTY',
                }
               );
-
-	return $type_id;
+  return $type_id;
 }
 
 =item B<op_add_setmember_type>
@@ -4154,35 +4048,46 @@ sub op_create_path {
 	my ($self,$actor,$rev,$path,$fields) = @_;
 
   my $hp = $path;
-  $hp = Machination::HPath->new($self,$path)
+  $hp = Machination::HPath->new(from=>$path)
     unless(eval {$path->isa("Machination::HPath")});
-  my ($idpath,$remainder) = $hp->defined_id_path;
+  $hp->ha($self) unless($hp->has_ha);
 
-  # path already exists if there is no remainder
-  return unless(@$remainder);
+  my $existing = $hp->existing;
+  my $remainder = $hp->remainder;
 
-#  print Data::Dumper->Dump([$idpath, $remainder],[qw(idpath remainder)]);
-  my $parent_hc = $idpath->[-1];
-  if(!@$idpath && @$remainder == @{$hp->{rep}}) {
-    shift @$remainder;
-    # machination root not created yet
-    $parent_hc = $self->do_op
-      ("create_obj",{actor=>$actor,parent=>$rev},
-       undef,"machination:root",undef);
-    # path is only the root element, return
-    return $parent_hc if(@{$hp->{rep}} == 1);
+#  $hp->clear_ha;
+
+  return if $hp->exists;
+
+  my $parent_hc;
+  if($existing) {
+    $parent_hc = $existing->rep->[-1]->id;
+  }
+  my $i = 0;
+  foreach my $item (@{$remainder->rep}) {
+    $i++;
+    die "create_path can only deal with the contents branch"
+      unless($item->is_root || $item->branch eq "contents");
+    if($item->is_root) {
+      # Need to create root element
+      $parent_hc = $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         undef,"machination:root",undef);
+      return $parent_hc if($i == @{$remainder->rep});
+    } elsif($i == @{$remainder->rep}) {
+      # The leaf node - could be any kind of object and need to use $fields
+      return $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         $self->type_id($item->type), $item->name, $parent_hc, $fields);
+    } else {
+      # An hc
+      $parent_hc = $self->do_op
+        ("create_obj",{actor=>$actor,parent=>$rev},
+         undef,$item->name,$parent_hc);
+    }
   }
 
-  my $lastelt = pop @$remainder;
-  foreach my $elt (@$remainder) {
-    $parent_hc = $self->do_op
-      ("create_obj",{actor=>$actor,parent=>$rev},undef,$elt,$parent_hc);
-  }
-
-  return $self->do_op
-    ("create_obj",{actor=>$actor,parent=>$rev},
-     $hp->type_id([$lastelt]),$hp->name([$lastelt]),$parent_hc,$fields);
-
+  die "create_obj created everything without counting high enough.";
 }
 
 =item B<op_create_obj>
@@ -4419,10 +4324,6 @@ sub op_modify_obj {
   my $cat = "HAccessor.op_modify_object";
 	$type_id = "machination:hc" unless defined $type_id;
 	my $dbh = $self->write_dbh;
-	if ($type_id eq "machination:hc") {
-		MachinationException->
-			throw("can't modify hcs with modify_obj");
-  }
 
   # don't allow $fields to set certain columns
 	delete $fields->{parent};			# use move_hc instead
@@ -4430,7 +4331,12 @@ sub op_modify_obj {
 	delete $fields->{id};					# a very bad idea!
 	delete $fields->{ordinal};		# derived
 
-  my $table = "objs_" . $type_id;
+  my $table;
+  if($type_id eq "machination:hc") {
+    $table = 'hcs';
+  } else {
+    $table = "objs_" . $type_id;
+  }
 	my @updates = ("rev_id=?");
 	my @values = ($rev);
   #	my @q = qw(?);
@@ -4454,6 +4360,9 @@ sub op_modify_obj {
 		}
 	}
   push @values, $obj_id;
+
+  #TODO(Colin): if is_mp is changed to false on an hc then we should
+  #check whether the hc would have invalid children.
 
 	# update the data
   my $sql = "update $table set " . join(",",@updates) . " where id=?";
@@ -4496,7 +4405,8 @@ sub op_delete_obj {
     my $row = $ch->fetchrow_hashref;
     if($row) {
       unless($opts->{'delete_obj:recursive'}) {
-        my $hp = Machination::HPath->new($self,$obj_id);
+        my $hc = Machination::MooseHC->new(ha=>$self,id=>$obj_id);
+        my $hp = $hc->path;
         HierarchyException->
           throw("Cannot delete " . $hp->to_string . " because " .
                 "it contains children and recursive is not set");
@@ -5353,7 +5263,8 @@ sub op_assertion_group_from_xml {
     unless($opts->{'x2a:replace'}) {
       HierarchyNameExistsException->
         throw("Not replacing agroup_assertion:$name in " .
-              Machination::HPath->new($self, $hcid)->to_string);
+              Machination::MooseHC->new(ha=>$self,id=>$hcid)->
+              path->to_string);
     }
     # need to delete the agroup and the member assertions
     $self->do_op('delete_obj', {actor=>$actor, parent=>$rev},

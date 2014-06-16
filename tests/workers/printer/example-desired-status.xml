@@ -6,10 +6,17 @@
       <remotePath>http://cups.see.ed.ac.uk:631/printers/xeroxal</remotePath>
       <model>Xerox WorkCentre 7535 PS</model>
     </printer>
+<<<<<<< HEAD
     <model id="Xerox WorkCentre 7535 PS">
       <machinationFetcherBundle id="xeroxal"/>
       <infFile>WC7545-7556_PS_x64_Driver.inf\x2WRADP.inf</infFile>
       <infLocation>WC7545-7556_PS_x64_Driver.inf</infLocation>
+=======
+    <model id="Xerox Workcenter 7535 PS">
+      <machinationFetcherBundle id="xeroxal">
+        <iniFile>C:\Workspace\WC5735.inf\x2WRADP.inf</iniFile>
+      </machinationFetcherBundle>
+>>>>>>> 38a1c1728455304264a466655ca9e34f7a1c9020
     </model>
   </worker>
 </status>

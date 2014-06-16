@@ -20,6 +20,7 @@ try:
 except ImportError:
     import urllib2 as urllib_request
     import httplib as http_client
+import ssl
 #
 # memoisation
 try:
@@ -36,20 +37,44 @@ class HTTPSClientAuthHandler(urllib_request.HTTPSHandler):
         urllib_request.HTTPSHandler.__init__(self)
         self.key = key
         self.cert = cert
+
     def https_open(self, req):
         #Rather than pass in a reference to a connection class, we pass in
         # a reference to a function which, for all intents and purposes,
         # will behave as a constructor
         return self.do_open(self.getConnection, req)
+
     def getConnection(self, host, timeout=None):
+        # See if we're using a version of python with ssl.SSLContext
+        # (3.2 or above)
         try:
-            con = http_client.HTTPSConnection(host,
+            context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+        except AttributeError:
+            context = None
+
+        if context:
+            # python >= 3.2
+            context.verify_mode = ssl.CERT_NONE
+            context.load_cert_chain(certfile=self.cert, keyfile=self.key)
+            try:
+                con = http_client.HTTPSConnection(host,
+                                                  context=context,
+                                                  check_hostname=False)
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    e.filename = '{} or {}'.format(self.key, self.cert)
+                    raise
+        else:
+            # python < 3.2
+            try:
+                con = http_client.HTTPSConnection(host,
                                               key_file=self.key,
                                               cert_file=self.cert)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                e.filename = '{} or {}'.format(self.key, self.cert)
-                raise
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    e.filename = '{} or {}'.format(self.key, self.cert)
+                    raise
+
         return con
 
 class WebClient(object):
@@ -167,7 +192,7 @@ class WebClient(object):
 
     # Convenience method for constructing wc from an etree element.
     @classmethod
-    def from_service_elt(cls, elt, obj_type, credentials=None):
+    def from_service_elt(cls, service_elt, obj_type, credentials=None):
         '''Class method: construct a WebClient from an etree element.
         '''
         tmp_auth = service_elt.xpath(
@@ -191,7 +216,7 @@ class WebClient(object):
         authen_elt = tmp_auth[0]
         authen_type = authen_elt.get("type")
         if authen_type == 'debug' and credentials is None:
-            credentials = {'name': authen_elt['username']}
+            credentials = {'name': authen_elt.get('username')}
         service_id = service_elt.get('id')
         hierarchy_url = service_elt.xpath('hierarchy/@id')[0]
         return cls(hierarchy_url = hierarchy_url,
@@ -237,7 +262,8 @@ class WebClient(object):
 #        print("got:\n" + s)
         elt = etree.fromstring(s)
         if elt.tag == 'error':
-            raise Exception('error at the server end:\n' + elt[0].text)
+            msg = elt.xpath('message/text()')[0]
+            raise Exception('error at the server end:\n' + msg)
         ret = from_xml(elt)
         return ret
 

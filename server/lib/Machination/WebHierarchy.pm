@@ -46,6 +46,7 @@ use URI;
 use Machination::HAccessor;
 use Machination::XMLDumper;
 use Machination::Exceptions;
+use Machination::ConfigFile;
 
 use Apache::DataIterator::Reader;
 use Apache::DataIterator::Writer;
@@ -87,8 +88,12 @@ my %calls =
    # agroups
    AgroupMembers => undef,
 
+   # sets
+   SetMembers => undef,
+
    # objects
    FetchObject => undef,
+   ModifyObject => undef,
    IdPair => undef,
    EntityId => undef,
 
@@ -113,6 +118,7 @@ my %calls =
    # Manipulating the hierarchy and objects
    ########################################
    Create => undef,
+   AddValidOs => undef,
 
     Link => undef,
     Unlink => undef,
@@ -129,6 +135,7 @@ my %calls =
     );
 our $log;
 our $ha;
+our $debug;
 our $hierarchy_channel;
 our $shared_memory_dir;
 
@@ -163,8 +170,22 @@ sub handler {
   $machination_config = $machination_config_default
     unless(defined $machination_config);
 
+  my $conf = Machination::ConfigFile->new($machination_config);
+  $debug = $conf->root->
+    findvalue('//subconfig[@xml:id="subconfig.haccess"]/@debug');
+
   if(! defined $ha) {
-    $ha = Machination::HAccessor->new($machination_config);
+    eval {
+      $ha = Machination::HAccessor->new($conf);
+    };
+    if($@) {
+      if($@ =~ /authentication failed/) {
+        error("Authentication to database failed.");
+      } else {
+        error($@);
+      }
+      return Apache2::Const::OK;
+    }
     $log = $ha->log;
     $log->dmsg($cat,"handler called",1);
     $shared_memory_dir = $ha->conf->get_dir("dir.SHM");
@@ -176,10 +197,16 @@ sub handler {
   my $uri_base = URI->new($uri)->path;
   my $ruri = substr($r->uri,length($uri_base));
   $ruri =~ s/^\///;
-  # When using the 'debug' authentication type the remote user in the uri.
   my ($authen_type, $rem_user) = split(/\//, $ruri);
-  # For all other authentication types Apache should tell us.
-  $rem_user = $r->user unless $authen_type eq "debug";
+  # For $authen_type 'debug' the remote user is in the uri so we are done.
+  if($authen_type ne "debug") {
+    if($authen_type eq "public") {
+      $rem_user = "person:__MACHINATION_PUBLIC__";
+    } else {
+      # For all other authentication types Apache should tell us.
+      $rem_user = $r->user unless $authen_type eq "debug";
+    }
+  }
   my $haccess_conf_node = $ha->conf->doc->getElementById("subconfig.haccess");
   my @authen_nodes = $haccess_conf_node->findnodes("authentication/type[\@id='$authen_type']");
   unless(@authen_nodes) {
@@ -307,7 +334,7 @@ sub hierarchy_channel {
 =item B<HierarchyChannel>
 
 =cut
-
+#hp
 sub call_HierarchyChannel {
   return hierarchy_channel();
 }
@@ -315,25 +342,23 @@ sub call_HierarchyChannel {
 =item B<CertInfo>
 
 =cut
-
+#hp
 sub call_CertInfo {
-  my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
-  my @nodes = $haccess_node->findnodes("authentication/certSign/clientDNForm/node");
-  unless(@nodes) {
-    error("No certificate information found");
-    return Apache2::Const::OK;
-  }
-  my $info = {dnform=>{}};
-  foreach my $node (@nodes) {
-    my $default;
-    if($node->getAttribute("check") eq "equal") {
-      $default = $node->getAttribute("value");
-    }
-    $default = $node->getAttribute("default")
-      if($node->hasAttribute("default"));
-    next unless(defined $default);
-    $info->{dnform}->{$node->getAttribute("id")} = $default;
-  }
+  my $info = {};
+  $info->{serverdn_string_rfc} = $ha->ssl_server_dn;
+  $info->{serverdn_list} = $ha->ssl_split_dn($info->{serverdn_string_rfc});
+  $info->{serverdn_string_slash} =
+    $ha->ssl_dnlist_to_string($info->{serverdn_list}, "slash");
+
+
+  my @dnbase = @{$info->{serverdn_list}};
+  shift @dnbase;
+  $info->{basedn_list} = \@dnbase;
+  $info->{basedn_string_slash} =
+    $ha->ssl_dnlist_to_string($info->{basedn_list}, "slash");
+  $info->{basedn_string_rfc} =
+    $ha->ssl_dnlist_to_string($info->{basedn_list});
+#    join(",", map {$_->[0] . "=" . $_->[1]} @dnbase);
 
   return $info;
 }
@@ -341,11 +366,35 @@ sub call_CertInfo {
 =item B<OsId>
 
 =cut
-
+#hp
 sub call_OsId {
   shift;
   shift;
   return $ha->os_id(@_)
+}
+
+=item B<AddValidOs>
+
+=cut
+
+sub call_AddValidOs {
+  my $caller = shift;
+  my $approval = shift;
+
+  my $hp = Machination::HPath->
+    new(ha=>$ha,from=>"/system/special/authz/valid_oses");
+
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"create",
+             mpath=>"/contents",
+             owner=>$caller,
+             approval=>$approval};
+
+  AuthzDeniedException->
+    throw("could not get create permission for " . $hp->to_string)
+      unless $ha->action_allowed($req,$hp);
+
+  $ha->add_valid_os({actor=>$caller}, @_);
 }
 
 =item B<ServiceInfo>
@@ -353,7 +402,7 @@ sub call_OsId {
 Return old style service config element.
 
 =cut
-
+#hp
 sub call_ServiceInfo {
   my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
 
@@ -387,13 +436,13 @@ sub call_ServiceInfo {
   return $service_elt->toString(1);
 }
 
-=item B<ServiceInfo2>
+=item B<ServiceConfig>
 
 Return service info in the form of the server's config file. Not all
 information is transferred.
 
 =cut
-
+#hp
 sub call_ServiceConfig {
   my $han = $ha->conf->doc->getElementById("subconfig.haccess");
   my $ret = XML::LibXML::Element->new('subconfig');
@@ -417,7 +466,7 @@ sub call_ServiceConfig {
 =item B<Help>
 
 =cut
-
+#hp
 sub call_Help {
   my $user = shift;
   my $info;
@@ -440,7 +489,7 @@ sub splat {
 TypeInfo($type)
 
 =cut
-
+#hp
 sub call_TypeInfo {
   my ($owner,$approval,$type) = @_;
 
@@ -452,7 +501,7 @@ sub call_TypeInfo {
 AllTypesInfo($opts)
 
 =cut
-
+#hp
 sub call_AllTypesInfo {
   my ($owner,$approval,$opts) = @_;
 
@@ -464,7 +513,7 @@ sub call_AllTypesInfo {
 TypeId($type_name)
 
 =cut
-
+#hp
 sub call_TypeId {
   my ($owner,$approval,$type) = @_;
 
@@ -486,48 +535,50 @@ $req =
  }
 
 =cut
-
+#hp
 sub call_ActionAllowed {
   my ($owner, $approval, $req, $path) = @_;
-  my $hp = Machination::HPath->new($ha, $path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
 
-  return $ha->action_allowed($req, $hp->id);
+  return $ha->action_allowed($req, $hp);
 }
 
 =item B<Exists>
 
 Exists($path)
 
-need readtext or exists permission on /hc[machination:root]/hc[path1]...
+Permission required:
+- readtext on $path or listchildren on parent.
 
 =cut
-
+#
 sub call_Exists {
   my ($owner,$approval,$path) = @_;
 
   my $hp;
-  $hp = Machination::HPath->new($ha,$path);
+  $hp = Machination::HPath->new(ha=>$ha,from=>$path);
   my $mpath = "/contents/" . $hp->type;
-  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
+  $mpath .= "[" . $hp->id . "]" if $hp->exists;
 
   my $req = {channel_id=>hierarchy_channel(),
-             op=>"exists",
+             op=>"listchildren",
              mpath=>$mpath,
              owner=>$owner,
              approval=>$approval};
   return $hp->id if $ha->action_allowed($req,$hp->parent);
   $req->{op} = "readtext";
-  return $hp->id if $ha->action_allowed($req,$hp->parent);
+  return $hp->id
+    if($hp->exists and $ha->action_allowed($req,$hp->parent->id));
 
   AuthzDeniedException->
     throw("could not get read or exists permission for $path");
 }
 
-=item B<ListContents($hc,$opts)>
+=item B<ListContents($hcpath,$opts)>
 
-List the contents of $hc.
+List the contents of $hcpath.
 
- $hc = numeric id or path string
+ $hcpath = path string denoting an hc
  $opts = hash of options {
     types => [types,to,list], # (all types if this is not specified)
     fetch_names => 0 or 1 (whether to fetch object names as well)
@@ -550,18 +601,18 @@ items are of the form:
 you always get the ids, names are optional.
 
 =cut
-
+#
 sub call_ListContents {
-  my ($owner,$approval,$hc,$opts) = @_;
+  my ($owner,$approval,$path,$opts) = @_;
 
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
   $ha->log->dmsg("WebHierarchy.ListContents",
-                 "owner: $owner, approval: $approval, hc: $hc, " .
+                 "owner: $owner, approval: $approval, hc: $path, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
 
-  my $hp = Machination::HPath->new($ha,$hc);
-
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$path);
+  die "$path is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
 
   $ha->log->dmsg("WebHierarchy.ListContents","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -572,7 +623,9 @@ sub call_ListContents {
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->id));
+    unless($ha->action_allowed($req,$hp));
+
+  die "hc $path does not exist" unless($hp->exists);
 
   my $pass_opts = {};
   $pass_opts->{fields} = ["name"] if($opts->{fetch_names});
@@ -589,7 +642,7 @@ sub call_ListContents {
 
 =item B<GetListContentsIterator>
 
-$fetcher_info = GetListContentsIterator($hc,$opts)
+$fetcher_info = GetListContentsIterator($hcpath,$opts)
 
 See B<GetIteratorInfo> for $fetcher_info format
 
@@ -598,8 +651,10 @@ See B<GetIteratorInfo> for $fetcher_info format
 sub call_GetListContentsIterator {
   my ($owner,$approval,$hc,$types,$opts) = @_;
 
-  my $hp = Machination::HPath->new($ha,$hc);
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+  die "$hc is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
+  die "hc $hc does not exist" unless($hp->exists);
 
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listchildren",
@@ -656,7 +711,7 @@ sub _writer_thread {
 $attachments = ListAttachments($hc, $opts)
 
 =cut
-
+#hp
 sub call_ListAttachments {
   my ($owner,$approval,$hc,$opts) = @_;
 
@@ -666,9 +721,9 @@ sub call_ListAttachments {
                  "owner: $owner, approval: $approval, hc: $hc, " .
                  "opts: " . Data::Dumper->Dump([$opts],[qw(opts)]),9);
 
-  my $hp = Machination::HPath->new($ha,$hc);
-
-  die "hc $hc does not exist" unless(defined $hp->id);
+  my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+  die "$hc is not an hc, it is a " . $hp->type
+    unless($hp->type eq "machination:hc");
 
   $ha->log->dmsg("WebHierarchy.ListAttachments","hp: " . $hp->id,9);
   my $req = {channel_id=>hierarchy_channel(),
@@ -679,7 +734,9 @@ sub call_ListAttachments {
 #  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->id));
+    unless($ha->action_allowed($req,$hp));
+
+  die "hc $hc does not exist" unless($hp->exists);
 
   my $types = $opts->{types};
   unless (defined $types) {
@@ -709,29 +766,248 @@ sub call_ListAttachments {
 
 =item B<AgroupMembers>
 
-$members = AgroupMembers($type_id, $obj_id, $opts)
+$members = AgroupMembers($path_or_spec, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an agroup object (/path/to/agroup_something:blah). Otherwise it is
+interpreted as a constructor string for a MooseHObject
+(e.g. 'type_name:id').
+
+=cut
+#hp
+sub call_AgroupMembers {
+  my ($owner,$approval,$path_or_spec,$opts) = @_;
+  $opts->{max_objects} = undef unless exists $opts->{max_objects};
+
+  my $type_id;
+  my $id;
+  my $parent_hpath;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    if($hp->exists) {
+      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    if($o->exists) {
+      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+  }
+
+  my $type_name = $ha->type_name($type_id);
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"listchildren",
+             mpath=>"/contents/$type_name\[$id\]/members",
+             owner=>$owner,
+             approval=>$approval};
+
+  die "could not get listchildren permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$parent_hpath->id));
+
+  return $ha->
+    get_ag_member_handle($type_id, $id)->
+      fetchall_arrayref({}, $opts->{max_objects});
+}
+
+=item B<SetMembers>
+
+$members = SetMembers($path_or_spec, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an set object (/path/to/set:blah). Otherwise it is interpreted as a
+constructor string for a MooseHObject (e.g. 'set:id').
 
 =cut
 
-sub call_AgroupMembers {
-  my ($owner,$approval,$path,$opts) = @_;
-
+sub call_SetMembers {
+  my ($owner,$approval,$path_or_spec,$opts) = @_;
   $opts->{max_objects} = undef unless exists $opts->{max_objects};
-  my $hp = Machination::HPath->new($ha,$path);
 
+#  my $type_id;
+  my $id;
+  my $parent_hpath;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    die "$path_or_spec must be a set. This looks like a " . $hp->type
+      unless($hp->type eq "set");
+    if($hp->exists) {
+#      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    my $type_name = $ha->type_name($o->type_id);
+    die "$path_or_spec must be a set. This looks like a $type_name"
+      unless($type_name eq "set");
+    if($o->exists) {
+#      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+  }
+
+#  my $type_name = $ha->type_name($type_id);
   my $req = {channel_id=>hierarchy_channel(),
              op=>"listchildren",
-             mpath=>"/contents/" . $hp->type . ":[" . $hp->id . "]",
+             mpath=>"/contents/set\[$id\]/members",
              owner=>$owner,
              approval=>$approval};
-#  $ha->log->dmsg("WebHierarchy.ListContents", Dumper($hp->{rep}),9);
 
   die "could not get listchildren permission for " . $req->{mpath}
-    unless($ha->action_allowed($req,$hp->parent));
+    unless($ha->action_allowed($req,$parent_hpath->id));
 
-  return $ha->
-    get_ag_member_handle($hp->type_id, $hp->id)->
-      fetchall_arrayref({}, $opts->{max_objects});
+  my $set = Machination::HSet->new($ha, $id);
+
+  my @members;
+  if($opts->{max_objects}) {
+    my $fetcher = $set->fetcher("all");
+    $fetcher->prepare_cached;
+    $fetcher->execute;
+    @members = $fetcher->fetch_some($opts->{max_objects})
+  } else {
+    @members = $set->fetch_members("all");
+  }
+  return \@members;
+
+}
+
+=item B<FetchObject>
+
+$members = FetchObject($path_or_spec, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an object in the hierarchy (/path/to/type_name:blah). Otherwise it is
+interpreted as a constructor string for a MooseHObject
+(e.g. 'type_name:id').
+
+=cut
+
+sub call_FetchObject {
+  my ($owner,$approval,$path_or_spec,$opts) = @_;
+
+  my $type_id;
+  my $id;
+  my $parent_hpath;
+  my $obj;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    if($hp->exists) {
+      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+    $obj = Machination::MooseHObject->
+      new(ha=>$ha, id=>$hp->id, type_id=>$hp->type_id)
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    if($o->exists) {
+      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+    $obj = $o;
+  }
+
+  my $type_name = $ha->type_name($type_id);
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"readtext",
+             mpath=>"/contents/$type_name\[$id\]",
+             owner=>$owner,
+             approval=>$approval};
+
+  die "could not get readtext permission for " . $req->{mpath}
+    unless($ha->action_allowed($req,$parent_hpath->id));
+
+  return $obj->fetch_data;
+}
+
+=item B<ModifyObject>
+
+$members = ModifyObject($path_or_spec, $newfields, $opts)
+
+If $path_or_spec starts with '/' then it is interpreted as a path to
+an object in the hierarchy (/path/to/type_name:blah). Otherwise it is
+interpreted as a constructor string for a MooseHObject
+(e.g. 'type_name:id').
+
+=cut
+
+sub call_ModifyObject {
+  my ($owner,$approval,$path_or_spec, $newfields, $opts) = @_;
+
+  my $type_id;
+  my $id;
+  my $parent_hpath;
+  my $obj;
+  if($path_or_spec =~ /^\//) {
+    # Starts with '/', assume path.
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$path_or_spec);
+    if($hp->exists) {
+      $type_id = $hp->type_id;
+      $id = $hp->id;
+      $parent_hpath = $hp->parent;
+    }
+    $obj = Machination::MooseHObject->
+      new(ha=>$ha, id=>$hp->id, type_id=>$hp->type_id)
+  } else {
+    # Assume object spec.
+    my $o = Machination::MooseHObject->new(ha=>$ha, from=>$path_or_spec);
+    if($o->exists) {
+      $type_id = $o->type_id;
+      $id = $o->id;
+      $parent_hpath = Machination::HPath->
+        new(ha=>$ha, from=>'/system/special/authz/objects');
+    } else {
+      die "object " . $o->type_id . "," . $o->id . " doesn't exist";
+    }
+    $obj = $o;
+  }
+
+  my $type_name = $ha->type_name($type_id);
+  my $allowed = 0;
+
+  # First try to get settext permission for the whole object
+  my $req = {channel_id=>hierarchy_channel(),
+             op=>"settext",
+             mpath=>"/contents/$type_name\[$id\]",
+             owner=>$owner,
+             approval=>$approval};
+
+  # If that didn't work try to get permission for the fields individually
+  if(!$ha->action_allowed($req,$parent_hpath->id)) {
+    foreach my $field (keys %$newfields) {
+      my $req = {channel_id=>hierarchy_channel(),
+                 op=>"settext",
+                 mpath=>"/contents/$type_name\[$id\]/field[$field]",
+                 owner=>$owner,
+                 approval=>$approval};
+      die "could not get settext permission for " . $req->{mpath}
+        unless($ha->action_allowed($req,$parent_hpath->id));
+    }
+  }
+
+  # now we're allowed to try to change the object
+  $ha->modify_obj({actor=>$owner}, $obj->type_id, $obj->id, $newfields);
 }
 
 
@@ -796,7 +1072,7 @@ $success = ExtendIteratorLife($handle)
 $list = GetAssertionList($type_name, $obj_name, $channel)
 
 =cut
-
+#hp
 sub call_GetAssertionList {
   my ($owner,$approval,$type_name, $obj_name) = @_;
   my $info;
@@ -835,8 +1111,9 @@ sub call_GetAssertionList {
           push @hc_info, $hc;
           push @hc_ids, $hc->{id};
 #          my $lin = $ha->fetch_lineage($hc->{id});
-          my $hp = Machination::HPath->new($ha,$hc->{id});
-          my $id_path = $hp->id_path;
+          my $hc_obj = Machination::MooseHC->new(ha=>$ha, id=>$hc->{id});
+          my $hp = $hc_obj->path;
+          my $id_path = $hc_obj->id_path;
           push @hc_path, $id_path;
           if($hc->{is_mp}) {
             push @hc_mp_path, $id_path;
@@ -935,8 +1212,8 @@ permissions required:
 sub call_SignIdentityCert {
   my ($caller,$approval,$csr,$force) = @_;
 
-  my $dn = $ha->ssl_get_dn($csr, "req");
-  my ($obj_type, $obj_name) = $ha->ssl_entity_from_cn($dn->{CN});
+  my $cn = $ha->ssl_split_dn($ha->ssl_dn_from_string($csr,"req"))->[0]->[1];
+  my ($obj_type, $obj_name) = $ha->ssl_entity_from_cn($cn);
   my $obj_id = $ha->entity_id($ha->type_id($obj_type), $obj_name);
   my $mpath_obj_id="";
   if($obj_id) {
@@ -954,7 +1231,8 @@ sub call_SignIdentityCert {
       unless $ha->action_allowed
         (
          $req,
-         Machination::HPath->new($ha,'/system/special/authz/objects')->id
+         Machination::HPath->new(ha=>$ha,
+                                 from=>'/system/special/authz/objects')->id
         );
 
   die "Object ${obj_type}:${obj_name} does not exist" unless($obj_id);
@@ -984,9 +1262,9 @@ sub call_RevokeIdentity {
 sub call_IdPair {
   my ($owner, $approval, $path) = @_;
 
-  my $hp = Machination::HPath->new($ha,$path);
+  my $hp = Machination::HPath->new(ha=>$ha, from=>$path);
   my $mpath = "/contents/" . $hp->type;
-  $mpath .= "[" . $hp->id . "]" if defined $hp->id;
+  $mpath .= "[" . $hp->id . "]" if $hp->exists;
   my ($own_type_id,$own_id) = $ha->authen_str_to_object($owner);
 
   my $req = {channel_id=>hierarchy_channel(),
@@ -1020,7 +1298,7 @@ sub call_EntityId {
     throw("could not get exists permission for $type_name:$id in " .
           "/system/special/authz/objects")
       unless $ha->action_allowed
-        ($req, Machination::HPath->new($ha, "/system/special/authz/objects")->id);
+        ($req, Machination::HPath->new(ha=>$ha, from=>"/system/special/authz/objects")->id);
 
   return $id
 }
@@ -1057,7 +1335,8 @@ sub call_Create {
   my ($caller, $approval, $path, $fields) = @_;
 
   my $hp;
-  $hp = Machination::HPath->new($ha,$path);
+  $hp = Machination::HPath->new(ha=>$ha,from=>$path);
+  $hp->populate_ids;
   my $type = $hp->type;
   $type = "machination:hc" unless defined $type;
   my $mpath = "/contents/$type/fields[name]/" . $hp->name;
@@ -1069,9 +1348,9 @@ sub call_Create {
              approval=>$approval};
   AuthzDeniedException->
     throw("Could not get create permission for $mpath on " . $hp->parent->to_string)
-      unless $ha->action_allowed($req,$hp->parent_id);
+      unless $ha->action_allowed($req,$hp->parent->id);
 
-  return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent_id, $fields);
+  return $ha->create_obj({actor=>$caller}, $hp->type_id, $hp->name, $hp->parent->id, $fields);
 }
 
 =item * call_LinkCount($ent,$item)
@@ -1085,7 +1364,7 @@ sub call_LinkCount {
 
   my ($type,$id);
   if($item =~ /^\//) {
-    my $hp = Machination::HPath->new($ha,$item);
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$item);
     $type = $hp->type;
     $id = $hp->id;
   } else {
@@ -1104,47 +1383,47 @@ $hc = path string or id
 =cut
 
 sub call_Link {
-    my ($ent,$item,$hc) = @_;
+  my ($ent,$item,$hc) = @_;
 
-    my $item_hp = Machination::HPath->new($ha,$item);
+  my $item_hp = Machination::HPath->new(ha=>$ha,from=>$item);
 
-    my $hc_id;
-    if($hc=~/^\//) {
-	my $hp = Machination::HPath->new($ha,$hc);
-	$hc_id = $hp->id;
-    } else {
-	$hc_id = $hc;
-    }
+  my $hc_id;
+  if($hc=~/^\//) {
+    my $hp = Machination::HPath->new(ha=>$ha,from=>$hc);
+    $hc_id = $hp->id;
+  } else {
+    $hc_id = $hc;
+  }
 
-    # need read_elt permission on the item from the point of view
-    # of the $item_path's parent
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>$item_hp->type,
-		 id=>$item_hp->id},
-	    owner=>$ent,
-	    op=>"read_elt",
-	    elt_path=>"/",
-	},
-	$item_hp->parent
-	);
-    # need add_elt permission to the path where the link is to be added
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>"machination:hc",
-		 id=>$hc_id},
-	    owner=>$ent,
-	    op=>"add_elt",
-	    elt_path=>"/hc/contents",
-	},
-	$hc_id
-	);
+  # need read_elt permission on the item from the point of view
+  # of the $item_path's parent
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>$item_hp->type,
+              id=>$item_hp->id},
+         owner=>$ent,
+         op=>"read_elt",
+         elt_path=>"/",
+        },
+        $item_hp->parent->id
+       );
+  # need add_elt permission to the path where the link is to be added
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>"machination:hc",
+              id=>$hc_id},
+         owner=>$ent,
+         op=>"add_elt",
+         elt_path=>"/hc/contents",
+        },
+        $hc_id
+       );
 
-    $ha->hcontainer->add_object($item_hp->type,$item_hp->id,$hc_id);
+  $ha->hcontainer->add_object($item_hp->type,$item_hp->id,$hc_id);
 
-    return $ha->hobject->contained_count($item_hp->type,$item_hp->id);
+  return $ha->hobject->contained_count($item_hp->type,$item_hp->id);
 }
 
 =item * call_Unlink($ent,$item_path)
@@ -1154,22 +1433,22 @@ $item_path = path string
 =cut
 
 sub call_Unlink {
-    my ($ent,$item) = @_;
+  my ($ent,$item) = @_;
 
-    my $item_hp = Machination::HPath->new($ha,$item);
+  my $item_hp = Machination::HPath->new(ha=>$ha,from=>$item);
 
-    # need del_elt permission to the path where the link is to be removed
-    authz(
-	{
-	    svc_id=>"machination:hierarchy",
-	    to=>{type=>"machination:hc",
-		 id=>$item_hp->parent},
-	    owner=>$ent,
-	    op=>"del_elt",
-	    elt_path=>"/hc/contents",
-	},
-	$item_hp->parent,
-	);
+  # need del_elt permission to the path where the link is to be removed
+  authz(
+        {
+         svc_id=>"machination:hierarchy",
+         to=>{type=>"machination:hc",
+              id=>$item_hp->parent->id},
+         owner=>$ent,
+         op=>"del_elt",
+         elt_path=>"/hc/contents",
+        },
+        $item_hp->parent->id,
+       );
 
     $ha->hcontainer->
 	remove_object($item_hp->type,$item_hp->id,$item_hp->parent);
@@ -1554,12 +1833,17 @@ sub call_GetSpecialSet {
 sub error {
     my ($error,$opts) = @_;
 
-    $log->emsg("WebHierarchy.error",$error,1);
+    $log->emsg("WebHierarchy.error",$error,1)
+      if defined $log;
     my $e = XML::LibXML::Element->new('error');
+    my $d = XML::LibXML::Element->new('debug');
     my $m = XML::LibXML::Element->new('message');
+    $d->appendTextChild("file", __FILE__);
     $m->appendText($error);
+    $e->appendChild($d) if($debug);
     $e->appendChild($m);
-    $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4);
+    $log->dmsg("WebHierarchy.error", "sending back error:\n" . $e->toString,4)
+      if defined $log;
     print $e->toString . "\n";
 
 }

@@ -4,7 +4,7 @@ use warnings;
 
 use Machination::HAccessor;
 
-my $bshfile = '/var/lib/machination/server/database/bootstrap_hierarchy.hda';
+my $bshfile = '/etc/machination/server/bootstrap_hierarchy.hda';
 
 # initial hierarchy admin user
 open BSH, $bshfile;
@@ -15,11 +15,11 @@ die "Please change the hierarchy admin user in $bshfile before bootstrapping"
   if($hadmin eq 'changeme_to_admin_user@somewhere.com');
 
 # create the database
-qx"machination-createdb";
-die if $?;
+system("machination-createdb");
+#die if $?;
 
 # bootstrap the hierarchy
 
 my $ha = Machination::HAccessor->new("/etc/machination/server/config.xml");
 $ha->bootstrap_all;
-print qx"machination-hda $bshfile";
+system("machination-hda", $bshfile);

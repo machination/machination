@@ -71,8 +71,8 @@
   </subconfig>
 
   <subconfig xml:id="subconfig.haccess"
-             serviceId="your.service.id"
-             URI="https://your.server.name/machination/hierarchy">
+             serviceId="machination-initial-id"
+             URI="https://localhost/machination/hierarchy">
     <authentication>
 
       <!-- Default authentication type for each object type -->
@@ -111,18 +111,15 @@
       </type>
       <type id="debug" defaultObjType="person">
         <!-- allowed object types for this auth method -->
-        <objType id="person" defaultName="eggy"/>
+        <objType id="person" defaultName="dev"/>
         <objType id="os_instance"/>
       </type>
-      <type id="cert" defaultObjType="os_instance"
-            entityPattern="(?(?=^.*CN=.*?:))
-                           ^.*CN=(?&lt;type&gt;.*?):(?&lt;name&gt;.*)$ |
-                           ^.*CN=(?&lt;name&gt;.*)$">
+      <type id="cert" defaultObjType="os_instance">
         <objType id="os_instance"/>
         <objType id="person"/>
       </type>
       <type id="cosign" defaultObjType="person"
-            cosignLoginPage="https://www.ease.ed.ac.uk/">
+            cosignLoginPage="https://my.cosign.service/">
         <objType id="person"/>
       </type>
       <type id="basic" defaultObjType="person">
@@ -130,21 +127,9 @@
       </type>
 
       <certSign lifetime="3650">
-        <ca certfile="ca.crt"
-            keyfile="secrets/ca.key"/>
-        <clientDNForm>
-          <node id="C" check="equal"
-                value="UK"/>
-          <node id="ST" check="equal"
-                value="someState"/>
-          <node id="L" check="equal"
-                value="someLocation"/>
-          <node id="O" check="equal"
-                value="someOrg"/>
-          <node id="OU" check="equal"
-                value="someUnit"/>
-          <node id='CN' check='re' value='^.+?:.+$'/>
-        </clientDNForm>
+        <ca certfile="/usr/share/ca-certificates/machination-server/machination-server-ca.crt"
+            keyfile="secrets/machination-server-ca.key"/>
+        <clientCNForm check="re" value="^.+?:.+$"/>
       </certSign>
 
     </authentication>

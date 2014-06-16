@@ -1,0 +1,81 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+
+  <define name='table'>
+    <element name='table'>
+      <attribute name='name'/>
+      <optional>
+        <attribute name='history'>
+          <!-- Default value: 1 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+      <oneOrMore>
+        <element name='primaryKey'>
+          <text/>
+        </element>
+      </oneOrMore>
+      <oneOrMore>
+        <ref name='column'/>
+      </oneOrMore>
+      <zeroOrMore>
+        <ref name='trigger'/>
+      </zeroOrMore>
+      <zeroOrMore>
+        <ref name='foreignKey'/>
+      </zeroOrMore>
+    </element>
+  </define>
+
+  <!-- Columns -->
+  <define name='column'>
+    <element name="col">
+      <attribute name="name"/>
+      <attribute name="type"/>
+      <optional>
+        <attribute name='nullAllowed'>
+          <!-- Default value: 1 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name='default'/>
+      </optional>
+    </element>
+  </define>
+
+  <!-- Triggers. -->
+  <define name='trigger'>
+    <element name='trigger'>
+      <attribute name='name'/>
+      <attribute name='when'/>
+      <attribute name='each'/>
+      <attribute name='execute'/>
+    </element>
+  </define>
+
+  <!-- Foreign keys. -->
+  <define name='foreignKey'>
+    <element name='foreignKey'>
+      <attribute name='refTable'/>
+      <optional>
+        <!--
+            makesEnumeration is a hint to UIs that there should be a
+            drop-down widget or tab completion based on the contents
+            of the referenced table. It does not change any aspect of
+            the table in the database.
+        -->
+        <attribute name='makesEnumeration'>
+          <!-- Default Value: 1 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+      <oneOrMore>
+        <element name='column'>
+          <attribute name='name'/>
+          <attribute name='references'/>
+        </element>
+      </oneOrMore>
+    </element>
+  </define>
+
+</grammar>

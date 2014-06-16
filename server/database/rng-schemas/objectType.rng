@@ -1,0 +1,56 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0"
+         datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+
+  <!-- Some home made data types -->
+  <include href='rngDataTypes.rng'/>
+
+  <!-- Table and related definitions -->
+  <include href='table.rng'/>
+
+  <start>
+    <element name="objectType">
+      <!-- Mandatory attributes. -->
+      <attribute name="name"/>
+      <attribute name='plural'/>
+
+      <!-- Optional attributes -->
+      <optional>
+        <attribute name='isEntity'>
+          <!-- Default value: 0 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name='isAttachable'>
+          <!-- Default value: 0 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+      <optional>
+        <attribute name='needsAg'>
+          <!-- Default value: 1 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+
+      <!-- Maybe some help -->
+      <optional>
+        <externalRef href='help.rng'/>
+      </optional>
+
+      <oneOrMore>
+        <ref name='column'/>
+      </oneOrMore>
+
+      <oneOrMore>
+        <ref name='foreignKey'/>
+      </oneOrMore>
+
+      <!-- Extra tables needed for this object type. -->
+      <oneOrMore>
+        <ref name='table'/>
+      </oneOrMore>
+
+    </element>
+  </start>
+</grammar>

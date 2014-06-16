@@ -1,0 +1,61 @@
+#!/usr/bin/python3
+
+import sys
+import argparse
+import getpass
+import os.path
+from machination.webclient import WebClient
+from lxml import etree
+#import json
+import ast
+from pprint import pprint
+
+def main(inargs):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--authtype', '-a', default="basic",
+                    help='authentication type')
+    ap.add_argument('--type', '-t', default="person",
+                    help='object type of actor')
+    ap.add_argument(
+        '--cred', '-c', action='append',
+        help='credentials entry separated by "=" (e.g. name=foo)'
+        )
+
+    # TODO(Colin): get default service from config file
+    ap.add_argument('--service', '-s',
+                    default='http://localhost/machination/hierarchy')
+    ap.add_argument('call');
+    ap.add_argument('args', nargs=argparse.REMAINDER)
+    args = ap.parse_args(inargs)
+    print(args)
+
+    if args.cred:
+        cred = dict(s.split('=',1) for s in args.cred)
+    else:
+        cred = {}
+    print(cred)
+
+    pubwc = WebClient(args.service, 'public', 'person')
+    sxml = pubwc.call('ServiceConfig')
+    sc = etree.fromstring(sxml)
+
+    for atelt in sc.xpath('authentication/type'):
+        print(atelt.get('id'))
+        for cf in atelt.xpath('clientField'):
+            msg = cf.get('id')
+            if(cf.get('alias')):
+                msg = msg + '(' + cf.get('alias') + ')'
+            print('  ' + msg)
+
+    atelt = sc.xpath('authentication/type[@id="{}"]'.format(args.authtype))
+    if not atelt:
+        raise Exception("Can't handle authtype {}".format(args.authtype))
+
+    call_args = [ast.literal_eval(x) for x in args.args]
+    print(args.call, call_args)
+
+    wc = WebClient(args.service, args.authtype, args.type, credentials=cred)
+    pprint(wc.call(args.call, *call_args), indent=2)
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

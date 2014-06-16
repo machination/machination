@@ -1,339 +1,340 @@
 #! /usr/bin/python3
 
-#Force sip to use API version 2. Should just work on Python3, but let's not
-#take any chances
-import sip
-sip.setapi("QString",2)
-sip.setapi("QVariant",2)
-
 import sys
 import time
 import copy
 import functools
 import os
 import context
+import inspect
+import argparse
 from lxml import etree
-from PyQt4 import QtGui
-from PyQt4 import QtCore
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+import PyQt5.uic
 from machination.webclient import WebClient
 from collections import OrderedDict
 
-class CredentialsDialog(QtGui.QDialog):
-    '''Capture the correct credentials to authenticate to a service'''
-
-    def __init__(self, parent, url):
-        super().__init__(parent)
-        self.url = url
-
-        self.setWindowTitle('Connecting to {}'.format(url))
-
-        # Precreated text entry widgets for credentials
-        self.cred_inputs = OrderedDict(
-            [
-                ('public', OrderedDict()),
-                ('cosign', OrderedDict(
-                        [
-                            ('login', {
-                                    'label': QtGui.QLabel('Login Name'),
-                                    'widget': QtGui.QLineEdit()
-                                    }
-                             ),
-                            ('password', {
-                                    'label': QtGui.QLabel('Password'),
-                                    'widget': self.makePasswordBox()
-                                    }
-                             ),
-                            ]
-                        )
-                 ),
-                ('cert', OrderedDict(
-                        [
-                            ('key', {
-                                    'label': QtGui.QLabel('Key File'),
-                                    'widget': QtGui.QLineEdit()
-                                    }
-                             ),
-                            ('cert', {
-                                    'label': QtGui.QLabel('Certificate File'),
-                                    'widget': QtGui.QLineEdit()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ('basic', OrderedDict(
-                        [
-                            ('username', {
-                                    'label': QtGui.QLabel('User Name'),
-                                    'widget': QtGui.QLineEdit()
-                                    }
-                             ),
-                            ('password', {
-                                    'label': QtGui.QLabel('Password'),
-                                    'widget': self.makePasswordBox()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ('debug', OrderedDict(
-                        [
-                            ('name', {
-                                    'label': QtGui.QLabel('Name'),
-                                    'widget': QtGui.QLineEdit()
-                                    }
-                             )
-                            ]
-                        )
-                 ),
-                ]
-            )
-
-        # A combobox for the different authentication methods
-        self.auth_method_label = QtGui.QLabel('Authentication Method:')
-        self.auth_methods = QtGui.QComboBox()
-
-        # The button box along the bottom
-        self.button_box = QtGui.QDialogButtonBox(
-            QtGui.QDialogButtonBox.Ok |
-            QtGui.QDialogButtonBox.Cancel
-            )
-
-        # Lay out the main widgets
-        self.main_layout = QtGui.QVBoxLayout()
-        self.cred_layout = QtGui.QVBoxLayout()
-        self.main_layout.addLayout(self.cred_layout)
-        self.main_layout.addWidget(QtGui.QLabel(url))
-        self.main_layout.addWidget(self.auth_method_label)
-        self.main_layout.addWidget(self.auth_methods)
-        self.main_layout.addWidget(self.button_box)
-        self.setLayout(self.main_layout)
-
-        # Populate the authentication combobox
-        self.setAuthMethodsList([x for x in self.cred_inputs.keys()])
-
-        # Connect signals and slots
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        self.auth_methods.currentIndexChanged.connect(self.method_chosen)
-
-    def makePasswordBox(self):
-        '''Make a QLineEdit widget with the 'Password' echo mode.'''
-        box = QtGui.QLineEdit()
-        box.setEchoMode(QtGui.QLineEdit.Password)
-        return box
-
-    def setAuthMethodsList(self, methods):
-        '''Set the list of authentication methods to choose from.'''
-        self.auth_methods.clear()
-        self.auth_methods.addItems(methods)
-        self.default_auth_method = methods[0]
-
-    def setAuthMethod(self, method):
-        '''Set the current choice of authentication method.'''
-        self.auth_methods.setCurrentIndex(
-            self.auth_methods.findText(method, QtCore.Qt.MatchExactly)
-            )
-
-    def method_chosen(self, idx):
-        '''Slot called when an authentication method is chosen.'''
-        if idx < 0: return
-        print('choosing index {}'.format(idx))
-        method = self.auth_methods.itemText(idx)
-        print('choosing method {}'.format(method))
-        self.current_auth_method = method
-        self.auth_method_label.setText("(default = {}, current = {}):".format(self.default_auth_method, self.current_auth_method))
-        # Clear cred_layout
-        for i in range(self.cred_layout.count()):
-            self.cred_layout.itemAt(0).itemAt(0).widget().hide()
-            self.cred_layout.itemAt(0).itemAt(1).widget().hide()
-            self.cred_layout.removeItem(self.cred_layout.itemAt(0))
-        # Add entry fields
-        for key, data in (self.cred_inputs.get(method).items()):
-            layout = QtGui.QHBoxLayout()
-            data.get('label').show()
-            data.get('widget').show()
-            layout.addWidget(data.get('label'))
-            layout.addWidget(data.get('widget'))
-            self.cred_layout.addLayout(layout)
-
-    def getCred(self):
-        '''Get the captured credentials for the current authentication method.'''
-        cred_tmp = self.cred_inputs.get(self.current_auth_method)
-        return {x:y.get('widget').text() for x,y in cred_tmp.items()}
-
-class MGUI(QtGui.QWidget):
+class MGUI():
 
     def __init__(self):
-        super().__init__()
-        self.init_ui()
 
         self.wcs = {}
+        self.model = HModel()
 
-        QtCore.QDir.addSearchPath("icons","")
-        print(QtCore.QDir.searchPaths("icons"))
+        QDir.addSearchPath("icons","")
+#        print(QDir.searchPaths("icons"))
+
+        self.myfile = inspect.getfile(inspect.currentframe())
+        self.mydir = os.path.dirname(self.myfile)
+        self.ui = PyQt5.uic.loadUi(os.path.join(self.mydir, "gui.ui"))
+        self.ui.show()
+        self.ui.treeView.setModel(self.model)
+        self.readSettings()
 
         ### Dialogs ####################
         # service_url
-        self.d_service_url = QtGui.QInputDialog(self)
+        self.d_service_url = QInputDialog(self.ui)
         self.d_service_url.setLabelText("Service URL:")
         self.d_service_url.setComboBoxItems(
-            ["https://mach2-test.see.ed.ac.uk/machination/hierarchy",
-             "https://mach2see.ed.ac.uk/machination/hierarchy",
+            ["http://localhost/machination/hierarchy",
+             "https://mach2-test.see.ed.ac.uk/machination/hierarchy",
+             "https://mach2.see.ed.ac.uk/machination/hierarchy",
              "--new--"]
             )
-        # credentials
 
-    def menu_service_connect(self):
-        '''Handler for Service.connect menu item
+        # Signals, slots and events
+        self.ui.actionExit.triggered.connect(self.handlerExit)
+        self.ui.closeEvent = self.handlerExit
+        self.ui.actionConnect.triggered.connect(self.handlerConnect)
+
+        self.ui.treeView.drawBranches = self.treeViewDrawBranches
+        self.ui.treeView.expanded.connect(self.model.on_expand)
+        self.ui.treeView.wheelEvent = self.treeViewWheelEvent
+        self.ui.treeView.keyPressEvent = self.treeViewKeyPressEvent
+        self.ui.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.treeView.customContextMenuRequested.connect(self.treeViewShowContextMenu)
+        self.ui.treeView.selectionModel().selectionChanged.connect(self.treeViewSlotSelectionChanged)
+
+
+
+    def handlerExit(self, ev = None):
+        print("Bye!")
+        self.saveSettings()
+        sys.exit()
+
+    def handlerConnect(self, ev = None):
+        '''Handler for Connect menu item
         '''
-        ok = self.d_service_url.exec_()
-        if ok:
-            self.connect_to_service(self.d_service_url.textValue())
+        self.connectToService()
 
-    def connect_to_service(self, url):
+    def baseContextMenu(self):
+        '''Base application context menu'''
+        menu = QMenu(self.ui)
+#        menu.addAction("Exit", self.handlerExit)
+        return menu
+
+    def saveSettings(self):
+        s = QSettings("Machination", "Hierarchy Editor")
+        s.beginGroup("mainwin")
+        s.setValue("pos", self.ui.pos())
+        s.setValue("size", self.ui.size())
+        s.endGroup()
+
+        s.setValue("splitter/sizes", self.ui.splitter.sizes())
+
+        s.beginGroup("treeview")
+        s.setValue("colwidths",
+                   [self.ui.treeView.columnWidth(i)
+                    for i in range(self.model.columnCount())]
+                   )
+        s.setValue("base_icon_size",self.ui.treeView.baseIconSize)
+        s.setValue("scale",self.ui.treeView.scale)
+        s.endGroup()
+
+    def readSettings(self):
+        s = QSettings("Machination", "Hierarchy Editor")
+        s.beginGroup("mainwin")
+        self.ui.resize(s.value("size", QSize(900,600)))
+        self.ui.move(s.value("pos", QPoint(100,100)))
+        s.endGroup()
+
+        self.ui.splitter.setSizes(
+            [int(x) for x in s.value("splitter/sizes",[300,600])]
+            )
+
+        s.beginGroup("treeview")
+        for i, sz in enumerate(s.value("colwidths",[200,0,0,0,100])):
+            self.ui.treeView.setColumnWidth(i, int(sz))
+        self.ui.treeView.baseIconSize = int(s.value("base_icon_size", 24))
+        self.treeViewSetScale(float(s.value("scale", 1.0)))
+        self.ui.treeView.hideColumn(HModel.columns.index("type_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("obj_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("channel_id"))
+        self.ui.treeView.hideColumn(HModel.columns.index("__branch__"))
+        s.endGroup()
+
+    def connectToService(self, url = None, method = None, cred = None):
         '''Connect to a machination hierarchy service.
         '''
-        d = CredentialsDialog(self, url)
-        selt = etree.fromstring(
-            "<service><hierarchy id='{}'/></service>".format(url)
-            )
-        tmpwc = WebClient(url, 'public', 'person')
-        istr = tmpwc.call('ServiceConfig')
-        info = etree.fromstring(istr)
-        auth_type_elts = info.xpath('authentication/type')
-        authtypes = [x.get("id") for x in auth_type_elts]
-        d.setAuthMethodsList(authtypes)
-        default_method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
-        d.default_auth_method = default_method
-        d.setAuthMethod(default_method)
-        ok = d.exec_()
-        if ok:
-            cred = d.getCred()
-            self.wcs[url] = WebClient(url, d.current_auth_method, 'person', credentials = cred)
-            self.model.add_service(self.wcs[url])
+        if url is None:
+            ok = self.d_service_url.exec_()
+            if ok:
+                url = self.d_service_url.textValue()
+            else:
+                return
+        if method is None or cred is None:
+            d = CredentialsDialog(self.ui, url)
+            selt = etree.fromstring(
+                "<service><hierarchy id='{}'/></service>".format(url)
+                )
+            tmpwc = WebClient(url, 'public', 'person')
+            istr = tmpwc.call('ServiceConfig')
+            info = etree.fromstring(istr)
+            auth_type_elts = info.xpath('authentication/type')
+            authtypes = [x.get("id") for x in auth_type_elts]
+            d.setAuthMethodsList(authtypes)
+            if method is None:
+                method = info.xpath('authentication/objType[@id="person"]/@defaultAuth')[0]
+            d.default_auth_method = method
+            d.setAuthMethod(method)
+            ok = d.exec_()
+            if ok:
+                cred = d.getCred()
+            method = d.current_auth_method
 
-    def init_ui(self):
-#        self.model = QtGui.QFileSystemModel()
-#        self.model.setRootPath('/')
+        self.wcs[url] = WebClient(url, method, 'person', credentials = cred)
+        self.model.add_service(self.wcs[url])
 
-        self.model = HModel()
+    # In lieu of being able to subclass QTreeView, treeView methods
+    # collected here:
 
-        # The main layout
-        self.vbox = QtGui.QVBoxLayout(self)
-        self.setLayout(self.vbox)
+    def treeViewSetScale(self, scale):
+        self.ui.treeView.scale = scale
+        isz = int(self.ui.treeView.baseIconSize * scale)
+        if isz != self.ui.treeView.iconSize().height():
+            self.ui.treeView.setIconSize(QSize(isz, isz))
+            self.ui.treeView.setIndentation(isz)
 
-        # Menus
-        self.menubar = QtGui.QMenuBar()
-        self.layout().setMenuBar(self.menubar)
+    def treeViewHandlerResetScale(self, ev = None):
+        self.treeViewSetScale(1)
 
-        # Service menu
-        self.service_menu = QtGui.QMenu("&Service", self)
-        self.menubar.addMenu(self.service_menu)
-        # Connect to a new service
-        action = self.service_menu.addAction(
-            "connect...",
-            self.menu_service_connect
-            )
-
-
-        self.wtitle = QtGui.QLabel()
-        self.wtitle.setText("Workers")
-        # Generate worker buttons
-        # FIXME: Automate getting a worker list
-        self.wbbox = QtGui.QVBoxLayout()
-        #self.wbbox.addWidget(self.wtitle)
-        self.wkb = QtGui.QButtonGroup()
-        wkrs = {1: "New",
-                2: "Environment",
-                3: "Fetcher",
-                4: "Firewall",
-                5: "Packageman",
-                6: "Shortcut",
-                7: "Time",
-                8: "Usergroup"}
-        for wkr in wkrs:
-            b = QtGui.QPushButton(wkrs[wkr])
-            b.setCheckable(True)
-            self.wkb.addButton(b, wkr)
-            self.wbbox.addWidget(b)
-
-        self.wkb.buttonClicked.connect(self.worker_button_clicked)
-
-        self.librarylist = QtGui.QListWidget()
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed,
-                                 QtGui.QSizePolicy.Expanding)
-        self.librarylist.setSizePolicy(sPol)
-        self.librarylist.itemSelectionChanged.connect(self.worker_list_changed)
-        self.hbox = QtGui.QHBoxLayout(self)
-        self.vbox.addLayout(self.hbox)
-        self.view = QtGui.QTreeView()
-        self.view.setIconSize(QtCore.QSize(22,22))
-        self.hbox.addWidget(self.view)
-        self.view.setModel(self.model)
-        self.view.expanded.connect(self.model.on_expand)
-        # TODO: hide these after coding/debugging is finished
-        self.view.hideColumn(1)
-        self.view.hideColumn(2)
-        self.view.hideColumn(3)
-#        self.view.hideColumn(4)
-        self.view.sizePolicy().setHorizontalPolicy(QtGui.QSizePolicy.Expanding)
-        self.view.sizePolicy().setHorizontalStretch(1)
-        self.view.resize(self.view.sizeHint())
-        self.hbox.addLayout(self.wbbox)
-        self.hbox.addWidget(self.librarylist)
-#        self.setLayout(self.hbox)
-        self.contents = QtGui.QVBoxLayout(self)
-        self.hbox.addLayout(self.contents)
-        self.cframe = QtGui.QFrame(self)
-        sPol = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
-                                 QtGui.QSizePolicy.Expanding)
-        sPol.setHorizontalStretch(0)
-        sPol.setVerticalStretch(0)
-        self.cframe.setSizePolicy(sPol)
-        self.cframe.setFrameShape(QtGui.QFrame.StyledPanel)
-        self.cframe.setFrameShadow(QtGui.QFrame.Sunken)
-        self.contents.addWidget(self.cframe)
-        self.ctitle = QtGui.QLabel(self.cframe)
-        self.ctitle.setText("Please Select a Worker")
-
-        self.setGeometry(300, 300, 1080, 520)
-        self.setWindowTitle('Machination GUI')
-        self.show()
-
-    def worker_button_clicked(self):
-        btn = self.wkb.checkedButton()
-        self.librarylist.clear()
-        if btn.text() == "New":
-            self.addnew = True
-            self.librarylist.addItem("Environment")
-            self.librarylist.addItem("Fetcher")
-            self.librarylist.addItem("Firewall")
-            self.librarylist.addItem("Packageman")
-            self.librarylist.addItem("Shortcut")
-            self.librarylist.addItem("Time")
-            self.librarylist.addItem("Usergroup")
+    def treeViewWheelEvent(self, ev):
+        '''Handler for wheel events in ui.treeView'''
+        if ev.modifiers() & Qt.ControlModifier:
+            self.treeViewSetScale(
+                self.ui.treeView.scale + ( float(ev.angleDelta().y()) / 2400)
+                )
+            ev.accept()
         else:
-            self.addnew = False
-            for li in self.get_li(btn.text()):
-                self.librarylist.addItem(li["Name"])
+            QTreeView.wheelEvent(self.ui.treeView, ev)
 
-    def worker_list_changed(self):
-        itm = self.librarylist.selectedItems()
-        if itm is None:
-            #Clear contents of c_frame except buttons
-            pass
-        elif self.addnew == True:
-            #Display entry fields
-            pass
+    def treeViewKeyPressEvent(self, ev):
+        '''Handle treeView key press events'''
+        if ev.key() == Qt.Key_Delete:
+            self.treeViewHandlerDeleteSelection()
+            ev.accept()
         else:
-            #Display info fields
-            pass
+            QTreeView.keyPressEvent(self.ui.treeView, ev)
 
-    def refresh_type_info(self):
-        self.type_info = self.wc.call('TypeInfo')
+    def treeViewContextMenu(self, pos):
+        '''Construct treeView context menu.'''
+        menu = self.baseContextMenu()
+#        aexit = None
+#        for a in menu.actions():
+#            if a.text() == "Exit":
+#                aexit = a
+#                break
+#        adel = QAction("Delete", self.ui.treeView)
+#        adel.triggered.connect(self.treeViewHandlerDeleteSelection)
+#        menu.insertAction(aexit,adel)
+        idx = self.ui.treeView.indexAt(pos)
+        print("context menu over {}".format(self.model.get_path(idx)))
+        type_name = self.model.get_type_name(idx)
+        branch = self.model.get_value(idx, '__branch__')
+        if type_name == 'machination:hc':
+            menu.addAction("New...", self.treeViewHandlerNewObject)
+            menu.addAction("Add items")
+        else:
+            if branch == 'contents':
+                menu.addAction("Add to hc")
+                menu.addAction("Remove from hc")
+        menu.addAction("Delete", self.treeViewHandlerDeleteSelection)
+        menu.addAction("Modify...", self.treeViewHandlerModifyObject)
+        return menu
 
-class HModel(QtGui.QStandardItemModel):
+    def treeViewShowContextMenu(self, pos):
+        menu = self.treeViewContextMenu(pos)
+        menu.exec(self.ui.treeView.mapToGlobal(pos))
+
+    def treeViewHandlerDeleteSelection(self):
+        '''Delete all the objects in the current selection after an 'are you sure?' dialog'''
+        todelete = []
+        for idx in self.ui.treeView.selectedIndexes():
+            if idx.column() == 0:
+                todelete.append(idx)
+        msg = QMessageBox()
+        msg.setText("Are you sure?")
+        msg.setInformativeText("Do you really want to delete these objects?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+        msg.setDetailedText(
+            "The following items will be deleted:\n" +
+            "\n".join([self.model.get_path(idx) for idx in todelete])
+        )
+        ret = msg.exec()
+        if ret == QMessageBox.Yes:
+            for idx in todelete:
+                print("Deleting {}".format(self.model.get_path(idx)))
+
+    def treeViewHandlerNewObject(self):
+        '''Start new object dialog.'''
+        pass
+
+    def treeViewHandlerModifyObject(self):
+        '''Start object editor'''
+        sel = self.ui.treeView.selectionModel().selectedRows()
+        if len(sel) > 1:
+            raise Exception("Only one item should be selected when ModifyObject is called")
+        idx = sel[0]
+        dialog = QDialog(self.ui.treeView)
+        dialog.setModal(False)
+        editor = ObjectEditor(
+            dialog,
+            model = self.model,
+            objectIndex = idx
+        )
+        dialog.show()
+
+    def treeViewSlotSelectionChanged(self, selected, deselected):
+        for idx in selected.indexes():
+            if idx.column() != 0:
+                continue
+            print("Sel: {}".format(self.model.get_path(idx)))
+
+    def treeViewDrawBranches(self, painter, rect, idx):
+        ilvl = 0
+        curidx = idx
+        while curidx.parent().isValid():
+            ilvl += 1
+            curidx = curidx.parent()
+        sz = self.ui.treeView.indentation()
+        yoffset = 1
+        h = self.ui.treeView.rowHeight(idx)
+        if h > sz:
+            yoffset = ((h - sz) / 2) + 1
+        idt = sz * ilvl
+#        print("icons = {}, indent by {}".format(self.ui.treeView.iconSize().height(),idt))
+        pixmapSize = QSize(sz - 2, sz - 2)
+        branch = self.model.get_value(idx, "__branch__")
+        pixmap = None
+        pixmap = self.model.get_icon('__branch__{}'.format(branch)).pixmap(pixmapSize)
+#        painter.drawRect(idt + 1, rect.y() + yoffset, sz - 2, sz - 2)
+        if pixmap:
+            painter.drawPixmap(idt + 1, rect.y() + yoffset, pixmap)
+        QTreeView.drawBranches(self.ui.treeView, painter, rect, idx)
+
+class ObjectEditor(QScrollArea):
+    '''Widget for modifying hierarchy object data.'''
+
+    def __init__(self, parent, model = None, objectIndex = None):
+        super().__init__(parent)
+        self.frame = QFrame(self)
+        self.frame.setLayout(QVBoxLayout())
+        self.titleLabel = QLabel(self.frame)
+        self.setWidget(self.frame)
+        self.setModel(model)
+        self.setObject(objectIndex)
+
+    def setModel(self, model):
+        '''Set the model used to communicate with the hierarchy.'''
+        self.model = model
+
+    def setTitle(self, title):
+        '''Change the editor title.'''
+        self.titleLabel.setText(title)
+
+    def setObject(self, objectIndex):
+        '''Specify the object to be modified.'''
+        # TODO(Colin): clear children
+        self.objectIndex = objectIndex
+        if objectIndex is None:
+            self.setTitle("No item specified!")
+            return
+        if self.model is None:
+            raise Exception("Cannot setObject when model is not set.")
+        self.setTitle("Modifying: {}".format(self.model.get_path(objectIndex)))
+        wc = self.model.get_wc(objectIndex)
+        type_info = wc.memo(
+            "TypeInfo",
+            self.model.get_value(objectIndex, "type_id")
+        )
+        obj = wc.call("FetchObject", self.model.get_spec(objectIndex))
+        print(obj)
+
+
+
+class HItem(QStandardItem):
+    '''Items to put in an HModel'''
+
+    def __init__(self, text = None, model = None):
+        self.model = model
+        if text is not None:
+            super().__init__(text)
+        else:
+            super().__init__()
+
+    def setData(self, data, role):
+        '''Every time the item's data is edited we need to try to update the hierarchy'''
+        if role == Qt.EditRole:
+            wc = self.model.get_wc(self)
+            wc.call('ModifyObject',
+                    self.model.get_spec(self),
+                    {'name': data})
+        super().setData(data, role)
+
+class HModel(QStandardItemModel):
     '''Model Machination hierarchy for QTreeView
     '''
 
@@ -346,6 +347,7 @@ class HModel(QtGui.QStandardItemModel):
             self.add_service(wc)
 
         self.setHorizontalHeaderLabels(HModel.columns)
+        self.itemChanged.connect(self.on_item_changed)
 
     def add_service(self, wc):
         '''Add a new service at the root of the tree.'''
@@ -364,23 +366,34 @@ class HModel(QtGui.QStandardItemModel):
     def get_icon(self, name):
         '''Return the correct icon for name
         '''
-        return QtGui.QIcon(os.path.join(context.resources_dir(),'{}.svg'.format(name)))
+        return QIcon(os.path.join(context.resources_dir(),'{}.svg'.format(name)))
 
     def add_object(self, parent, obj, wc=None,
                    peek_children=True):
-        '''Add an object to parent in tree'''
-        if not isinstance(parent, QtGui.QStandardItem):
+        '''Add an object to parent in tree.
+
+        args:
+          parent: index or QStandardItem.
+          obj: dictionary of key/value pairs from hierarchy.
+          peek_children: whether or not to look to see if this object has any children.
+        '''
+        if not isinstance(parent, QStandardItem):
             # Assume parent is an index
             parent = self.itemFromIndex(parent)
         if wc is None:
             wc = self.get_wc(parent)
 
-        name_item = QtGui.QStandardItem(obj.get('name'))
+        name_item = HItem(obj.get('name'), self)
         type_id = obj.get('type_id')
-        type_name = wc.memo('TypeInfo', type_id).get('name')
+        if type_id.startswith('__set_member_external_'):
+            type_name = '__set_member_external__'
+        else:
+            type_name = wc.memo('TypeInfo', type_id).get('name')
 
         if not obj.get('__branch__'):
             obj['__branch__'] = 'contents'
+
+#        print('adding {}'.format(obj))
 
         if  type_id == 'machination:hc':
             name_item.setIcon(self.get_icon('folder'))
@@ -390,11 +403,14 @@ class HModel(QtGui.QStandardItemModel):
             name_item.setIcon(self.get_icon(type_name))
         row = [
             name_item,
-            QtGui.QStandardItem(type_id),
-            QtGui.QStandardItem(obj.get('obj_id')),
-            QtGui.QStandardItem(obj.get('channel_id')),
-            QtGui.QStandardItem(obj.get('__branch__')),
+            QStandardItem(type_id),
+            QStandardItem(obj.get('obj_id')),
+            QStandardItem(obj.get('channel_id')),
+            QStandardItem(obj.get('__branch__')),
             ]
+#        print("about to add child:")
+#        for col, item in enumerate(row):
+#            print("  {}: {}".format(HModel.columns[col],item.text()))
         parent.appendRow(row)
 
         if peek_children:
@@ -407,12 +423,12 @@ class HModel(QtGui.QStandardItemModel):
 
     def get_wc(self, thing):
         '''Find the webclient for an item or index'''
-        obj_path = self.get_obj_path(thing)
-        return self.wcs.get(obj_path[0].text())
+        item_path = self.get_item_path(thing)
+        return self.wcs.get(item_path[0].text())
 
-    def get_obj_path(self, thing):
+    def get_item_path(self, thing):
         '''Return list of StandardItem objects from index or item to root.'''
-        if isinstance(thing, QtGui.QStandardItem):
+        if isinstance(thing, QStandardItem):
             index = thing.index()
         else:
             index = thing
@@ -420,14 +436,50 @@ class HModel(QtGui.QStandardItemModel):
         if not index.isValid():
             return []
 
-        path = self.get_obj_path(index.parent())
+        path = self.get_item_path(index.parent())
         path.append(self.itemFromIndex(index))
 
         return path
 
     def get_path(self, thing):
         '''Return a string path to an index or StandardItem'''
-        obj_path = self.get_obj_path(thing)
+        item_path = self.get_item_path(thing)
+
+        wc = self.get_wc(item_path[0])
+        str_path = ['']
+        for item in item_path[1:]:
+            idx = self.indexFromItem(item)
+            branch = self.get_value(idx, '__branch__')
+            if branch == "contents":
+                branch_txt = ""
+            else:
+                branch_txt = "{}::".format(branch)
+            type_id = self.get_value(idx, 'type_id')
+            objtype = self.get_type_name(idx) + ":"
+            if objtype == "machination:hc:":
+                objtype = ""
+            if branch == "contents":
+                identifier = self.itemFromIndex(idx).text()
+            else:
+                identifier = self.get_value(idx, 'obj_id')
+            str_path.append(branch_txt + objtype + identifier)
+
+        if len(str_path) == 1:
+            return '/'
+        return '/'.join(str_path)
+
+    def get_spec(self, thing):
+        '''Return an object spec for an index or StandardItem'''
+        if isinstance(thing, QStandardItem):
+            idx = thing.index()
+        else:
+            idx = thing
+        objtype = self.get_wc(idx).memo('TypeInfo', self.get_value(idx, 'type_id')).get('name')
+        return "{}:{}".format(objtype, self.get_value(idx, 'obj_id'))
+
+    def get_path_old(self, thing):
+        '''Return a string path to an index or StandardItem'''
+        obj_path = self.get_item_path(thing)
 
         last_index = self.indexFromItem(obj_path[-1])
         if self.get_value(last_index, '__branch__') != 'contents':
@@ -458,28 +510,53 @@ class HModel(QtGui.QStandardItemModel):
         '''Return the text stored in column col_name given a row or index'''
         return self.get_item(index, col_name).text()
 
+    def get_type_name(self, idx):
+        '''Return type name given an index'''
+        type_id = self.get_value(idx, 'type_id')
+        if type_id.startswith('__'):
+            # An internal invented type_id
+            return type_id
+        else:
+            return self.get_wc(idx).memo('TypeInfo', type_id).get('name')
+
     def on_expand(self, index):
         '''Slot for 'expanded' signal.'''
         self.refresh(index)
+
+    def on_item_changed(self, idx):
+        '''Slot for itemChanged'''
+        print('item {} has changed'.format(self.get_path(idx)))
 
     def refresh(self, index):
         '''Refresh a node from the hierarchy'''
         print('refreshing {}'.format(self.get_path(index)))
         wc = self.get_wc(index)
-        type_id = self.get_value(index, 'type_id')
-        if type_id == 'machination:hc':
-            self.removeRows(0,self.rowCount(index),index)
-            for child in self.get_children(index):
-                self.add_object(index, child)
-        elif wc.memo('TypeInfo', type_id).get('is_attachable') == '1':
-            pass
-        else:
-            raise Exception("Don't know how to refresh {}".format(type_id))
+#        type_id = self.get_value(index, 'type_id')
+#        type_name = wc.memo('TypeInfo', type_id).get('name')
+#        branch = self.get_value(index, '__branch__')
+#        if type_id == 'machination:hc' or type_name == 'set' or branch == 'attachments':
+        self.removeRows(0,self.rowCount(index),index)
+        for child in self.get_children(index):
+            self.add_object(index, child)
+#            child_idx = self.add_object(index, child)
+#            print("added child:")
+#            for i in range(5):
+#                print("  {}: {}".format(
+#                        HModel.columns[i],
+#                        self.itemFromIndex(
+#                            self.index(
+#                                child_idx.row(), i, index
+#                                )
+#                            ).text()
+#                        )
+#                      )
 
     def peek_children(self, index):
         '''Look to see if an item which could have children actually has any.'''
         wc = self.get_wc(index)
         type_id = self.get_value(index, 'type_id')
+
+        # Check for hc contents and attachments
         if type_id == 'machination:hc':
             attachments = wc.call(
                 'ListAttachments',
@@ -496,11 +573,26 @@ class HModel(QtGui.QStandardItemModel):
                 return contents[0]
             else:
                 return False
+
+        # Can't look up external set members
+        if type_id.startswith('__set_member_external_'):
+            return
+
+        # Check for agroup members
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
-            members = wc.call('AgroupMembers', self.get_path(index))
+            members = wc.call('AgroupMembers', self.get_spec(index), {'max_objects': 1})
             if members:
-                members[0]['__branch__'] = 'members'
+                members[0]['__branch__'] = 'agroup_members'
                 return members[0]
+            else:
+                return False
+
+        # Check for set members
+        if wc.memo('TypeInfo', type_id).get('name') == 'set':
+            members = wc.call('SetMembers', self.get_spec(index), {'max_objects': 1})
+            if members:
+                return {'name': 'fake', 'type_id': '1', 'obj_id': '1',
+                        '__branch__': 'set_members'}
             else:
                 return False
 
@@ -524,190 +616,210 @@ class HModel(QtGui.QStandardItemModel):
                 newobj['__branch__'] = 'contents'
             return_list.extend(contents)
             return return_list
+
+        # Can't look up external set members
+        if type_id.startswith('__set_member_external_'):
+            return
+
+        # Fetch agroup_members
         if wc.memo('TypeInfo', type_id).get('is_agroup') == '1':
-            members = wc.call('AgroupMembers', self.get_path(index))
+            members = wc.call('AgroupMembers', self.get_spec(index))
             for member in members:
-                member['__branch__'] = 'members'
+                member['__branch__'] = 'agroup_members'
             return members
 
+        # Fetch set_members
+        if wc.memo('TypeInfo', type_id).get('name') == 'set':
+            members = wc.call('SetMembers', self.get_spec(index))
+            objs = []
+            for member in members:
+                if member[0] == '1':
+                    # internal member
+                    obj = wc.call(
+                        'FetchObject', '{}:{}'.format(
+                            wc.memo('TypeInfo', member[1]).get('name'), member[2]
+                            )
+                        )
+#                    print("found member {}".format(obj))
+                    obj['__branch__'] = 'set_members'
+                    obj['obj_id'] = obj['id']
+                    obj['type_id'] = member[1]
+                else:
+                    # external member
+                    obj = {'name': member[2], '__branch__': 'set_members',
+                           'type_id': '__set_member_external_{}__'.format(member[1])}
+                objs.append(obj)
+            return objs
+#            return [{'name': 'fake2', 'type_id': '1', 'obj_id': '1',
+#                    '__branch__': 'set_members'}]
 
-# Later we'll make a better model based on QAbstractItemModel. Right
-# now, see HModel -- based on QStandardItemModel
-class HierarchyModel(QtCore.QAbstractItemModel):
+class CredentialsDialog(QDialog):
+    '''Capture the correct credentials to authenticate to a service'''
 
-    def __init__(self, parent = None, wcp = None):
-        super().__init__(parent = parent)
-        if wcp is not None: self.setwcp(wcp)
+    def __init__(self, parent, url):
+        super().__init__(parent)
+        self.url = url
 
-    def setwcp(self, wcp):
-        self.wcp = wcp
+        self.setWindowTitle('Connecting to {}'.format(url))
 
-    def index(self, row, column, parent):
-        pass
+        # Precreated text entry widgets for credentials
+        self.cred_inputs = OrderedDict(
+            [
+                ('public', OrderedDict()),
+                ('cosign', OrderedDict(
+                        [
+                            ('login', {
+                                    'label': QLabel('Login Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             ),
+                            ]
+                        )
+                 ),
+                ('cert', OrderedDict(
+                        [
+                            ('key', {
+                                    'label': QLabel('Key File'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('cert', {
+                                    'label': QLabel('Certificate File'),
+                                    'widget': QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('basic', OrderedDict(
+                        [
+                            ('username', {
+                                    'label': QLabel('User Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             ),
+                            ('password', {
+                                    'label': QLabel('Password'),
+                                    'widget': self.makePasswordBox()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ('debug', OrderedDict(
+                        [
+                            ('name', {
+                                    'label': QLabel('Name'),
+                                    'widget': QLineEdit()
+                                    }
+                             )
+                            ]
+                        )
+                 ),
+                ]
+            )
 
+        # A combobox for the different authentication methods
+        self.auth_method_label = QLabel('Authentication Method:')
+        self.auth_methods = QComboBox()
 
-class HObject(object):
+        # The button box along the bottom
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok |
+            QDialogButtonBox.Cancel
+            )
 
-    def __init__(self, wcp, type_id = None, obj_id = None):
-        self.wcp = wcp
-        # lastsync needs to be before any possible modifications
-        self.lastsync = 0
-        self.type_id = type_id
-        self.obj_id = obj_id
-        if self.type_id and self.obj_id:
-            self.sync()
+        # Lay out the main widgets
+        self.main_layout = QVBoxLayout()
+        self.cred_layout = QVBoxLayout()
+        self.main_layout.addLayout(self.cred_layout)
+        self.main_layout.addWidget(QLabel(url))
+        self.main_layout.addWidget(self.auth_method_label)
+        self.main_layout.addWidget(self.auth_methods)
+        self.main_layout.addWidget(self.button_box)
+        self.setLayout(self.main_layout)
 
-    data_changed = QtCore.pyqtSignal()
+        # Populate the authentication combobox
+        self.setAuthMethodsList([x for x in self.cred_inputs.keys()])
 
-    # Not sure if we want this method...
-    def set_data(self, data, timestamp = None):
-        if timestamp is None:
-            timestamp = time.time()
-        self.lastsync = timestamp
-        self.data = data
-        # TODO(colin) emit signal
+        # Connect signals and slots
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.auth_methods.currentIndexChanged.connect(self.method_chosen)
 
-    def sync(self, changes = None, timestamp = None):
-        '''Check lastsync against server changes and sync if necessary.
+    def makePasswordBox(self):
+        '''Make a QLineEdit widget with the 'Password' echo mode.'''
+        box = QLineEdit()
+        box.setEchoMode(QLineEdit.Password)
+        return box
 
-        changes should be in the form:
-        {
-         # all objects
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ...},
-         # containers
-         'contents': [
-           {'id': oid, 'type_id': tid, 'name': oname, 'changetype': ct},
-           ...
-         ]
-         'attachments': [
-           {'id': oid, 'type_id': tid, 'name': oname, 'channel': c,
-           'changetype': ct},
-           ...
-         ]
-        '''
-        if timestamp is None:
-            timestamp = time.time()
-        if not changes:
-            changes = self.wcp.call(
-                'ChangesSince',
-                self.type_id,
-                self.obj_id,
-                self.lastsync
-                )
-        self.lastsync = timestamp
+    def setAuthMethodsList(self, methods):
+        '''Set the list of authentication methods to choose from.'''
+        self.auth_methods.clear()
+        self.auth_methods.addItems(methods)
+        self.default_auth_method = methods[0]
 
-        if not changes: return
+    def setAuthMethod(self, method):
+        '''Set the current choice of authentication method.'''
+        self.auth_methods.setCurrentIndex(
+            self.auth_methods.findText(method, Qt.MatchExactly)
+            )
 
-        # Sync any changes.
-        self._sync_obj(changes, timestamp)
+    def method_chosen(self, idx):
+        '''Slot called when an authentication method is chosen.'''
+        if idx < 0: return
+        print('choosing index {}'.format(idx))
+        method = self.auth_methods.itemText(idx)
+        print('choosing method {}'.format(method))
+        self.current_auth_method = method
+        self.auth_method_label.setText("(default = {}, current = {}):".format(self.default_auth_method, self.current_auth_method))
+        # Clear cred_layout
+        for i in range(self.cred_layout.count()):
+            self.cred_layout.itemAt(0).itemAt(0).widget().hide()
+            self.cred_layout.itemAt(0).itemAt(1).widget().hide()
+            self.cred_layout.removeItem(self.cred_layout.itemAt(0))
+        # Add entry fields
+        for key, data in (self.cred_inputs.get(method).items()):
+            layout = QHBoxLayout()
+            data.get('label').show()
+            data.get('widget').show()
+            layout.addWidget(data.get('label'))
+            layout.addWidget(data.get('widget'))
+            self.cred_layout.addLayout(layout)
 
-        # Something has changed, we'd better tell anyone who is
-        # interested.
-        self.data_changed.emit()
-
-    def _sync_obj(self, changes, timestamp):
-        '''Changes in the form:
-
-        {
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ... }
-        }
-
-        changetype indicates whether the object has been added,
-        updated or removed since the last sync time. The type 'remove'
-        should never be passed to this method, object removals are
-        handled by deleting the appropriate HObject.
-        '''
-        if changes.get('changetype') == 'remove':
-            raise AttributeError(
-                '_sync_obj should never be called with remove change type'
-                )
-        self.lastsync = timestamp
-        self.data = copy.copy(changes.get('fields'))
-
-class HContainer(HObject):
-    '''Data structure representing hcs
-
-    self.data as HObject
-    self.contents as {
-      ord1: hitem1,
-      ord2: hitem2,
-      ...
-    }
-    self.attachments same form as self.contents
-    '''
-
-    def _sync_obj(self, changes, timestamp):
-        '''Changes in the form:
-
-        {
-         'changetype': 'add' | 'remove' | 'update',
-         'fields': {field_name: field_value, ... },
-         'contents': {
-           'remove' : [
-             {
-               'type_id': tid,
-               'id': oid,
-               'ordinal': ord,
-             },
-             ...
-           ],
-           'move': [
-             {
-               'type_id': tid,
-               'id': oid,
-               'old_ordinal': ord,
-               'new_ordinal': ord,
-             },
-             ...
-           ],
-           'add' : [
-             {
-               'type_id': tid,
-               'id': oid,
-               'ordinal': ord,
-             },
-             ...
-           ],
-         ],
-         'attachments': same form as contents
-        }
-        '''
-        # Call _sync_obj from HObject to capture changes to data
-        super()._sync_obj(changes, timestamp)
-
-        # Apply changes to contents
-        self.apply_collection_changes(self.contents, changes)
-
-        # Apply changes to attachments
-        self.apply_collection_changes(self.attachments, changes)
-
-    def apply_collection_changes(self, col, changes):
-
-        # Removes.
-        for change in changes.get('remove', []):
-            del col[change.get('ordinal')]
-
-        # Moves.
-        for change in changes.get('move', []):
-            oldord = change.get('old_ordinal')
-            item = col.get(oldord)
-            del col[oldord]
-            col[change.get('new_ordinal')] = item
-
-        # Adds.
-        for change in changes.get('add', []):
-            col[change.get('new_ordinal')] = self.wcp.get_object(change.get('type_id'), change.get('id'))
+    def getCred(self):
+        '''Get the captured credentials for the current authentication method.'''
+        cred_tmp = self.cred_inputs.get(self.current_auth_method)
+        return {x:y.get('widget').text() for x,y in cred_tmp.items()}
 
 def main():
-    app = QtGui.QApplication(sys.argv)
     ex = MGUI()
-    sys.exit(app.exec_())
+    if args.connect is not None:
+        con_parts = args.connect.split(",")
+        con_url = con_parts[0]
+        con_method = con_parts[1]
+        con_cred = {}
+        for s in con_parts[2:]:
+            (cred_key, cred_val) = s.split('=')
+            con_cred[cred_key] = cred_val
+        print("Connecting {} {} {}".format(con_url, con_method, con_cred))
+        ex.connectToService(con_url, con_method, con_cred)
+    return app.exec_()
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--connect', '-c', nargs='?',
+        help='Connect to service url,method,[credkey=val,[key=val],...]'
+        )
 
+    args = parser.parse_args()
 
-
+    app = QApplication(sys.argv)
+    sys.exit(main())

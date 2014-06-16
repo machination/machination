@@ -1,0 +1,10 @@
+<grammar xmlns="http://relaxng.org/ns/structure/1.0">
+
+  <!-- Give 'bool' a more restrictive definition than w3c 'boolean' -->
+  <define name='bool'>
+    <choice>
+      <value>1</value>
+      <value>0</value>
+    </choice>
+  </define>
+</grammar>

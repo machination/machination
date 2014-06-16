@@ -1,0 +1,24 @@
+#!/bin/bash
+# postinst script for machination-server.
+#
+# Generated from the Txt::Template template
+# machination-server.postinst.tmpl
+
+set -e
+
+conditional_statoverride_rm () \{
+    # $1 = file
+    if dpkg-statoverride --list $1 > /dev/null; then
+        dpkg-statoverride --remove $1
+    fi
+\}
+
+# undo statoverrides
+{join("\n",@overrides)}
+
+# Get our ca out of /etc/ca-certificates.conf.
+# Look for our cert name with or without a "!" at the beginning.
+sed -ri '/^!\{0,1\}{$escaped_ca_cert}$/d' /etc/ca-certificates.conf > /dev/null
+
+# update the symlinks in /etc/ssl/certs
+update-ca-certificates

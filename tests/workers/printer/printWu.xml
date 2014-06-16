@@ -1,15 +1,20 @@
 <wus>
-  <wu id='/status/worker[@id="printer"]/model[@id="Kyocera FS-3900DN"]'
+  <wu id='/status/worker[@id="printer"]/model[@id="Xerox WorkCentre 7535 PS"]'
       op='add'>
-    <model id="Kyocera FS-3900DN"/>
+    <model id="Xerox WorkCentre 7535 PS"/>
   </wu>
-  <wu id='/status/worker[@id="printer"]/printer[@id="al116"]'
+  <wu id='/status/worker[@id="printer"]/printer[@id="xeroxal"]'
       op='add'>
-    <printer id="al116">
-      <descriptiveName>{id}-{model}-{location}</descriptiveName>
-      <location>AL116</location>
-      <remotePath>http://cups.see.ed.ac.uk:631/printers/al116</remotePath>
-      <model>Kyocera FS-3900DN</model>
+    <printer id="xeroxal">
+      <descriptiveName>{id}-{location}</descriptiveName>
+      <location>AL Corridor</location>
+      <remotePath>http://cups.see.ed.ac.uk:631/printers/xeroxal</remotePath>
+      <model>Xerox WorkCentre 7535 PS</model>
     </printer>
+    <model id="Xerox WorkCentre 7535 PS">
+      <machinationFetcherBundle id="xeroxal"/>
+      <infFile>WC7545-7556_PS_x64_Driver.inf\x2WRADP.inf</infFile>
+      <infLocation>WC7545-7556_PS_x64_Driver.inf</infLocation>
+    </model>
   </wu>
 </wus>

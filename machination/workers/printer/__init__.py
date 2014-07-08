@@ -140,7 +140,7 @@ class Worker(object):
                 [
                     '/if', '/f',
                     os.path.join(
-                        os.environ.get('windir'),'inf', 'ntdriver.inf'
+                        os.environ.get('windir'),'inf', 'ntprint.inf'
                         )
                     ]
                 )

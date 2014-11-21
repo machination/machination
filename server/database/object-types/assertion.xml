@@ -1,8 +1,7 @@
-<objectType name='assertion'
-            isAttachable='1'
-            libraries='1'
-            >
+<?xml version="1.0"?>
+<objectType name='assertion' attachable='1' libraries='1'>
   <depends name='set'/>
+
   <help short='Assertion object.'>
     <long>
     </long>
@@ -14,11 +13,30 @@
   <column name='action_op' type='varchar' nullAllowed='0'/>
   <column name='action_arg' type='varchar'/>
 
-  <foreignKey refTable='valid_assertion_ops' makesEnumeration='1'>
+  <constraint type='foreignKey' refTable='valid_assertion_ops' makesEnumeration='1'>
     <column name='ass_op' references='op'/>
-  </foreignKey>
-  <foreignKey refTable='valid_action_ops' makesEnumeration='1'>
+  </constraint>
+  <constraint type='foreignKey' refTable='valid_action_ops' makesEnumeration='1'>
     <column name='action_op' references='op'/>
-  </foreignKey>
+  </constraint>
+
+  <table name='valid_assertion_ops' history='1'>
+    <primaryKey>
+      <column name='op'/>
+    </primaryKey>
+    <column name='op' type='varchar' nullAllowed='0'/>
+    <column name='arg_meaning' type='varchar'/>
+  </table>
+
+  <table name='valid_action_ops' history='1'>
+    <primaryKey>
+      <column name='op'/>
+    </primaryKey>
+    <column name='op' type='varchar' nullAllowed='0'/>
+    <column name='complete' type='boolean' nullAllowed='0'/>
+    <column name='overlay' type='boolean'/>
+    <column name='arg_meaning' type='varchar'/>
+    <column name='description' type='varchar'/>
+  </table>
 
 </objectType>

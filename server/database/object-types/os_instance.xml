@@ -13,4 +13,21 @@
     <column name='os_id' references='id'/>
   </foreignKey>
 
+  <table name='valid_oses' history='1'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='name' type='varchar' nullAllowed='0'/>
+    <column name='major_version' type='varchar' nullAllowed='0'/>
+    <column name='minor_version' type='varchar' nullAllowed='0'/>
+    <column name='bitness' type='int' nullAllowed='0'/>
+    <constraint type='unique'>
+      <column name='name'/>
+      <column name='major_version'/>
+      <column name='minor_version'/>
+      <column name='bitness'/>
+    </constraint>
+  </table>
+
 </objectType>

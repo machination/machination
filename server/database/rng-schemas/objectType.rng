@@ -30,22 +30,26 @@
           <ref name='bool'/>
         </attribute>
       </optional>
-      <!-- Can objects of this type be attached? -->
+      <!-- is this object type attachable? -->
       <optional>
-        <attribute name='isAttachable'>
-          <!-- Default value: 0 -->
-          <ref name='bool'/>
-        </attribute>
+        <group>
+          <attribute name='attachable'>
+            <!-- default value: 0 -->
+            <ref name='bool'/>
+          </attribute>
+          <optional>
+            <!-- For the most part it will be an attachment group
+                 which actually gets attached. Set this to 0 if this
+                 object type should be attached directly.-->
+            <attribute name='agroupRequired'>
+              <!-- default value: 1 -->
+              <ref name='bool'/>
+            </attribute>
+          </optional>
+        </group>
       </optional>
-      <!-- Must objects of this type be placed in an attachment group
-           before attaching? Only consulted for attachable types. -->
-      <optional>
-        <attribute name='needsAg'>
-          <!-- Default value: 1 -->
-          <ref name='bool'/>
-        </attribute>
-      </optional>
-      <!-- Can objects (or AGs) of this type be collected into libraries? -->
+
+      <!-- Can objects of this type (or the associated attachment groups) be collected into libraries? -->
       <optional>
         <attribute name='libraries'>
           <!-- Default value: 0 -->
@@ -72,13 +76,13 @@
       </oneOrMore>
 
       <zeroOrMore>
-        <ref name='foreignKey'/>
+        <ref name='constraint'/>
       </zeroOrMore>
 
       <!-- Extra tables needed for this object type. -->
-      <oneOrMore>
+      <zeroOrMore>
         <ref name='table'/>
-      </oneOrMore>
+      </zeroOrMore>
 
     </element>
   </start>

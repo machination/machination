@@ -3198,9 +3198,19 @@ sub bootstrap_all {
 
 =cut
 
+#sub bootstrap_functions_old {
+#	my $self = shift;
+#	$self->dbc->config_base_functions;
+#}
+
 sub bootstrap_functions {
-	my $self = shift;
-	$self->dbc->config_base_functions;
+  my $self = shift;
+  my $file = $self->conf->get_dir('dir.DATABASE') . "/bootstrap_functions.xml";
+  my $fdoc = XML::LibXML->load_xml(location=>$file);
+  foreach my $f ($fdoc->findnodes('//function')) {
+    $self->dbc->dbconfig->config_function
+      ($f,$self->conf->get_dir('dir.database.FUNCTIONS'));
+  }
 }
 
 =item B<bootstrap_tables>
@@ -3663,44 +3673,77 @@ sub add_object_type {
 }
 sub op_add_object_type {
 	my $self = shift;
-	my ($actor,$rev,$type,$plural,$opts) = @_;
+	my ($actor,$rev,$elt,$is_agroup) = @_;
   my $cat = "HAccessor.op_add_object_type";
-	my $entity = $opts->{is_entity};
-	$entity = 0 unless defined $entity;
-	my $attachable = $opts->{is_attachable};
-	$attachable = 0 unless defined $attachable;
-	my $agroup = $opts->{is_agroup};
-	$agroup = 0 unless defined $agroup;
-	my $cols = $opts->{cols};
-	$cols = [] unless defined $cols;
-	my $fks = $opts->{fks};
-	$fks = [] unless defined $fks;
 
-  my $direct_attachable = int($agroup || ($type eq "set"));
+	my $objs_dir = $self->dbc->conf->get_dir("dir.DATABASE") . "/object-types";
+
+  if(!ref $elt) {
+    $elt = XML::LibXML->load_xml(string=>$elt)->documentElement;
+  }
+
+  my $type_name = $elt->getAttribute('name');
+  my $plural = $type_name . "s";
+  if($elt->hasAttribute('plural')) {
+    $type_name = $elt->getAttribute('plural');
+  }
+
+	my $entity = 0;
+  if($elt->hasAttribute('isEntity')) {
+    $entity = $elt->getAttribute('isEntity');
+  }
+
+	my $attachable = 0;
+  if($elt->hasAttribute('attachable')) {
+    $entity = $elt->getAttribute('attachable');
+  }
+
+	my $needs_agroup = 1;
+  if($elt->hasAttribute('agroupRequired')) {
+    $entity = $elt->getAttribute('agroupRequired');
+  }
+
+  my $direct_attachable = 0;
+  $direct_attachable = 1 if($is_agroup);
+  $direct_attachable = 1 if($attachable && ! $needs_agroup);
+
+  my $libs = 0;
+  if($elt->hasAttribute('libraries')) {
+    $entity = $elt->getAttribute('libraries');
+  }
+
+	my @cols = $elt->findnodes('column');
+	my @fks = $elt->findnodes('foreignKey');
 
   my $dbc = $self->dbc;
   my $dbh = $dbc->dbh;
 #  my $dbh = $self->write_dbh;
 
 	# can't add an existing type - the database will enforce this too
-  if($self->type_exists_byname($type, {cache=>0})) {
+  if($self->type_exists_byname($type_name, {cache=>0})) {
 		MachinationException->
       throw("Tried to add an object type that " .
-            "already exists ($type)");
+            "already exists ($type_name)");
+  }
+
+  # Create any objectTypes this type depends on.
+  foreach my $dep ($elt->findnodes('depends')) {
+    my $dep_elt = $self->get_object_type_elt($dep->getAttribute("name"));
+    $self->do_op('add_object_type',{actor=>$actor, parent=>$rev},$dep_elt)
   }
 
 	# there's a bootstrapping problem such that the type "set" has to be
 	# added first (so that the foreign key constraints on the set
 	# membership tables can be added).
-	if ($type ne "set" && ! $self->type_exists_byname("set",{cache=>0})) {
+	if ($type_name ne "set" && ! $self->type_exists_byname("set",{cache=>0})) {
 		MachinationException->
-      throw("Could not add type \"$type\" - " .
+      throw("Could not add type \"$type_name\" - " .
             "the object type \"set\" must be added first.");
 	}
 
   # check that the table referred to in any "objtable" foreign
   # key constraints has been created
-	foreach my $fk (@$fks) {
+	foreach my $fk (@fks) {
 		if (my $objtable = $fk->{objtable}) {
 			my $other_id;
 			eval {
@@ -3719,17 +3762,17 @@ sub op_add_object_type {
   if ($attachable) {
 		$agroup_type_id = $self->do_op
       ("add_object_type",{actor=>$actor,parent=>$rev},
-       "agroup_$type", "agroup_$plural",
+       "agroup_$type_name", "agroup_$plural",
        {is_agroup=>1,
         cols=>[["channel_id",Machination::DBConstructor::IDREF_TYPE,
                 {nullAllowed=>0}]],
         fks=>[{table=>"valid_channels",
                cols=>[["channel_id","id"]]}],
        });
-		push @$cols,
+		push @cols,
       ["agroup",Machination::DBConstructor::IDREF_TYPE,{nullAllowed=>0}],
         ["ag_ordinal","bigint",{nullAllowed=>0}];
-		push @$fks,
+		push @fks,
       {table=>"objs_$agroup_type_id",
        cols=>[['agroup','id']]};
 	}
@@ -3742,7 +3785,7 @@ sub op_add_object_type {
                    "values (?,?,?,?,?,?)",
                    {dbi_dummy=>"HAccessor.add_object_type"});
 	eval {
-		$sth->execute($type,$plural,$entity,$direct_attachable,$agroup_type_id,$rev);
+		$sth->execute($type_name,$plural,$entity,$direct_attachable,$agroup_type_id,$rev);
 	};
 	if (my $e = $@) {
     print "ent: '$entity'\natt: '$direct_attachable'\n";
@@ -3768,7 +3811,7 @@ sub op_add_object_type {
   my $objs_table =
     {name=>"objs_$type_id",
      pk=>['id'],
-     fks=>$fks,
+     fks=>@fks,
      history=>1,
      cols=>[
             ['id',Machination::DBConstructor::ID_TYPE],
@@ -3776,7 +3819,7 @@ sub op_add_object_type {
              {nullAllowed=>0}],
             ['owner',Machination::DBConstructor::OBJECT_NAME_TYPE,
              {nullAllowed=>0}],
-            @$cols,
+            @cols,
            ],
     };
   # entities must have globally unique names
@@ -3799,7 +3842,7 @@ sub op_add_object_type {
       }),
     );
 
-	if ($type eq "set") {
+	if ($type_name eq "set") {
     #		push @tables, $dbc->gentable
     #      ({name=>"nested_sets",
     #        pk=>["child_id","parent_id"],
@@ -3853,7 +3896,7 @@ sub op_add_object_type {
       )
     }
 	my $set_type_id;
-	if ($type eq "set") {
+	if ($type_name eq "set") {
 		$set_type_id = $type_id;
 	} else {
 		eval {
@@ -3879,7 +3922,7 @@ sub op_add_object_type {
      }
     );
 
-	if ($agroup) {
+	if ($is_agroup) {
 		push @tables,
       $dbc->gentable
 				({name=>"hcatt_$type_id",
@@ -3909,7 +3952,7 @@ sub op_add_object_type {
 					history=>1,
 				 });
 	}
-	if ($type eq "authz_set") {
+	if ($type_name eq "authz_set") {
 		push @tables,
       $dbc->gentable
 				({name=>"authz_set_members",
@@ -3927,7 +3970,7 @@ sub op_add_object_type {
 		$dbc->dbconfig->config_table_all($t);
 	}
 
-  my $is_set = $type eq "set";
+  my $is_set = $type_name eq "set";
   $is_set = 0 unless($is_set);
   $self->do_op("add_setmember_type",{actor=>$actor,parent=>$rev},
                $type_id,1,$is_set);
@@ -3937,7 +3980,7 @@ sub op_add_object_type {
   print "here2\n";
   # create a universal and empty set for this type
   $self->do_op("create_path", {actor=>$actor, parent=>$rev},
-               "/system/sets/universal/set:$type",
+               "/system/sets/universal/set:$type_name",
                {
                 is_internal=>1,
                 member_type=>$type_id,
@@ -3945,7 +3988,7 @@ sub op_add_object_type {
                }
               );
   $self->do_op("create_path", {actor=>$actor, parent=>$rev},
-               "/system/sets/empty/set:$type",
+               "/system/sets/empty/set:$type_name",
                {
                 is_internal=>1,
                 member_type=>$type_id,

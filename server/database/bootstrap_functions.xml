@@ -1,0 +1,5 @@
+<functions>
+  <function language="plperl" name="lib" returns="void"/>
+  <function language="plperl" name="clear_cache" returns="void"/>
+  <function language="plperl" name="history_trigger" returns="trigger"/>
+</functions>

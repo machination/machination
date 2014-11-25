@@ -1,0 +1,14 @@
+<manifest>
+  <dir tgt="/test"/>
+  <file src='packaging/default-server-config.xml'
+    tgt='/etc/machination/server/config.xml'/>
+  <file src='packaging/default-dbcred.xml'
+    tgt='/etc/machination/server/secrets/dbcred.xml'
+    perms='0750'
+    owner='apache'
+    group='apache'/>
+  <dir src='database'
+    tgt='/var/lib/machination/server/database'/>
+  <file src='database/bootstrap_hierarchy.hda'
+    tgt='/etc/machination/server/bootstrap_hierarchy.hda'/>
+</manifest>

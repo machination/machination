@@ -23,7 +23,7 @@
     <component value="/etc/machination/server"/>
   </dir>
   <dir xml:id="dir.SECRETS">
-    <compenent ref="dir.CONFIG"/>
+    <component ref="dir.CONFIG"/>
     <component value="secrets"/>
   </dir>
   <dir xml:id="dir.LOG">

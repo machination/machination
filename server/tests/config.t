@@ -5,12 +5,18 @@ use Test::More 'no_plan';
 
 use Machination::ConfigFile;
 
-my $test_root = "test/tmp";
+my %args = @ARGV;
+
+my $test_root = $args{test_root};
+$test_root = 'nothin' unless defined $test_root;
+
+print "config tests\n";
+print "  test_root = $test_root\n";
 
 my $conf = Machination::ConfigFile->new
-  ('packaging/default-server-config.xml');
+  ("$test_root/etc/machination/server/config.xml");
 ok(defined $conf,
-  "Config object from packaging/default-server-config.xml exists");
+  "Config object from $test_root/etc/machination/server/config.xml exists");
 $conf->root_path($test_root);
 is($conf->root_path, $test_root,
   "root_path is $test_root");

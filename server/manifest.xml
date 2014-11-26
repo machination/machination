@@ -1,5 +1,5 @@
 <manifest>
-  <dir tgt="/test"/>
+  <dir tgt="/var/log/machination/server/file"/>
   <file src='packaging/default-server-config.xml'
     tgt='/etc/machination/server/config.xml'/>
   <file src='packaging/default-dbcred.xml'

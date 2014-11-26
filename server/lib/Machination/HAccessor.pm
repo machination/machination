@@ -249,9 +249,12 @@ sub new {
     $log = Machination::Log->new;
     my $elt = ($self->dbc->conf->doc->
       getElementById("subconfig.haccess")->findnodes("log"))[0];
-#    print "starting logging to " . $self->dbc->conf->get_file("file.haccess.LOG") . "\n";
-    $elt->appendTextChild("logFile",
-                          $self->dbc->conf->get_file("file.haccess.LOG"));
+#    print "starting logging to " .
+#			$self->dbc->conf->get_file("file.haccess.LOG") . "\n";
+    $elt->appendTextChild(
+			"logFile",
+			$self->dbc->conf->get_file("file.haccess.LOG")
+		);
     $log->from_xml($elt);
   }
   $self->log($log);

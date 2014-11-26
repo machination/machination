@@ -618,7 +618,7 @@ sub config_table_constraints {
         foreach my $col ($con_elt->findnodes("column")) {
           push @cols, $col->getAttribute("name");
         }
-        croak("no \"col\" elements found in " .
+        croak("no \"column\" elements found in " .
               "$type constraint $id")
           unless @cols;
         eval {

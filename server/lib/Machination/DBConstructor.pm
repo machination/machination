@@ -101,21 +101,6 @@ sub dbconfig {
 	return $self->{dbconfig};
 }
 
-sub config_base_functions {
-	my $self = shift;
-
-	my @funcs = (
-		'<function language="plperl" name="lib" returns="void"/>',
-		'<function language="plperl" name="clear_cache" returns="void"/>',
-		'<function language="plperl" name="history_trigger" ' .
-		'returns="trigger"/>',
-		);
-	foreach my $f (@funcs) {
-		$self->dbconfig->config_function
-				($f,$self->conf->get_dir("dir.database.FUNCTIONS"));
-	}
-}
-
 =item * $con->config_base_tables
 
 =cut
@@ -540,4 +525,3 @@ sub con_name {
 =cut
 
 1;
-

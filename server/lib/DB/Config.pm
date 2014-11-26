@@ -995,49 +995,49 @@ sub constraint_general {
 }
 
 sub config_function {
-    my $self = shift;
-    my ($felt,$fdir) = @_;
-    my $dbh = $self->dbh;
-    unless(ref($felt)) {
-	$felt = $self->parser->parse_string($felt)->documentElement;
-    }
+  my $self = shift;
+  my ($felt,$fdir) = @_;
+  my $dbh = $self->dbh;
+  unless(ref($felt)) {
+    $felt = $self->parser->parse_string($felt)->documentElement;
+  }
 
-    my $name = $felt->getAttribute("name");
-    my $lang = $felt->getAttribute("language");
-    my $args = $felt->getAttribute("arguments");
-    my $ret = $felt->getAttribute("returns");
-    my $file = "$fdir/$name.pl";
+  my $name = $felt->getAttribute("name");
+  my $lang = $felt->getAttribute("language");
+  my $args = $felt->getAttribute("arguments");
+  my $ret = $felt->getAttribute("returns");
+  my $file = "$fdir/$name.pl";
+  $args = '' unless defined $args;
 
-    # check if language has been loaded
-    my $langs = $dbh->selectall_arrayref
-	("select lanname from pg_catalog.pg_language where lanname=?",{},$lang);
-    unless(@$langs) {
-	# $lang is not installed - try to install it
-	$dbh->do("create language ?",{},$lang);
-    }
+  # check if language has been loaded
+  my $langs = $dbh->selectall_arrayref
+    ("select lanname from pg_catalog.pg_language " .
+      "where lanname=?",{},$lang);
+  unless(@$langs) {
+	  # $lang is not installed - try to install it
+	  $dbh->do("create language ?",{},$lang);
+  }
 
-    my $sql = "create or replace function $name($args)";
-#    if($args) {
-#	$sql .= " ($args)";
-#    }
-    if($ret) {
-	$sql .= " returns $ret";
-    }
-    $sql .= " as \$$name\$\n";
-    open(SCRIPT,$file) || croak "could not open $file to create function $name";
-    while(<SCRIPT>) {
-	$sql .= $_;
-    }
-    close SCRIPT;
-    $sql .= "\n\$$name\$ language $lang;";
+  my $sql = "create or replace function $name($args)";
+  if($ret) {
+	   $sql .= " returns $ret";
+  }
+  $sql .= " as \$$name\$\n";
+  open(SCRIPT,$file) ||
+    croak "could not open $file to create function $name";
+  while(<SCRIPT>) {
+	   $sql .= $_;
+  }
+  close SCRIPT;
+  $sql .= "\n\$$name\$ language $lang;";
 
-    eval {
-	$dbh->do($sql);
-    };
-    if($@) {
-	croak("Error creating function $name using sql:\n" .
-	      $sql . ":\n$@");
-    }
+  eval {
+	  $dbh->do($sql);
+  };
+  if($@) {
+    croak("Error creating function $name using sql:\n" .
+      $sql . ":\n$@");
+  }
 }
 
 sub cleanup {

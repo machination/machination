@@ -97,7 +97,8 @@ sub schema {
 sub dbconfig {
 	my $self = shift;
 	$self->{dbconfig} = shift if(@_);
-	$self->{dbconfig} = DB::Config->new($self->dbh) unless($self->{dbconfig});
+	$self->{dbconfig} = DB::Config->new($self->dbh)
+		unless($self->{dbconfig});
 	return $self->{dbconfig};
 }
 

@@ -13,16 +13,19 @@ $test_root = 'nothin' unless defined $test_root;
 print "config tests\n";
 print "  test_root = $test_root\n";
 
-my $conf = Machination::ConfigFile->new
-  ("$test_root/etc/machination/server/config.xml");
+my $config_file = "$test_root/etc/machination/server/config.xml";
+my $conf = Machination::ConfigFile->new($config_file);
 ok(defined $conf,
-  "Config object from $test_root/etc/machination/server/config.xml exists");
+  "Config object from $config_file exists");
 $conf->root_path($test_root);
 is($conf->root_path, $test_root,
   "root_path is $test_root");
 my $doc = $conf->doc;
 is(ref($doc), 'XML::LibXML::Document',
   "\$conf->doc is a document");
+is($conf->get_dir('dir.LOG'),
+  "$test_root/var/log/machination/server/file",
+  "dir.LOG is $test_root/var/log/machination/server/file");
 is($conf->get_dir('dir.SECRETS'),
   "$test_root/etc/machination/server/secrets",
   "dir.SECRETS is $test_root/etc/machination/server/secrets");

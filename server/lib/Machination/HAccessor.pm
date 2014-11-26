@@ -3201,14 +3201,10 @@ sub bootstrap_all {
 
 =cut
 
-#sub bootstrap_functions_old {
-#	my $self = shift;
-#	$self->dbc->config_base_functions;
-#}
-
 sub bootstrap_functions {
   my $self = shift;
-  my $file = $self->conf->get_dir('dir.DATABASE') . "/bootstrap_functions.xml";
+  my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_functions.xml";
   my $fdoc = XML::LibXML->load_xml(location=>$file);
   foreach my $f ($fdoc->findnodes('//function')) {
     $self->dbc->dbconfig->config_function

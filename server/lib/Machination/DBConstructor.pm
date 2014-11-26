@@ -97,8 +97,13 @@ sub schema {
 sub dbconfig {
 	my $self = shift;
 	$self->{dbconfig} = shift if(@_);
-	$self->{dbconfig} = DB::Config->new($self->dbh)
-		unless($self->{dbconfig});
+	unless($self->{dbconfig}) {
+		$self->{dbconfig} = DB::Config->new($self->dbh);
+		$self->{dbconfig}->schema_path(
+			$self->conf->get_dir('dir.DATABASE') . "/rng-schemas"
+		);
+	}
+
 	return $self->{dbconfig};
 }
 

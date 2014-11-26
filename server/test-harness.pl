@@ -12,7 +12,7 @@ use Machination::Manifest;
 my $test_root = 'test/tmp';
 my $clean;
 my @tests;
-my @default_tests = qw(config bootstrap_funcs);
+my @default_tests = qw(config bootstrap_func);
 
 GetOptions(
   "test_root=s" => \$test_root,
@@ -55,12 +55,23 @@ my $dbcred_doc = XML::LibXML->load_xml(location=>$dbcred_file);
 my ($user_elt) = $dbcred_doc->findnodes('//username');
 my ($pass_elt) = $dbcred_doc->findnodes('//password');
 $user_elt->removeChildNodes;
-$user_elt->appendText('machination_test');
+$user_elt->appendText('machination_tests');
 $pass_elt->removeChildNodes;
-$pass_elt->appendText('machination_test');
+$pass_elt->appendText('machination_tests');
 open(my $dbch, ">$dbcred_file");
 print $dbch $dbcred_doc->toString;
 close $dbch;
+
+my $conf_file = "$test_root/etc/machination/server/config.xml";
+my $conf_doc = XML::LibXML->load_xml(location=>$conf_file);
+my ($db_elt) = $conf_doc->findnodes(
+  '//subconfig[@xml:id="subconfig.database"]/connection/database'
+);
+$db_elt->removeChildNodes;
+$db_elt->appendText('machination_tests');
+open(my $confh, ">$conf_file");
+print $confh $conf_doc->toString;
+close $confh;
 
 my $bsh_file =
   "$test_root/etc/machination/server/bootstrap_hierarchy.hda";

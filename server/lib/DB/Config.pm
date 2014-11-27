@@ -581,6 +581,19 @@ A full relax-ng schema file for tables should be in
 $self->schema_path()
 
 =cut
+sub con_type_xml2db {
+  my $xmltype = shift;
+  return 'FOREIGN KEY' if($xmltype eq "foreignKey");
+  return 'UNIQUE' if($xmltype eq "unique");
+  return 'PRIMARY KEY' if($xmltype eq "primaryKey");
+}
+sub con_type_db2xml {
+  my $dbtype = shift;
+  return 'foreignKey' if($dbtype eq 'FOREIGN KEY');
+  return 'unique' if($dbtype eq 'UNIQUE');
+  return 'primaryKey' if($dbtype eq 'PRIMARY KEY');
+  return 'generic';
+}
 sub config_table_constraints {
   my $self = shift;
   my ($table_elt,$opts) = @_;
@@ -601,7 +614,10 @@ sub config_table_constraints {
   #    $self->msg("constraints found:\n" . Dumper($info->{"constraints"}));
 
   my %xml_cons;
-  foreach my $celt ($table_elt->findnodes("constraint")) {
+  foreach my $celt (
+    $table_elt->findnodes("constraint"),
+    $table_elt->findnodes("primaryKey"))
+  {
     $xml_cons{lc($self->constraint_name($tname, $celt))} = $celt;
   }
 
@@ -639,8 +655,11 @@ sub config_table_constraints {
     my $addcon = 1;
     if(exists $info->{"constraints"}->{$id}) {
 	    $addcon = 0;
-	    if($type ne $info->{"constraints"}->{$id}) {
-        $self->msg("  constraint $id is different from XML - removing\n");
+	    if($type ne con_type_db2xml($info->{"constraints"}->{$id})) {
+        $self->msg("  constraint type $type ne " .
+          $info->{constraints}->{$id} . "\n");
+        $self->msg("  constraint $id is different from XML" .
+          " - removing\n");
         eval {
           $dbh->do("alter table $tname drop constraint $id;");
         };

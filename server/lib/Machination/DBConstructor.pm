@@ -78,17 +78,6 @@ sub parser {
 	return $self->{parser};
 }
 
-=item * $con->schema
-
-=cut
-
-sub schema {
-	my $self = shift;
-	$self->{schema} = Machination::XML::Element->new("schema")
-		unless($self->{schema});
-	return $self->{schema};
-}
-
 =item * $con->dbconfig
 	accessor for internal DB::Config object
 

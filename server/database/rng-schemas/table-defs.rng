@@ -90,7 +90,14 @@
           <attribute name='type'>
             <value>foreignKey</value>
           </attribute>
-          <attribute name='refTable'/>
+          <choice>
+            <!-- refTable references foreign table name. -->
+            <attribute name='refTable'/>
+            <!-- objTable references the name of an object
+                 type. Machination will translate this to the
+                 appropriate table name. -->
+            <attribute name='objTable'/>
+          </choice>
           <optional>
             <!--
                 makesEnumeration is a hint to UIs that there should be

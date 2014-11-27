@@ -102,6 +102,11 @@ sub dbconfig {
 		$self->{dbconfig}->schema_path(
 			$self->conf->get_dir('dir.DATABASE') . "/rng-schemas"
 		);
+		my $type_subs = XML::LibXML->load_xml(
+			location=>$self->conf->get_dir('dir.DATABASE') .
+			"/type-substitutions.xml"
+		)->documentElement;
+		$self->{dbconfig}->type_subs($type_subs);
 	}
 
 	return $self->{dbconfig};

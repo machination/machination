@@ -23,7 +23,6 @@ use Exception::Class;
 use Machination::Exceptions;
 use Machination::DBAccessor;
 use XML::LibXML;
-use Machination::XML::Element;
 use DB::Config;
 
 use Data::Dumper;
@@ -399,7 +398,7 @@ sub gentable {
 	my ($info) = @_;
 
 	my $name = $info->{'name'};
-	my $elt = Machination::XML::Element->new("table");
+	my $elt = XML::LibXML::Element->new("table");
 	$elt->setAttribute("name",$name);
 	my $pkelt = $elt->
 			insertNewChild("constraint",
@@ -455,7 +454,7 @@ sub gentable {
 		$fk->insertNewChild("col",{name=>"rev_id",refKey=>"id"});
 
 
-		my $htelt = Machination::XML::Element->new("table");
+		my $htelt = XML::LibXML::Element->new("table");
 		$htelt->setAttribute("name", "zzh_$name");
 		$htelt->insertNewChild("constraint",
 													 {type=>"PRIMARY KEY",

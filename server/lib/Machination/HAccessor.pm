@@ -30,7 +30,6 @@ use Machination::HSet;
 #use Machination::HAuthzSet;
 use Text::ParseWords;
 use XML::LibXML;
-use Machination::XML::Element;
 use Machination::XMLConstructor;
 use Machination::Log;
 use Machination::XML2Assertions;

@@ -84,6 +84,23 @@ sub _build_table_schema {
     (location=>$self->schema_path . "/table.rng");
 }
 
+=item B<type_subs>
+
+Database type substitutions. Should be a XML::LibXML::Element
+in this form:
+
+<typeSubstitutions>
+  <sub name='ID_TYPE' value='bigserial'/>
+  <sub name='ID_REF_TYPE' value='bigint'/>
+  <sub name='OBJECT_NAME_TYPE' value="varchar"/>
+  <sub name='OBJECT_NAMEREF_TYPE' value="varchar"/>
+</typeSubstitutions>
+
+=cut
+has 'type_subs' => (
+  is => 'rw'
+);
+
 =item B<test_table>
 
 Name of a table where test columns can be created.
@@ -138,17 +155,44 @@ around BUILDARGS => sub {
 
 =head3 Methods
 
+=item B<type_sub>
+
+$dbc->type_sub($type_string);
+
+Take a string representing a database column type and
+substitute anything of the form {TYPE_NAME} with the
+appropriate substitution from $dbc->type_subs.
+
+Die if there is a name in {} but no substitution.
+
+=cut
+
+sub type_sub {
+  my $self = shift;
+  my $str = shift;
+
+  if(my ($name) = $str=~/\{(.*)\}/) {
+    # need to substitute something
+    my ($node) = $self->type_subs->findnodes(
+      "//sub\[\@name='$name'\]"
+    );
+    die "There is no substitution for type $name" unless($node);
+    return $node->getAttribute("value");
+  }
+  return $str;
+}
+
 =over
 
-=item B<validate_xml>
+=item B<validate_table_xml>
 
-$dbc->validate_xml($table_elt or $string);
+$dbc->validate_table_xml($table_elt or $string);
 
 Validate XMl describing a table against $dbc->table_schema.
 
 =cut
 
-sub validate_xml {
+sub validate_table_xml {
   my $self = shift;
   my $table_elt = shift;
 
@@ -408,7 +452,9 @@ sub config_table_cols {
     foreach my $col (keys %xmlonly_set) {
 	    my $col_elt = ($table_elt->
                      findnodes("column[\@name=\"$col\"]"))[0];
-	    my $type = $col_elt->getAttribute("type");
+	    my $type = $self->type_sub(
+        $col_elt->getAttribute("type")
+      );
 	    my $null = $col_elt->getAttribute("nullAllowed");
 	    (defined $null && !$null) ? $null = " not null" : $null="";
       my $default = $col_elt->getAttribute("default");
@@ -436,7 +482,9 @@ sub config_table_cols {
 
 	    my $celt = ($table_elt->
                   findnodes("column[\@name=\"$col\"]"))[0];
-	    my $type = $celt->getAttribute("type");
+	    my $type = $self->type_sub(
+        $celt->getAttribute("type")
+      );
 	    my $nullable = 1;
 	    $nullable = $celt->getAttribute("nullAllowed")
         if(defined $celt->getAttribute("nullAllowed"));
@@ -808,7 +856,7 @@ sub ensure_table_exists {
   my @both;
   foreach my $col ($table_elt->findnodes("column")) {
     push @both, $col->getAttribute("name") . " " .
-	    $col->getAttribute("type");
+	    $self->type_sub($col->getAttribute("type"));
   }
   $sql .= join(",\n",@both);
   $sql .= ");";

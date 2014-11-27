@@ -123,7 +123,7 @@ has 'types' => (is=>'rw',
 
 =cut
 has 'verbosity' => (is=>'rw',
-                    default=>1);
+                    default=>0);
 
 =item B<parser>
 
@@ -209,7 +209,7 @@ sub validate_table_xml {
     $table_elt = $table_doc->documentElement;
   }
   # Check the table XML against the schema
-  $self->table_schema->validate($table_doc);
+  return $self->table_schema->validate($table_doc);
 }
 
 =item B<find_type_ids>
@@ -289,7 +289,7 @@ sub config_sequence {
   }
 
   my $sname = $seq_elt->getAttribute("name");
-  print "Checking sequence \"$sname\"\n";
+  $self->msg("Checking sequence \"$sname\"\n");
   my $start = $seq_elt->getAttribute("start");
   my $increment = $seq_elt->getAttribute("increment");
   my $minvalue = $seq_elt->getAttribute("minvalue");
@@ -306,7 +306,7 @@ sub config_sequence {
   unless($self->sequence_exists($sname)) {
     # no such sequence exists - create one
     my $sql = "create sequence $sname";
-    print "  creating sequence \"$sname\"\n";
+    $self->msg("  creating sequence \"$sname\"\n");
     $sql .= " start $start" if(defined $start);
     $sql .= " increment $increment" if(defined $increment);
     $sql .= " minvalue $minvalue" if(defined $minvalue);
@@ -353,7 +353,7 @@ sub config_sequence {
 
   if($changes) {
     my $sql = "alter sequence $sname$changes;";
-    print "  $sql\n";
+    $self->msg("  $sql\n");
     $dbh->do($sql);
   }
 }
@@ -395,11 +395,11 @@ sub config_table_cols {
   # first find out if the table exists
 
   my $tname = $table_elt->getAttribute("name");
-  print "Checking table $tname\n";
+  $self->msg("Checking table $tname\n");
 
   my $changed = $self->ensure_table_exists($table_elt);
   #    unless($self->table_exists($tname)) {
-  #	print "creating table $tname\n";
+  #	$self->msg("creating table $tname\n");
   #	# this can throw an exception, but we'll not handle it here
   #	$self->create_table($table_elt);
   #    }
@@ -408,7 +408,7 @@ sub config_table_cols {
   # and data types
 
   my $info = $self->table_info($tname,{types=>$do_types});
-  #    print Dumper($info);
+  #    $self->msg(Dumper($info));
 
   my %db_cols_set;
   @db_cols_set{keys %{$info->{"atts"}}} = (undef);
@@ -428,11 +428,11 @@ sub config_table_cols {
     delete($xmlonly_set{$_});
   }
 
-  #    print "db: " . Dumper(\%db_cols_set);
-  #    print "xml: " . Dumper(\%xml_cols_set);
-  #    print "union: " . Dumper(\%union_set);
-  #    print "dbonly: " . Dumper(\%dbonly_set);
-  #    print "xmlonly: " . Dumper(\%xmlonly_set);
+  #    $self->msg("db: " . Dumper(\%db_cols_set));
+  #    $self->msg("xml: " . Dumper(\%xml_cols_set));
+  #    $self->msg("union: " . Dumper(\%union_set));
+  #    $self->msg("dbonly: " . Dumper(\%dbonly_set));
+  #    $self->msg("xmlonly: " . Dumper(\%xmlonly_set));
 
 #  my $changed = 0;
 
@@ -459,7 +459,7 @@ sub config_table_cols {
 	    (defined $null && !$null) ? $null = " not null" : $null="";
       my $default = $col_elt->getAttribute("default");
       (defined $default) ? $default = " default $default" : $default="";
-	    print "  Adding $col, $type\n";
+	    $self->msg("  Adding $col, $type\n");
 	    eval {
         $dbh->do("alter table $tname add $col ${type}${null}${default};");
 	    };
@@ -505,10 +505,10 @@ sub config_table_cols {
                    "set not null");
         }
         if((! $cinfo->{'NULLABLE'}) && $nullable) {
-          #		    print Dumper(\%pks);
-          #		    print Dumper($cinfo);
-          #		    print !$cinfo->{'NULLABLE'} . ":$nullable\n";
-          print "  setting col $col in table $tname to allow NULL\n";
+          #		    $self->msg(Dumper(\%pks));
+          #		    $self->msg(Dumper($cinfo));
+          #		    $self->msg(!$cinfo->{'NULLABLE'} . ":$nullable\n");
+          $self->msg("  setting col $col in table $tname to allow NULL\n");
           $dbh->do("alter table $tname alter column $col " .
                    "drop not null");
         }
@@ -523,7 +523,7 @@ sub config_table_cols {
     }
   }
 
-  print "table $tname done\n";
+  $self->msg("table $tname done\n");
   return $changed;
 }
 
@@ -597,8 +597,8 @@ sub config_table_constraints {
   # they touch multiple tables (the target table/key may not exist
   # yet)
 
-  #    print Dumper($info);
-  #    print "constraints found:\n" . Dumper($info->{"constraints"});
+  #    $self->msg(Dumper($info));
+  #    $self->msg("constraints found:\n" . Dumper($info->{"constraints"}));
 
   my %xml_cons;
   foreach my $celt ($table_elt->findnodes("constraint")) {
@@ -613,7 +613,7 @@ sub config_table_constraints {
     $con = lc $con;
     next if(exists $xml_cons{$con});
     # remove db constraint
-    print "  remove constraint $con\n";
+    $self->msg("  remove constraint $con\n");
     eval {
 	    $dbh->do("alter table $tname drop constraint $con;");
     };
@@ -640,7 +640,7 @@ sub config_table_constraints {
     if(exists $info->{"constraints"}->{$id}) {
 	    $addcon = 0;
 	    if($type ne $info->{"constraints"}->{$id}) {
-        print "  constraint $id is different from XML - removing\n";
+        $self->msg("  constraint $id is different from XML - removing\n");
         eval {
           $dbh->do("alter table $tname drop constraint $id;");
         };
@@ -650,17 +650,17 @@ sub config_table_constraints {
         $addcon = 1;
         $changed=1;
 	    }
-	    print "  constraint $id exists\n" unless($addcon);
+	    $self->msg("  constraint $id exists\n") unless($addcon);
     }
 
     # deal with foreign keys later
     if($type eq "foreignKey") {
-	    print "  deferring foreign key constraint $id till later\n";
+	    $self->msg("  deferring foreign key constraint $id till later\n");
 	    next;
     }
 
     if($addcon) {
-      print "  add constraint $id\n";
+      $self->msg("  add constraint $id\n");
       if($type eq "primaryKey") {
         my @cols;
         foreach my $col ($con_elt->findnodes("column")) {
@@ -773,7 +773,7 @@ sub config_table_foreign_keys {
   my $changed = 0;
 
   my $tname = $table_elt->getAttribute("name");
-  print "Checking foreign keys for table $tname\n";
+  $self->msg("Checking foreign keys for table $tname\n");
   unless($self->table_exists($tname)) {
     croak("config_table_foreign_keys: " .
           "table \"$tname\" does not exist\n");
@@ -784,15 +784,15 @@ sub config_table_foreign_keys {
     ($table_elt->findnodes("constraint[\@type=\"foreignKey\"]"))
       {
         my $id = lc($self->constraint_name($tname, $con_elt));
-        print "  checking foreign key constraint $id\n";
+        $self->msg("  checking foreign key constraint $id\n");
 
         # check to see if constraint is there
         #	my $addcon = 1;
-        #	print Dumper($info->{"constraints"});
+        #	$self->msg(Dumper($info->{"constraints"}));
         if(exists $info->{"constraints"}->{$id}) {
-          print "  constraint $id exists\n";
+          $self->msg("  constraint $id exists\n");
         } else {
-          print "  adding foreign key constraint $id\n";
+          $self->msg("  adding foreign key constraint $id\n");
           my $ftable = $con_elt->getAttribute("refTable");
           my @cols;
           my @fcols;
@@ -816,7 +816,7 @@ sub config_table_foreign_keys {
           $changed=1;
         }
       }
-  print "table $tname done\n";
+  $self->msg("table $tname done\n");
   return $changed;
 }
 
@@ -850,7 +850,7 @@ sub ensure_table_exists {
 
   return undef if($self->table_exists($tname));
 
-  #    print "  Creating table " . $table_elt->getAttribute("name") . "\n";
+  #    $self->msg("  Creating table " . $table_elt->getAttribute("name") . "\n");
 
   my $sql = "create table $tname (\n";
   my @both;
@@ -860,7 +860,7 @@ sub ensure_table_exists {
   }
   $sql .= join(",\n",@both);
   $sql .= ");";
-  #    print "  using sql:\n$sql\n";
+  #    $self->msg("  using sql:\n$sql\n");
 
   eval {
     $dbh->do($sql);
@@ -901,7 +901,7 @@ sub table_info {
     while(my @row = $sth->fetchrow_array) {
 	$oid = $row[0];
     }
-#    print "There were " . $sth->rows . " oids returned\n";
+#    $self->msg("There were " . $sth->rows . " oids returned\n");
     $info->{"oid"} = $oid;
 
     # find attributes
@@ -927,7 +927,7 @@ sub table_info {
     $sth = $self->prepare_query("find_constraints",$sql);
     $sth->execute($name);
     while(my ($cname,$ctype) = $sth->fetchrow_array) {
-#	print "  Found constraint $cname ($ctype)\n";
+#	$self->msg("  Found constraint $cname ($ctype)\n");
 	# postgresql seems to put it's own check constraints in from version 8
 	# or so onwards. We want to ignore those. Might be a better way to do
 	# this, but for now we match on the constraint name.
@@ -1095,6 +1095,11 @@ sub cleanup {
     foreach my $qname (keys %$prepared_queries) {
 	$prepared_queries->{$qname}->{"sth"}->finish;
     }
+}
+
+sub msg {
+  my $self = shift;
+  if($self->verbosity) { print @_; }
 }
 
 =back

@@ -393,73 +393,47 @@ sub xml_to_rep {
 	return $rep;
 }
 
-sub gentable {
+=item B<mach_table_to_canonical>
+
+@canonical_table_elts = $self->mach_table_to_canonical($mach_table_elt);
+
+Expand any extras, like making a history table element when
+history='1', to make table elements suitable for DB::Config.
+
+=cut
+
+sub mach_table_to_canonical {
 	my $self = shift;
-	my ($info) = @_;
+	my $elt = shift;
+	my @elts = $elt;
+	my $name = $elt->getAttribute('name');
 
-	my $name = $info->{'name'};
-	my $elt = XML::LibXML::Element->new("table");
-	$elt->setAttribute("name",$name);
-	my $pkelt = $elt->
-			insertNewChild("constraint",
-										 {type=>"PRIMARY KEY",
-											id=>$self->con_name($name,"pk")});
-	foreach my $col (@{$info->{'pk'}}) {
-		$pkelt->insertNewChild("col",{name=>$col});
-	}
-	foreach my $con (@{$info->{'fks'}}) {
-		my $fk = $elt->
-				insertNewChild("constraint",
-											 {type=>"FOREIGN KEY",
-												refTable=>$con->{'table'}});
-		my @colnames;
-		foreach my $col (@{$con->{'cols'}}) {
-			$fk->insertNewChild("col",
-													{name=>$col->[0],
-													 refKey=>$col->[1]});
-			push @colnames, $col->[0];
-		}
-		$fk->setAttribute('id',$self->con_name($name,"fk",@colnames));
-	}
-	foreach my $con (@{$info->{'cons'}}) {
-		my $celt = $elt->
-				insertNewChild("constraint", {type=>$con->{'type'}});
-    $celt->appendText($con->{text}) if exists $con->{text};
-		foreach my $col (@{$con->{'cols'}}) {
-			$celt->insertNewChild("col", {name=>$col});
-		}
-		$celt->setAttribute
-				('id',$self->con_name($name,lc($con->{'type'}),@{$con->{'cols'}}));
-	}
-	foreach my $col (@{$info->{'cols'}}) {
-		my $celt = $elt->insertNewChild("col");
-		if(exists $col->[2]) {
-			foreach my $att (keys %{$col->[2]}) {
-				$celt->setAttribute($att,$col->[2]->{$att})
-			}
-		}
-		$celt->setAttribute('name',$col->[0]);
-		$celt->setAttribute('type',$col->[1]);
-	}
-
-	if($info->{history}) {
-		my $celt = $elt->insertNewChild("col");
+	if($elt->getAttribute('history')) {
+		my $celt = XML::LibXML::Element->new('column');
+		$elt->appendChild($celt);
 		$celt->setAttribute('name','rev_id');
-		$celt->setAttribute('type',IDREF_TYPE);
-		my $fk = $elt->insertNewChild("constraint",
-																	{id=>$self->
-																			 con_name($name,"fk","rev_id"),
-																			 type=>"FOREIGN KEY",
-																			 refTable=>"revisions"});
-		$fk->insertNewChild("col",{name=>"rev_id",refKey=>"id"});
-
+		$celt->setAttribute('type','{IDREF_TYPE}');
+		my $fk = XML::LibXML::Element->new('constraint');
+#		$fk->setAttribute('id',con_name($name,"fk","rev_id"));
+		$fk->setAttribute('type','foreignKey');
+		$fk->setAttribute('refTable','revisions');
+		my @cons = $elt->getChildrenByTagName('constraint');
+		my $lastcon = $cons[$#cons];
+		$elt->insertAfter($fk,$lastcon);
+		my $fkcol = XML::LibXML::Element->new('column');
+		$fkcol->setAttribute('name', 'rev_id');
+		$fkcol->setAttribute('references', 'id');
+		$fk->appendChild($fkcol);
 
 		my $htelt = XML::LibXML::Element->new("table");
+		push @elts, $htelt;
 		$htelt->setAttribute("name", "zzh_$name");
-		$htelt->insertNewChild("constraint",
-													 {type=>"PRIMARY KEY",
-														id=>$self->con_name("zzh_$name","pk")}
-				)->insertNewChild("col",{name=>"history_id"});
+		my $pkelt = XML::LibXML::Element->new('primaryKey');
+#		$pkelt->setAttribute('id',$self->con_name("zzh_$name","pk"));
+		$htelt->appendChild($pkelt);
+		my $pkcol = XML::LibXML::Element->new('column');
+		$pkcol->setAttribute('name', 'history_id');
+		$pkelt->appendChild($pkcol);
 
 		my $change_types = {
 			bigserial => "bigint",
@@ -467,37 +441,120 @@ sub gentable {
 		};
 
 		my @hcols = (
-			["history_id",ID_TYPE],
-			["history_timestamp","timestamp"],
-			["history_db_op","char(1)"],
-			["history_deletes","bool"],
-			["rev_id",IDREF_TYPE],
-				);
-		foreach my $col (@{$info->{cols}}) {
-			my $type = $col->[1];
+		["history_id",'{ID_TYPE}'],
+		["history_timestamp","timestamp"],
+		["history_db_op","char(1)"],
+		["history_deletes","bool"],
+		["rev_id",'{IDREF_TYPE}'],
+		);
+		foreach my $col ($elt->getChildrenByTagName('column')) {
+			my $type = $self->dbconfig->type_sub($col->getAttribute('type'));
 			$type = $change_types->{$type} if(exists $change_types->{$type});
-			push @hcols, [$col->[0],$type];
+			push @hcols, [$col->getAttribute('name'),$type];
 		}
 		foreach my $col (@hcols) {
-			my $c = $htelt->insertNewChild("col");
+			my $c = XML::LibXML::Element->new('column');
+			$htelt->appendChild($c);
 			$c->setAttribute('name',$col->[0]);
 			$c->setAttribute('type',$col->[1]);
 		}
 		my $cname = "c_zzh_" . $name. "_dbop";
-		my $con = $htelt->insertNewChild
-				("constraint",{id=>$cname,type=>"general"});
+		my $con = XML::LibXML::Element->new('constraint');
+#		$con->setAttribute('id',$cname);
+		$con->setAttribute('type', 'generic');
 		$con->appendText("check (history_db_op in ('I','U','D'))");
+		$htelt->appendChild($con);
 
-		$elt->insertNewChild("trigger",
-												 {name=>"history",
-													when=>"after insert or update or delete",
-													each=>"row",
-													execute=>"history_trigger"});
-
-		return $htelt,$elt;
+		my $trig = XML::LibXML::Element->new("trigger");
+		$trig->setAttribute('name',"history");
+		$trig->setAttribute('when',"after insert or update or delete");
+		$trig->setAttribute('each',"row");
+		$trig->setAttribute('execute',"history_trigger");
+		$elt->appendChild($trig);
 	}
 
-	return $elt;
+	return @elts;
+}
+
+=item B<gen_table_elt>
+
+$elt = $self->gent_table_elt($info);
+
+$info ={
+	name=>"hcs",
+	pk=>['id'],
+	cols=>[["id",'{ID_TYPE}'],
+	['parent','{IDREF_TYPE}'],
+	['name','{OBJECT_NAME_TYPE}',{nullAllowed=>0}],
+	['ordinal','bigint',{nullAllowed=>0}],
+	['is_mp','boolean',{nullAllowed=>0}],
+	["owner",'{OBJECT_NAME_TYPE}']],
+	fks=>[{table=>'hcs',cols=>[['parent','id']]}],
+	cons=>[{type=>'unique',cols=>['parent','ordinal']}],
+	history=>1,
+}
+
+=cut
+
+sub gen_table_elt {
+	my $self = shift;
+	my ($info) = @_;
+
+	my $name = $info->{'name'};
+	my $elt = XML::LibXML::Element->new("table");
+	$elt->setAttribute("name",$name);
+	my $pkelt = $elt->appendChild(
+		XML::LibXML::Element->new("primaryKey")
+	);
+	foreach my $col (@{$info->{'pk'}}) {
+		my $colelt = XML::LibXML::Element->new('column');
+		$colelt->setAttribute('name',$col);
+		$pkelt->appendChild($colelt);
+	}
+	foreach my $con (@{$info->{'fks'}}) {
+		my $conelt = XML::LibXML::Element->new('constraint');
+		$conelt->setAttribute('type','foreignKey');
+		$conelt->setAttribute('refTable',$con->{table});
+		my $fk = $elt->appendChild($conelt);
+		my @colnames;
+		foreach my $col (@{$con->{'cols'}}) {
+			my $colelt = XML::LibXML::Element->new('column');
+			$colelt->setAttribute('name',$col->[0]);
+			$colelt->setAttribute('references',$col->[1]);
+			$fk->appendChild($colelt);
+			push @colnames, $col->[0];
+		}
+#		$fk->setAttribute('id',$self->con_name($name,"fk",@colnames));
+	}
+	foreach my $con (@{$info->{'cons'}}) {
+		my $conelt = XML::LibXML::Element->new('constraint');
+		$conelt->setAttribute('type',$con->{type});
+		my $celt = $elt->appendChild($conelt);
+    $celt->appendText($con->{text}) if exists $con->{text};
+		foreach my $col (@{$con->{'cols'}}) {
+			my $colelt = XML::LibXML::Element->new('column');
+			$colelt->setAttribute('name',$col);
+			$celt->appendChild($colelt);
+		}
+#		$celt->setAttribute
+#			('id',$self->con_name($name,lc($con->{'type'}),@{$con->{'cols'}}));
+	}
+	foreach my $col (@{$info->{'cols'}}) {
+		my $celt = XML::LibXML::Element->new('column');
+		$elt->appendChild($celt);
+		$celt->setAttribute('name',$col->[0]);
+		$celt->setAttribute('type',$col->[1]);
+		if(exists $col->[2]) {
+			foreach my $att (keys %{$col->[2]}) {
+				$celt->setAttribute($att,$col->[2]->{$att});
+			}
+		}
+	}
+	if(exists $info->{history}) {
+		$elt->setAttribute('history',$info->{history});
+	}
+
+	return $self->mach_table_to_canonical($elt);
 }
 
 sub con_name {

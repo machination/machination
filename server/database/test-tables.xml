@@ -14,7 +14,7 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='varchar'/>
   </table>
   <!-- with uniqueness constraint -->
@@ -23,7 +23,7 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='varchar'/>
     <column name='unique1' type='varchar'/>
     <column name='unique2' type='varchar'/>
@@ -38,7 +38,7 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='int'/>
     <constraint type='generic'>check (1 >= test and test >= -1)</constraint>
   </table>
@@ -48,7 +48,7 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='varchar'/>
     <constraint type='foreignKey' refTable='dbc_test_typesubs' makesEnumeration='1'>
       <column name='parent' references='id'/>
@@ -60,7 +60,7 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='varchar'/>
     <trigger name='history'
            when='after insert or update or delete'
@@ -73,6 +73,6 @@
       <column name='id'/>
     </primaryKey>
     <column name='id' type='{ID_TYPE}'/>
-    <column name='parent' type='{ID_REF_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
   </table>
 </tables>

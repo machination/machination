@@ -99,12 +99,10 @@
             <attribute name='objTable'/>
           </choice>
           <optional>
-            <!--
-                makesEnumeration is a hint to UIs that there should be
-                a drop-down widget or tab completion based on the
-                contents of the referenced table. It does not change
-                any aspect of the table in the database.
-            -->
+            <!-- makesEnumeration is a hint to UIs that there should
+              be a drop-down widget or tab completion based on the
+              contents of the referenced table. It does not change
+              any aspect of the table in the database. -->
             <attribute name='makesEnumeration'>
               <!-- Default Value: 1 -->
               <ref name='bool'/>

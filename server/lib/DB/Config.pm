@@ -91,7 +91,7 @@ in this form:
 
 <typeSubstitutions>
   <sub name='ID_TYPE' value='bigserial'/>
-  <sub name='ID_REF_TYPE' value='bigint'/>
+  <sub name='IDREF_TYPE' value='bigint'/>
   <sub name='OBJECT_NAME_TYPE' value="varchar"/>
   <sub name='OBJECT_NAMEREF_TYPE' value="varchar"/>
 </typeSubstitutions>

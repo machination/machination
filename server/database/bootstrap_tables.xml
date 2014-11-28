@@ -133,7 +133,7 @@
     <primaryKey>
       <column name="serial"/>
     </primaryKey>
-    <constraint type="general">check (type in ('V','E','R'))</constraint>
+    <constraint type="generic">check (type in ('V','E','R'))</constraint>
     <column name="serial" type="{ID_TYPE}"/>
     <column name="name" type="varchar" nullAllowed="0"/>
     <column name="type" type="char(1)" nullAllowed="0"/>

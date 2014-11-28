@@ -110,17 +110,33 @@ sub config_postobj_tables {
   $self->config_tables(@tables);
 }
 
+=item B<config_tables>
+
+$dbc->config_tables($table_elt,[[$table_elt],...]);
+
+Configure tables from xml. Calls mach_table_to_canonical first,
+so things like history='1' are translated into extra tables,
+constraints, etc.
+
+=cut
+
 sub config_tables {
   my $self = shift;
 
-  foreach my $t (@_) {
-		print $t->toString(1) . "\n";
-		$self->dbconfig->config_table_cols($t);
-		$self->dbconfig->config_table_constraints($t);
-		$self->dbconfig->config_table_foreign_keys($t);
-		$self->dbconfig->config_table_triggers($t);
+  foreach my $table (@_) {
+		my @expanded = $self->mach_table_to_canonical($table);
+		foreach my $t (@expanded) {
+			print $t->toString(1) . "\n";
+			$self->dbconfig->config_table_all($t);
+		}
 	}
 }
+
+=item B<register_op>
+
+$dbc->register_op($name, $description);
+
+=cut
 
 sub register_op {
 	my $self = shift;
@@ -130,12 +146,16 @@ sub register_op {
 		"select * from valid_ops where name=?","name",{},$name);
 #		 print Dumper($existing);
 	if(exists $existing->{$name}) {
-		$self->dbh->do("update valid_ops " .
-									 "set description=? where name=?",{},$desc,$name);
+		$self->dbh->do(
+			"update valid_ops " .
+			"set description=? where name=?",{},$desc,$name
+		);
 	} else {
-		$self->dbh->do("insert into valid_ops " .
-									 "(name,description) " .
-									 "values (?,?)", {}, $name, $desc);
+		$self->dbh->do(
+			"insert into valid_ops " .
+			"(name,description) " .
+			"values (?,?)", {}, $name, $desc
+		);
 	}
 }
 
@@ -269,7 +289,6 @@ sub mach_table_to_canonical {
 		["history_timestamp","timestamp"],
 		["history_db_op","char(1)"],
 		["history_deletes","bool"],
-		["rev_id",'{IDREF_TYPE}'],
 		);
 		foreach my $col ($elt->getChildrenByTagName('column')) {
 			my $type = $self->dbconfig->type_sub($col->getAttribute('type'));

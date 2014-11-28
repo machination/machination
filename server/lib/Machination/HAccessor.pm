@@ -3204,8 +3204,8 @@ sub bootstrap_functions {
   my $self = shift;
   my $file = $self->conf->get_dir('dir.DATABASE') .
 		"/bootstrap_functions.xml";
-  my $fdoc = XML::LibXML->load_xml(location=>$file);
-  foreach my $f ($fdoc->findnodes('//function')) {
+  my $doc = XML::LibXML->load_xml(location=>$file);
+  foreach my $f ($doc->findnodes('//function')) {
     $self->dbc->dbconfig->config_function
       ($f,$self->conf->get_dir('dir.database.FUNCTIONS'));
   }
@@ -3217,7 +3217,12 @@ sub bootstrap_functions {
 
 sub bootstrap_tables {
 	my $self = shift;
-	$self->dbc->config_base_tables;
+	my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_tables.xml";
+	my $doc = XML::LibXML->load_xml(location=>$file);
+	$self->dbc->config_tables(
+		$doc->findnodes('/tables/table')
+	);
 }
 
 =item B<bootstrap_ops>

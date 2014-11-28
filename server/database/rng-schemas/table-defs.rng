@@ -88,7 +88,7 @@
         <!-- foreign key constraints -->
         <group>
           <attribute name='type'>
-            <value>foreignKey</value>
+            <value>foreign key</value>
           </attribute>
           <choice>
             <!-- refTable references foreign table name. -->

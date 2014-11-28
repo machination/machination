@@ -598,7 +598,8 @@ sub config_table_constraints {
   my $self = shift;
   my ($table_elt,$opts) = @_;
   unless(ref($table_elt)) {
-    $table_elt = $self->parser->parse_string($table_elt)->documentElement;
+    $table_elt = $self->parser->
+      parse_string($table_elt)->documentElement;
   }
   my $dbh = $self->dbh;
   my $tname = $table_elt->getAttribute("name");
@@ -645,7 +646,7 @@ sub config_table_constraints {
                        $table_elt->findnodes("primaryKey")) {
     my $type;
     if($con_elt->nodeName eq "primaryKey") {
-      $type = 'primaryKey';
+      $type = 'primary key';
     } else {
       $type = $con_elt->getAttribute("type");
     }
@@ -655,7 +656,7 @@ sub config_table_constraints {
     my $addcon = 1;
     if(exists $info->{"constraints"}->{$id}) {
 	    $addcon = 0;
-	    if($type ne con_type_db2xml($info->{"constraints"}->{$id})) {
+	    if($type ne lc($info->{"constraints"}->{$id})) {
         $self->msg("  constraint type $type ne " .
           $info->{constraints}->{$id} . "\n");
         $self->msg("  constraint $id is different from XML" .
@@ -673,14 +674,14 @@ sub config_table_constraints {
     }
 
     # deal with foreign keys later
-    if($type eq "foreignKey") {
+    if($type eq "foreign key") {
 	    $self->msg("  deferring foreign key constraint $id till later\n");
 	    next;
     }
 
     if($addcon) {
       $self->msg("  add constraint $id\n");
-      if($type eq "primaryKey") {
+      if($type eq "primary key") {
         my @cols;
         foreach my $col ($con_elt->findnodes("column")) {
           push @cols, $col->getAttribute("name");

@@ -100,16 +100,12 @@ sub dbconfig {
 	return $self->{dbconfig};
 }
 
-=item * $con->config_base_tables
-
-=cut
-
-sub config_base_tables {
+sub gen_base_tables {
 	my $self = shift;
 
 	my @tables =
     (
-     $self->gentable
+     $self->gen_table_elt
      (
       {name=>'valid_ops',
 			 pk=>["name"],
@@ -117,65 +113,65 @@ sub config_base_tables {
 							["description","varchar"]],
 			}
      ),
-     $self->gentable
+     $self->gen_table_elt
      (
 			{name=>'revisions',
 			 pk=>["id"],
-			 cols=>[["id",ID_TYPE],
+			 cols=>[["id",'{ID_TYPE}'],
 							["vop","varchar"],
-							["parent",IDREF_TYPE],
+							["parent",'{IDREF_TYPE}'],
 							["actor","varchar"]],
 			 fks=>[{table=>"valid_ops",cols=>[['vop','name']]},
 						 {table=>'revisions',cols=>[['parent','id']]}],
 			}
      ),
-     $self->gentable
+     $self->gen_table_elt
      (
 			{name=>"valid_channels",
 			 pk=>["id"],
-			 cols=>[["id",ID_TYPE],
+			 cols=>[["id",'{ID_TYPE}'],
 							["name","varchar",{nullAllowed=>0}],
               ["root_tag","varchar",{nullAllowed=>0}],
               ["scratch_mpath","varchar",{nullAllowed=>0}],
               ["keep_scratch","bool",{nullAllowed=>0}]],
-			 cons=>[{type=>"UNIQUE",cols=>['name']}],
+			 cons=>[{type=>"unique",cols=>['name']}],
 			 history=>1,
 			}
      ),
-     $self->gentable
+     $self->gen_table_elt
      (
       {name=>"valid_oses",
        pk=>["id"],
        cols=>[
-              ["id",ID_TYPE],
+              ["id",'{ID_TYPE}'],
               ["name","varchar",{nullAllowed=>0}],
               ["major_version","varchar",{nullAllowed=>0}],
               ["minor_version","varchar",{nullAllowed=>0}],
               ["bitness","int",{nullAllowed=>0}],
              ],
-       cons=>[{type=>"UNIQUE",cols=>['name',
+       cons=>[{type=>"unique",cols=>['name',
                                      'major_version',
                                      'minor_version',
                                      'bitness']}],
        history=>1,
       }
      ),
-     $self->gentable
+     $self->gen_table_elt
      (
       {name=>"object_types",
 			 pk=>["id"],
-			 cols=>[['id',ID_TYPE],
+			 cols=>[['id','{ID_TYPE}'],
 							['name','varchar',{nullAllowed=>0}],
 							['plural','varchar',{nullAllowed=>0}],
 							['is_entity','boolean',{nullAllowed=>0}],
 							['is_attachable','boolean',{nullAllowed=>0}],
-              ['agroup',IDREF_TYPE]],
+              ['agroup','{IDREF_TYPE}']],
        fks=>[{table=>"object_types",cols=>[["agroup","id"]]}],
-			 cons=>[{type=>"UNIQUE",cols=>['name']}],
+			 cons=>[{type=>"unique",cols=>['name']}],
 			 history=>1,
 			}
      ),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>"setmember_types",
        pk=>["type"],
        cols=>[["type","varchar"],
@@ -183,52 +179,52 @@ sub config_base_tables {
               ["is_set","boolean",{nullAllowed=>0}]],
        history=>1,
       }),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>"valid_condition_ops",
        pk=>["op"],
        cols=>[["op","varchar"]],
        history=>1,
       }),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>"direct_conditions",
        pk=>["id"],
-       cols=>[["id",ID_TYPE],
-              ["set_id",IDREF_TYPE,{nullAllowed=>0}],
+       cols=>[["id",'{ID_TYPE}'],
+              ["set_id",'{IDREF_TYPE}',{nullAllowed=>0}],
               ["col","name",{nullAllowed=>0}],
               ["op","varchar",{nullAllowed=>0}],
               ["val","varchar",{nullAllowed=>0}]],
        fks=>[{table=>"valid_condition_ops",cols=>[["op","op"]]}],
        history=>1,
      }),
-     $self->gentable
+     $self->gen_table_elt
      (
 			{name=>"hcs",
 			 pk=>['id'],
-			 cols=>[["id",ID_TYPE],
-							['parent',IDREF_TYPE],
-							['name',OBJECT_NAME_TYPE,{nullAllowed=>0}],
+			 cols=>[["id",'{ID_TYPE}'],
+							['parent','{IDREF_TYPE}'],
+							['name','{OBJECT_NAME_TYPE}',{nullAllowed=>0}],
 							['ordinal','bigint',{nullAllowed=>0}],
 							['is_mp','boolean',{nullAllowed=>0}],
-							["owner",OBJECT_NAME_TYPE]],
+							["owner",'{OBJECT_NAME_TYPE}']],
 			 fks=>[{table=>'hcs',cols=>[['parent','id']]}],
-			 cons=>[{type=>"UNIQUE",cols=>['parent','ordinal']}],
+			 cons=>[{type=>"unique",cols=>['parent','ordinal']}],
 			 history=>1,
 			}
      ),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>"valid_assertion_ops",
        pk=>["op"],
        cols=>[["op","varchar"],
               ["arg_meaning","varchar"]],
        history=>1,
       }),
-#     $self->gentable
+#     $self->gen_table_elt
 #     ({name=>"lib_assertion_ops",
 #       pk=>["op"],
 #       cols=>[["op","varchar"]],
 #       history=>1,
 #      }),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>"valid_action_ops",
        pk=>["op"],
        cols=>[["op","varchar"],
@@ -238,32 +234,32 @@ sub config_base_tables {
               ["description","varchar"]],
        history=>1,
       }),
-#     $self->gentable
+#     $self->gen_table_elt
 #     ({name=>"assertion_actions",
 #       pk=>["id"],
-#       cols=>[["id",ID_TYPE],
+#       cols=>[["id",'{ID_TYPE}'],
 #              ["op","varchar",{nullAllowed=>0}],
 #              ["ref","varchar"],
 #              ["description","varchar"]],
 #       fks=>[{table=>"action_ops",cols=>[["op","op"]]}],
-#			 cons=>[{type=>"UNIQUE",cols=>["ref"]}],
+#			 cons=>[{type=>"unique",cols=>["ref"]}],
 #       history=>1,
 #      }),
-#     $self->gentable
+#     $self->gen_table_elt
 #     ({name=>"action_args",
 #       pk=>["id"],
-#       cols=>[["id",ID_TYPE],
+#       cols=>[["id",'{ID_TYPE}'],
 #              ["name","name",{nullAllowed=>0}],
 #              ["value","varchar"],
-#              ["action_id",IDREF_TYPE,{nullAllowed=>0}]],
+#              ["action_id",'{IDREF_TYPE}',{nullAllowed=>0}]],
 #       fks=>[{table=>"assertion_actions",cols=>[["action_id","id"]]}],
 #       history=>1,
 #      }),
-     $self->gentable
+     $self->gen_table_elt
      ({name=>'certs',
        pk=>['serial'],
        cols=>[
-              ['serial', ID_TYPE],
+              ['serial', '{ID_TYPE}'],
               ['name', 'varchar', {nullAllowed=>0}],
               ['type', 'char(1)', {nullAllowed=>0}],
               ['expiry_date', 'timestamp', {nullAllowed=>0}],
@@ -273,7 +269,7 @@ sub config_base_tables {
       }),
     );
 
-	$self->config_tables(@tables);
+	return @tables;
 }
 
 sub config_postobj_tables {
@@ -415,7 +411,7 @@ sub mach_table_to_canonical {
 		$celt->setAttribute('type','{IDREF_TYPE}');
 		my $fk = XML::LibXML::Element->new('constraint');
 #		$fk->setAttribute('id',con_name($name,"fk","rev_id"));
-		$fk->setAttribute('type','foreignKey');
+		$fk->setAttribute('type','foreign key');
 		$fk->setAttribute('refTable','revisions');
 		my @cons = $elt->getChildrenByTagName('constraint');
 		my $lastcon = $cons[$#cons];
@@ -513,7 +509,7 @@ sub gen_table_elt {
 	}
 	foreach my $con (@{$info->{'fks'}}) {
 		my $conelt = XML::LibXML::Element->new('constraint');
-		$conelt->setAttribute('type','foreignKey');
+		$conelt->setAttribute('type','foreign key');
 		$conelt->setAttribute('refTable',$con->{table});
 		my $fk = $elt->appendChild($conelt);
 		my @colnames;
@@ -554,7 +550,8 @@ sub gen_table_elt {
 		$elt->setAttribute('history',$info->{history});
 	}
 
-	return $self->mach_table_to_canonical($elt);
+	#return $self->mach_table_to_canonical($elt);
+	return $elt;
 }
 
 sub con_name {

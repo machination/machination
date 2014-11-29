@@ -12,7 +12,7 @@ use Machination::Manifest;
 my $test_root = 'test/tmp';
 my $clean;
 my @tests;
-my @default_tests = qw(config bootstrap_func);
+my @default_tests = qw(config bootstrap_func bootstrap_tables);
 
 GetOptions(
   "test_root=s" => \$test_root,

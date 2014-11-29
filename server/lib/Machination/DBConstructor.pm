@@ -126,7 +126,7 @@ sub config_tables {
   foreach my $table (@_) {
 		my @expanded = $self->mach_table_to_canonical($table);
 		foreach my $t (@expanded) {
-			print $t->toString(1) . "\n";
+#			print $t->toString(1) . "\n";
 			$self->dbconfig->config_table_all($t);
 		}
 	}

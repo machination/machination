@@ -499,8 +499,10 @@ sub config_table_cols {
 
 	    unless(exists $pks{$col}) {
         if($cinfo->{'NULLABLE'} && ! $nullable) {
-          print "  setting col $col in table $tname " .
-            "to dissallow NULL\n";
+          $self->msg(
+            "  setting col $col in table $tname " .
+            "to dissallow NULL\n"
+          );
           $dbh->do("alter table $tname alter column $col " .
                    "set not null");
         }

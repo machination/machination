@@ -24,3 +24,20 @@ $ha->bootstrap_tables;
 $ha->write_dbh->commit;
 
 # check to see if they are there
+my $t_file = $conf->get_dir('dir.DATABASE') .
+  "/bootstrap_tables.xml";
+my $t_doc = XML::LibXML->load_xml(location=>$t_file);
+my @xml_tables = $t_doc->findnodes('/tables/table');
+my $db_tables = $ha->read_dbh->
+  table_info(undef,undef,'%', 'TABLE')->
+  fetchall_hashref('TABLE_NAME');
+#print Dumper($db_tables);
+foreach my $xt (@xml_tables) {
+  ok(exists $db_tables->{$xt->getAttribute('name')},
+    "table " . $xt->getAttribute('name') . " exists.");
+  if($xt->getAttribute('history')) {
+    my $ht_name = 'zzh_' . $xt->getAttribute('name');
+    ok(exists $db_tables->{$ht_name},
+      "  history table $ht_name exists.");
+  }
+}

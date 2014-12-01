@@ -189,7 +189,6 @@ sub new {
   $conf = '/etc/machination/server/config.xml' unless $conf;
 	$self->dbc(Machination::DBConstructor->new($conf));
   $self->dbc->dbh->{RaiseError} = 1;
-	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
   $self->{type_info} = {};
   unless (defined $log) {
@@ -424,12 +423,6 @@ Get a database handle for writing data.
 sub write_dbh {
 	my $self = shift;
 	return $self->dbc->dbh;
-}
-
-sub defops {
-	my $self = shift;
-	$self->{ops} = shift if(@_);
-	return $self->{ops};
 }
 
 sub def_obj_types {

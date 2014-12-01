@@ -38,58 +38,6 @@ use Machination::MooseHC;
 
 use Data::Dumper;
 
-# TODO: this lot should really be moved to one of the bootstrap_*.xml files
-my $defops =
-	{
-	 add_object_type => "add a new object type",
-   add_setmember_type=>"",
-
-	 add_channel => "add a new channel",
-#	 svc_subscribe => "subscribe object type to service",
-
-	 create_obj => "create_obj (\$type_id,\$name,\$parent,\$fields): Create a new object in specified parent",
-   modify_obj => "modify_obj (\$type_id,\$obj_id,{\$field=>\$value,...}): change object data",
-	 delete_obj => "delete_obj (\$type_id,\$obj_id)",
-   create_path => "create_path(\$path,\$fields): recursively create path",
-   assertion_group_from_xml => "create an assertion group populated with assertions derived from XML",
-
-   add_valid_os => "",
-   delete_valid_os => "",
-
-	 add_to_hc => "add_to_hc (\$type_id,\$obj_id,\$parent)",
-	 remove_from_hc => "remove_from_hc (\$type_id,\$obj_id,\$parent)",
-	 move_hc => "move_hc (\$type_id,\$obj_id,\$from,\$to)",
-
-	 attach_to_hc => "",
-   modify_attachment => "",
-	 detach_from_hc => "",
-	 create_agroup=>"",
-	 add_to_agroup=>"",
-	 remove_from_agroup=>"",
-
-	 add_to_set=>"",
-	 remove_from_set=>"",
-#	 set_special_set=>"",
-   add_valid_condition_op=>"",
-   add_set_direct_condition=>"",
-   remove_set_direct_condition=>"",
-
-   add_valid_action_op=>"",
-   delete_valid_action_op=>"",
-   add_valid_assertion_op=>"",
-   delete_valid_assertion_op=>"",
-
-#   create_action=>"",
-#   modify_action=>"",
-#   delete_action=>"",
-#   tag_action=>"",
-#   create_assertion=>"",
-#   modify_assertion=>"",
-#   delete_assertion=>"",
-#   add_valid_lib_assertion_op=>"",
-#   delete_valid_lib_assertion_op=>"",
-	};
-
 my $def_obj_types =
 	[
 	 {name=>"set", plural=>"sets",
@@ -3231,8 +3179,14 @@ sub bootstrap_tables {
 
 sub bootstrap_ops {
 	my $self = shift;
-	foreach my $op (keys %{$self->defops}) {
-		$self->dbc->register_op($op,$self->defops->{$op});
+	my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_ops.xml";
+	my $doc = XML::LibXML->load_xml(location=>$file);
+	foreach my $op ($doc->findnodes('/ops/op')) {
+		$self->dbc->register_op(
+			$op->getAttribute('name'),
+			$op->getAttribute('description')
+			);
 	}
 }
 

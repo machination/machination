@@ -59,12 +59,12 @@
 
       <!-- elements -->
 
-      <optional>
-        <!-- Other type that must be set up first. -->
+      <zeroOrMore>
+        <!-- Other type(s) that must be set up first. -->
         <element name='depends'>
           <attribute name='name'/>
         </element>
-      </optional>
+      </zeroOrMore>
 
       <!-- Maybe some help -->
       <optional>

@@ -17,6 +17,15 @@
     <column name='parent' type='{IDREF_TYPE}'/>
     <column name='test' type='varchar'/>
   </table>
+  <!-- with default value -->
+  <table name='dbc_test_default' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='boolean' nullAllowed='0' default='TRUE'/>
+  </table>
   <!-- with uniqueness constraint -->
   <table name='dbc_test_con_unique' history='0'>
     <primaryKey>

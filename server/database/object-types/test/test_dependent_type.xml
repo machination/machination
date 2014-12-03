@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<objectType name='test_dependent_type'>
+
+  <depends name='test_object_type'/>
+
+  <help short='Test object type dependent on test_object_type'>
+    <long>
+    </long>
+  </help>
+
+  <column name='testing' type='varchar' nullAllowed='0'/>
+
+</objectType>

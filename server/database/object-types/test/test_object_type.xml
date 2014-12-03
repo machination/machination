@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<objectType name='test_object_type'>
+
+  <depends name='set'/>
+
+  <help short='Object type for testing new code.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='class' type='{IDREF_TYPE}' nullAllowed='0'/>
+
+  <constraint type='foreignKey' refTable='valid_test_classes' makesEnumeration='1'>
+    <column name='class' references='class'/>
+  </constraint>
+
+  <table name='valid_test_classes' history='1'>
+    <primaryKey>
+      <column name='class'/>
+    </primaryKey>
+    <column name='class' type='{ID_TYPE}'/>
+  </table>
+
+</objectType>

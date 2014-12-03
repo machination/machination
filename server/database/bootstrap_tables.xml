@@ -66,7 +66,9 @@
     <column name="is_entity" type="boolean" nullAllowed="0"/>
     <column name="is_attachable" type="boolean" nullAllowed="0"/>
     <column name="agroup" type="{IDREF_TYPE}"/>
+    <column name="xml" type="varchar" nullAllowed="0"/>
   </table>
+  <!-- no longer required: put in by set object type definition
   <table name="setmember_types" history="1">
     <primaryKey>
       <column name="type"/>
@@ -74,7 +76,7 @@
     <column name="type" type="varchar"/>
     <column name="is_internal" type="boolean" nullAllowed="0"/>
     <column name="is_set" type="boolean" nullAllowed="0"/>
-  </table>
+  </table> -->
   <table name="valid_condition_ops" history="1">
     <primaryKey>
       <column name="op"/>

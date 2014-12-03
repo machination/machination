@@ -46,6 +46,10 @@
       <component ref="dir.DATABASE"/>
       <component value="functions"/>
     </dir>
+    <dir xml:id="dir.database.OBJECT_TYPES">
+      <component ref="dir.DATABASE"/>
+      <component value="object-types"/>
+    </dir>
     <file xml:id="file.database.BOOTSTRAP_ASSERTIONS"
 	  dir="dir.DATABASE" name="bootstrap_assertions.xml"/>
     <file xml:id="file.database.BOOTSTRAP_LIB_ASSERTIONS"

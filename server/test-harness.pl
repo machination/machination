@@ -17,6 +17,7 @@ my @default_tests = qw(
   bootstrap_func
   bootstrap_tables
   bootstrap_basehcs
+  bootstrap_object_types
 );
 
 GetOptions(

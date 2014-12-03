@@ -153,8 +153,11 @@ sub doc {
 	    throw("tried to get doc with no file set");
   }
   unless($self->{doc}) {
+#    print "loading from " . $self->file . "\n";
     $self->{doc} = $self->parser->parse_file($self->file);
   }
+
+# carp "returning " . (0 + $self->{doc});
   return $self->{doc};
 }
 
@@ -176,7 +179,7 @@ sub get_dir {
   my ($id,$recursing) = @_;
 
   my $dir;
-  my $found = $self->doc->getElementById($id);
+  my $found = ($self->doc->findnodes("//dir\[\@xml:id='$id'\]"))[0];
   if($found) {
     my $sep = "";
     foreach my $c ($found->findnodes("component")) {
@@ -215,7 +218,7 @@ sub get_file {
   my $self = shift;
   my ($id) = @_;
 
-  my $found = $self->doc->getElementById($id);
+  my $found = ($self->doc->findnodes("//file\[\@xml:id='$id'\]"))[0];
   if($found) {
     return $self->get_dir($found->getAttribute("dir")) . "/" .
       $found->getAttribute("name");
@@ -242,7 +245,7 @@ sub get_value {
   } else {
     $id = shift;
     $xpath = shift;
-    $base_node = $self->doc->getElementById($id);
+    $base_node = ($self->doc->findnodes("//*\[\@xml:id='$id'\]"))[0];
   }
 
   my @nodes = $base_node->findnodes($xpath);

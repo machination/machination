@@ -48,6 +48,13 @@
           </optional>
         </group>
       </optional>
+      <!-- is this object type an agroup? Usually only used internally. -->
+      <optional>
+        <attribute name='isAgroup'>
+          <!-- default value: 0 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
 
       <!-- Can objects of this type (or the associated attachment groups) be collected into libraries? -->
       <optional>

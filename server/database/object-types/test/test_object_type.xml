@@ -10,7 +10,8 @@
 
   <column name='class' type='{IDREF_TYPE}' nullAllowed='0'/>
 
-  <constraint type='foreignKey' refTable='valid_test_classes' makesEnumeration='1'>
+  <constraint type='foreign key' refTable='valid_test_classes'
+    makesEnumeration='1'>
     <column name='class' references='class'/>
   </constraint>
 

@@ -31,3 +31,9 @@ $ha->bootstrap_basehcs;
 $ha->write_dbh->commit;
 
 # check to see if they are there
+foreach my $name (qw(/ /system /system/sets/universal /system/sets/empty)) {
+  my $hp = Machination::HPath->new(from=>$name, ha=>$ha);
+  ok($hp->exists, "$name exists.");
+}
+
+$ha->read_dbh->disconnect;

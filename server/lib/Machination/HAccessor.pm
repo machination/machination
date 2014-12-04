@@ -3134,7 +3134,7 @@ sub bootstrap_all {
 	$self->bootstrap_ops;
   $self->bootstrap_basehcs;
 	$self->bootstrap_object_types;
-  $self->bootstrap_postobj_tables;
+#  $self->bootstrap_postobj_tables;
   $self->bootstrap_set_conditions;
   $self->bootstrap_setmember_types;
   $self->bootstrap_oses;

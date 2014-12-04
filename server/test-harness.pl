@@ -18,6 +18,12 @@ my @default_tests = qw(
   bootstrap_tables
   bootstrap_basehcs
   bootstrap_object_types
+  bootstrap_set_conditions
+  bootstrap_setmember_types
+  bootstrap_oses
+  bootstrap_assertions
+  bootstrap_channels
+  bootstrap_special_sets
 );
 
 GetOptions(

@@ -35,9 +35,18 @@ ok(defined $ha, "new ha from $config_file");
 
 #my $dir = $conf->get_dir('dir.database.OBJECT_TYPES');
 
-$ha->add_object_type(
-  {actor=>"test"},
-  $ha->get_object_type_elt('test_dependent_type')
-);
+my @add_types = qw(test_dependent_type);
+foreach my $type_name (@add_types) {
+  if(!$ha->type_exists_byname($type_name)) {
+    $ha->add_object_type(
+      {actor=>"test"},
+      $ha->get_object_type_elt($type_name)
+    );
+  }
+}
 
 # check to see if they are there
+my @test_types = (@add_types, qw(test_object_type set));
+foreach my $type_name (@test_types) {
+  ok($ha->type_exists_byname($type_name), "Type '$type_name' exists.");
+}

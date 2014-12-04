@@ -114,23 +114,6 @@
     <column name="is_mp" type="boolean" nullAllowed="0"/>
     <column name="owner" type="{OBJECT_NAME_TYPE}"/>
   </table>
-  <table name="valid_assertion_ops" history="1">
-    <primaryKey>
-      <column name="op"/>
-    </primaryKey>
-    <column name="op" type="varchar"/>
-    <column name="arg_meaning" type="varchar"/>
-  </table>
-  <table name="valid_action_ops" history="1">
-    <primaryKey>
-      <column name="op"/>
-    </primaryKey>
-    <column name="op" type="varchar"/>
-    <column name="complete" type="boolean" nullAllowed="0"/>
-    <column name="overlay" type="boolean" nullAllowed="0"/>
-    <column name="arg_meaning" type="varchar"/>
-    <column name="description" type="varchar"/>
-  </table>
   <table name="certs">
     <primaryKey>
       <column name="serial"/>

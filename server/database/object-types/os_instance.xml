@@ -9,7 +9,7 @@
 
   <column name='os_id' type='{IDREF_TYPE}' nullAllowed='0'/>
 
-  <foreignKey refTable='valid_oses'>
+  <constraint type='foreign key' refTable='valid_oses' makesEnumeration='1'>
     <column name='os_id' references='id'/>
   </foreignKey>
 

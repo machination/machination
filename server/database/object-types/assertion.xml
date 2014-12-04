@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
-<objectType name='assertion' attachable='1' libraries='1'>
+<objectType name='assertion'
+  attachable='1' agroupRequired='1' libraries='1'>
   <depends name='set'/>
 
   <help short='Assertion object.'>
@@ -13,10 +14,14 @@
   <column name='action_op' type='varchar' nullAllowed='0'/>
   <column name='action_arg' type='varchar'/>
 
-  <constraint type='foreignKey' refTable='valid_assertion_ops' makesEnumeration='1'>
+  <constraint type='foreign key'
+    refTable='valid_assertion_ops'
+    makesEnumeration='1'>
     <column name='ass_op' references='op'/>
   </constraint>
-  <constraint type='foreignKey' refTable='valid_action_ops' makesEnumeration='1'>
+  <constraint type='foreign key'
+    refTable='valid_action_ops'
+    makesEnumeration='1'>
     <column name='action_op' references='op'/>
   </constraint>
 
@@ -32,7 +37,7 @@
     <primaryKey>
       <column name='op'/>
     </primaryKey>
-    <column name='op' type='varchar' nullAllowed='0'/>
+    <column name='op' type='varchar'/>
     <column name='complete' type='boolean' nullAllowed='0'/>
     <column name='overlay' type='boolean'/>
     <column name='arg_meaning' type='varchar'/>

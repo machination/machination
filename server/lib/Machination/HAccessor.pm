@@ -3881,20 +3881,6 @@ EOF
 	</constraint>
 </table>
 EOF
-
-		push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
-<table name='setmembers_external' history='1'>
-	<primaryKey>
-		<column name='set_id'/>
-		<column name='obj_rep'/>
-	</primaryKey>
-	<column name='set_id' type='{IDREF_TYPE}'/>
-	<column name='obj_rep' type='varchar'/>
-	<constraint type='foreign key' refTable='objs_$type_id'>
-		<column name='set_id' references='id'/>
-	</constraint>
-</table>
-EOF
   }
 	my $set_type_id;
 	if ($type_name eq "set") {
@@ -3981,9 +3967,11 @@ EOF
 EOF
 	}
 
-	foreach my $t (@tables) {
-		$self->log->dmsg($cat,$t->toString(1),8);
-		$dbc->dbconfig->config_table_all($t);
+	foreach my $table (@tables) {
+		foreach my $t ($dbc->mach_table_to_canonical($table)) {
+			$self->log->dmsg($cat,$t->toString(1),8);
+			$dbc->dbconfig->config_table_all($t);
+		}
 	}
 
   my $is_set = $type_name eq "set";

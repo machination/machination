@@ -249,7 +249,7 @@ history='1', to make table elements suitable for DB::Config.
 sub mach_table_to_canonical {
 	my $self = shift;
 	my $elt = shift;
-	my @elts = $elt;
+	my @elts = ($elt);
 	my $name = $elt->getAttribute('name');
 
 	if($elt->getAttribute('history')) {

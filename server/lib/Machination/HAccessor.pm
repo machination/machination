@@ -3710,8 +3710,11 @@ sub op_add_object_type {
 
   # Create any objectTypes this type depends on.
   foreach my $dep ($elt->findnodes('depends')) {
-    my $dep_elt = $self->get_object_type_elt($dep->getAttribute("name"));
-    $self->do_op('add_object_type',{actor=>$actor, parent=>$rev},$dep_elt)
+		my $dep_name = $dep->getAttribute("name");
+		if(! $self->type_exists_byname($dep_name)) {
+    	my $dep_elt = $self->get_object_type_elt($dep_name);
+    	$self->do_op('add_object_type',{actor=>$actor, parent=>$rev},$dep_elt);
+		}
   }
 
 	# there's a bootstrapping problem such that the type "set" has to be

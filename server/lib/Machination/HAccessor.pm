@@ -3225,7 +3225,7 @@ sub bootstrap_object_types {
 	my $dir = $self->conf->get_dir('dir.database.OBJECT_TYPES');
 
 	foreach my $file (<"$dir/*.xml">) {
-		my $elt = Machination::LibXML->load_xml(location=>$file);
+		my $elt = XML::LibXML->load_xml(location=>$file)->documentElement;
 		$self->add_object_type({actor=>'Machination:System'}, $elt)
 			unless(
 				$self->type_exists_byname(
@@ -3663,7 +3663,7 @@ sub op_add_object_type {
   my $type_name = $elt->getAttribute('name');
   my $plural = $type_name . "s";
   if($elt->hasAttribute('plural')) {
-    $type_name = $elt->getAttribute('plural');
+    $plural = $elt->getAttribute('plural');
   }
 
 	my $entity = 0;
@@ -3692,12 +3692,13 @@ sub op_add_object_type {
 
   my $libs = 0;
   if($elt->hasAttribute('libraries')) {
-    $entity = $elt->getAttribute('libraries');
+    $libs = $elt->getAttribute('libraries');
   }
 
 	my @cols = $elt->findnodes('column');
 	my @cons = $elt->findnodes('constraint');
 	my @fks = $elt->findnodes('constraint[@type="foreign key"]');
+	my @subtables = $elt->findnodes('table');
 
   my $dbc = $self->dbc;
 #  my $dbh = $dbc->dbh;
@@ -3740,10 +3741,18 @@ sub op_add_object_type {
            'name',{},$objtable)->{$objtable}->{"id"};
 			};
 			if (my $e = $@) {
-				croak "couldn't find $objtable type id:\n$e";
+				croak "Couldn't find $objtable type id. Try referencing as dependency:\n$e";
 			}
 			$fk->removeAttribute('objTable');
 			$fk->setAttribute("objs_$other_id");
+		}
+	}
+
+	# Create any required subtables
+	foreach my $st (@subtables) {
+		foreach my $t ($dbc->mach_table_to_canonical($st)) {
+			$self->log->dmsg($cat,"subtable: " . $t->toString(1),8);
+			$dbc->dbconfig->config_table_all($t);
 		}
 	}
 
@@ -3760,7 +3769,7 @@ sub op_add_object_type {
 	<constraint type='foreign key' refTable='valid_channels'>
 		<column name='channel_id' references='id'/>
 	</constraint>
-	</objectType>
+</objectType>
 EOF
 		$agroup_type_id = $self->do_op(
 			"add_object_type",
@@ -3769,7 +3778,7 @@ EOF
 		);
 		my $agroup_col = XML::LibXML::Element->new('column');
 		$agroup_col->setAttribute('name', 'agroup');
-		$agroup_col->setAttribute('type', '{IDEREF_TYPE}');
+		$agroup_col->setAttribute('type', '{IDREF_TYPE}');
 		my $ag_ordinal_col = XML::LibXML::Element->new('column');
 		$ag_ordinal_col->setAttribute('name', 'ag_ordinal');
 		$ag_ordinal_col->setAttribute('type', 'bigint');
@@ -3829,6 +3838,7 @@ EOF
 		my $entcon = XML::LibXML::Element->new('constraint');
 		$entcon->setAttribute('type', 'unique');
 		my $col = XML::LibXML::Element->new('column');
+		$col->setAttribute('name','name');
 		$entcon->appendChild($col);
 		push @cons, $entcon;
 	}

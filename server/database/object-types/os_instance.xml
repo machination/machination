@@ -11,7 +11,7 @@
 
   <constraint type='foreign key' refTable='valid_oses' makesEnumeration='1'>
     <column name='os_id' references='id'/>
-  </foreignKey>
+  </constraint>
 
   <table name='valid_oses' history='1'>
     <primaryKey>

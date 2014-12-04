@@ -1,0 +1,15 @@
+<objectType name='mpolicy' plural='mpolicies'
+  attachable='1' agroupRequired='1'>
+  <depends name='set'/>
+
+  <help short='Merge policy.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='mpath' type='varchar' nullAllowed='0'/>
+  <column name='policy_direction' type='smallint' nullAllowed='0'/>
+
+  <constraint type='generic'>check (1 >= policy_direction and policy_direction >= -1)</constraint>
+
+</objectType>

@@ -3227,9 +3227,11 @@ sub bootstrap_object_types {
 	foreach my $file (<"$dir/*.xml">) {
 		my $elt = Machination::LibXML->load_xml(location=>$file);
 		$self->add_object_type({actor=>'Machination:System'}, $elt)
-			unless($self->type_exists_byname(
-				$elt->getAttribute('name'),{cache=>0}
-			));
+			unless(
+				$self->type_exists_byname(
+					$elt->getAttribute('name'),{cache=>0}
+				)
+			);
 	}
 }
 

@@ -1,0 +1,87 @@
+<tables>
+  <!-- basic table -->
+  <table name='dbc_test_basic' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='bigint'/>
+    <column name='parent' type='bigint'/>
+    <column name='test' type='varchar'/>
+  </table>
+  <!-- with type substitution -->
+  <table name='dbc_test_typesubs' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='varchar'/>
+  </table>
+  <!-- with default value -->
+  <table name='dbc_test_default' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='boolean' nullAllowed='0' default='TRUE'/>
+  </table>
+  <!-- with uniqueness constraint -->
+  <table name='dbc_test_con_unique' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='varchar'/>
+    <column name='unique1' type='varchar'/>
+    <column name='unique2' type='varchar'/>
+    <constraint type='unique'>
+      <column name='unique1'/>
+      <column name='unique2'/>
+    </constraint>
+  </table>
+  <!-- with generic constraint -->
+  <table name='dbc_test_con_generic' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='int'/>
+    <constraint type='generic'>check (1 >= test and test >= -1)</constraint>
+  </table>
+  <!-- Foreign key against typesubs table id -->
+  <table name='dbc_test_con_foreign' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='varchar'/>
+    <constraint type='foreign key' refTable='dbc_test_typesubs' makesEnumeration='1'>
+      <column name='parent' references='id'/>
+    </constraint>
+  </table>
+  <!-- with a trigger -->
+  <table name='dbc_test_trigger' history='0'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+    <column name='test' type='varchar'/>
+    <trigger name='history'
+           when='after insert or update or delete'
+           each='row'
+           execute='history_trigger'/>
+  </table>
+  <!-- with history -->
+  <table name='dbc_test_history' history='1'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='parent' type='{IDREF_TYPE}'/>
+  </table>
+</tables>

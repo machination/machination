@@ -1,0 +1,22 @@
+<objectType name='authz_inst'
+  attachable='1' agroupRequired='1'>
+  <depends name='set'/>
+  <depends name='assertion'/>
+
+  <help short='Authorization instruction.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='is_allow' type='boolean' nullAllowed='0'/>
+  <column name='entities' type='varchar' nullAllowed='0'/>
+  <column name='op' type='varchar' nullAllowed='0'/>
+  <column name='xpath' type='varchar' nullAllowed='0'/>
+
+  <constraint type='foreign key'
+    refTable='valid_action_ops'
+    makesEnumeration='1'>
+    <column name='op' references='op'/>
+  </constraint>
+
+</objectType>

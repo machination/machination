@@ -3,8 +3,8 @@
        config file -->
 
   <!-- define a path inside mdir by having no leading "/" -->
-  <dir xml:id="dir.SECRETS">
-    <component value="secrets"/>
+  <dir xml:id="dir.INSIDE">
+    <component value="inside"/>
   </dir>
   <!-- define a path outside mdir by starting with a "/" -->
   <dir xml:id="dir.VAR">
@@ -16,11 +16,21 @@
     <component value="illustration"/>
   </dir>
 
-  <dir xml:id="dir.LOG">
-    <component value="/var/log/machination/file"/>
+  <dir xml:id="dir.DATA">
+    <component value="/var/lib/machination/server"/>
   </dir>
-
+  <dir xml:id="dir.CONFIG">
+    <component value="/etc/machination/server"/>
+  </dir>
+  <dir xml:id="dir.SECRETS">
+    <compenent ref="dir.CONFIG"/>
+    <component value="secrets"/>
+  </dir>
+  <dir xml:id="dir.LOG">
+    <component value="/var/log/machination/server/file"/>
+  </dir>
   <dir xml:id="dir.DATABASE">
+    <component ref="dir.DATA"/>
     <component value="database"/>
   </dir>
 
@@ -32,6 +42,10 @@
   <subconfig xml:id="subconfig.database">
     <file xml:id="file.database.CREDENTIALS"
 	  dir="dir.SECRETS" name="dbcred.xml"/>
+    <dir xml:id="dir.database.FUNCTIONS">
+      <component ref="dir.DATABASE"/>
+      <component value="functions"/>
+    </dir>
     <file xml:id="file.database.BOOTSTRAP_ASSERTIONS"
 	  dir="dir.DATABASE" name="bootstrap_assertions.xml"/>
     <file xml:id="file.database.BOOTSTRAP_LIB_ASSERTIONS"
@@ -52,18 +66,73 @@
     </connection>
   </subconfig>
 
-  <subconfig xml:id="subconfig.hierarchy">
-    <file xml:id="file.hierarchy.BOOTSTRAP"
-	  dir="dir.DATABASE" name="bootstrap_hierarchy.xml"/>
-    <file xml:id="file.hierarchy2.BOOTSTRAP"
-	  dir="dir.DATABASE" name="bootstrap_hierarchy2.xml"/>
-    <hc id="/system" hpath="/system"/>
-    <hc id="/system/sets" hpath="/system/sets"/>
-    <hc id="/system/sets/universal" hpath="/system/sets/universal"/>
-    <hc id="/system/sets/empty" hpath="/system/sets/empty"/>
+  <subconfig xml:id="subconfig.hsh">
+    <defaultUser>{}@COSIGN.REALM</defaultUser>
   </subconfig>
 
-  <subconfig xml:id="subconfig.haccess">
+  <subconfig xml:id="subconfig.haccess"
+             serviceId="machination-initial-id"
+             URI="https://localhost/machination/hierarchy">
+    <authentication>
+
+      <!-- Default authentication type for each object type -->
+      <objType id="person" defaultAuth="cosign"/>
+      <objType id="os_instance" defaultAuth="cert"/>
+
+      <!-- Authentication types:
+
+           <type id="public|debug|cert|cosign|basic"
+                 defaultObjectType="entity object type"
+                 entityPattern="optional pattern">
+
+             ...all the object types allowed to use this kind of auth
+             <objType id="obj_type"/>
+             ...
+
+           </type>
+
+           defaultObjectType = object type to assume if not specified
+             in remote_user
+
+           entityPattern = perl regex used to find object name and
+             type. in remote_user Use the named capture buffers 'name'
+             and 'type'. Evaluated with /x (whitespace and comments
+             allowed) mode. Remember to quote xml chars (&lt; &gt; etc.)
+
+           default entityPattern is:
+           (?(?=:)) # does entity have a ":" in it
+             # yes: interpret as type:name
+             ^(?<type>.*?):(?<name>.*)$ |
+             # no: interpret as just name
+             ^(?<name>.*)$
+        -->
+      <type id="public" defaultObjType="person">
+        <objType id="person"/>
+      </type>
+      <type id="debug" defaultObjType="person">
+        <!-- allowed object types for this auth method -->
+        <objType id="person" defaultName="dev"/>
+        <objType id="os_instance"/>
+      </type>
+      <type id="cert" defaultObjType="os_instance">
+        <objType id="os_instance"/>
+        <objType id="person"/>
+      </type>
+      <type id="cosign" defaultObjType="person"
+            cosignLoginPage="https://my.cosign.service/">
+        <objType id="person"/>
+      </type>
+      <type id="basic" defaultObjType="person">
+        <objType id="person"/>
+      </type>
+
+      <certSign lifetime="3650">
+        <ca certfile="/usr/share/ca-certificates/machination-server/machination-server-ca.crt"
+            keyfile="secrets/machination-server-ca.key"/>
+        <clientCNForm check="re" value="^.+?:.+$"/>
+      </certSign>
+
+    </authentication>
     <dir xml:id="dir.SHM">
       <component value="/dev/shm/machination"/>
     </dir>

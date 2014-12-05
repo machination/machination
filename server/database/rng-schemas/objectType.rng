@@ -5,33 +5,73 @@
   <include href='rngDataTypes.rng'/>
 
   <!-- Table and related definitions -->
-  <include href='table.rng'/>
+  <include href='table-defs.rng'/>
 
   <start>
     <element name="objectType">
-      <!-- Mandatory attributes. -->
-      <attribute name="name"/>
-      <attribute name='plural'/>
 
-      <!-- Optional attributes -->
+      <!-- Mandatory attributes. -->
+
+      <!-- Type name. -->
+      <attribute name="name"/>
+
+      <!-- Pluralisation of the type name. Only used if the plural is
+           not formed by adding an 's'. -->
+      <optional>
+        <attribute name='plural'/>
+      </optional>
+
+      <!-- Optional attributes. -->
+
+      <!-- 'Entities' are objects capable of action. -->
       <optional>
         <attribute name='isEntity'>
           <!-- Default value: 0 -->
           <ref name='bool'/>
         </attribute>
       </optional>
+      <!-- is this object type attachable? -->
       <optional>
-        <attribute name='isAttachable'>
+        <group>
+          <attribute name='attachable'>
+            <!-- default value: 0 -->
+            <ref name='bool'/>
+          </attribute>
+          <optional>
+            <!-- For the most part it will be an attachment group
+                 which actually gets attached. Set this to 0 if this
+                 object type should be attached directly.-->
+            <attribute name='agroupRequired'>
+              <!-- default value: 1 -->
+              <ref name='bool'/>
+            </attribute>
+          </optional>
+        </group>
+      </optional>
+      <!-- is this object type an agroup? Usually only used internally. -->
+      <optional>
+        <attribute name='isAgroup'>
+          <!-- default value: 0 -->
+          <ref name='bool'/>
+        </attribute>
+      </optional>
+
+      <!-- Can objects of this type (or the associated attachment groups) be collected into libraries? -->
+      <optional>
+        <attribute name='libraries'>
           <!-- Default value: 0 -->
           <ref name='bool'/>
         </attribute>
       </optional>
-      <optional>
-        <attribute name='needsAg'>
-          <!-- Default value: 1 -->
-          <ref name='bool'/>
-        </attribute>
-      </optional>
+
+      <!-- elements -->
+
+      <zeroOrMore>
+        <!-- Other type(s) that must be set up first. -->
+        <element name='depends'>
+          <attribute name='name'/>
+        </element>
+      </zeroOrMore>
 
       <!-- Maybe some help -->
       <optional>
@@ -42,14 +82,14 @@
         <ref name='column'/>
       </oneOrMore>
 
-      <oneOrMore>
-        <ref name='foreignKey'/>
-      </oneOrMore>
+      <zeroOrMore>
+        <ref name='constraint'/>
+      </zeroOrMore>
 
       <!-- Extra tables needed for this object type. -->
-      <oneOrMore>
+      <zeroOrMore>
         <ref name='table'/>
-      </oneOrMore>
+      </zeroOrMore>
 
     </element>
   </start>

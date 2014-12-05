@@ -207,8 +207,12 @@ sub handler {
       $rem_user = $r->user unless $authen_type eq "debug";
     }
   }
-  my $haccess_conf_node = $ha->conf->doc->getElementById("subconfig.haccess");
-  my @authen_nodes = $haccess_conf_node->findnodes("authentication/type[\@id='$authen_type']");
+  my $haccess_conf_node = ($ha->conf->doc->findnodes(
+    '//subconfig[@id="subconfig.haccess"]')
+  )[0];
+  my @authen_nodes = $haccess_conf_node->findnodes(
+    "authentication/type[\@id='$authen_type']"
+  );
   unless(@authen_nodes) {
     error("Unsupported authentication type '$authen_type'");
     return Apache2::Const::OK;
@@ -404,7 +408,9 @@ Return old style service config element.
 =cut
 #hp
 sub call_ServiceInfo {
-  my $haccess_node = $ha->conf->doc->getElementById("subconfig.haccess");
+  my $haccess_node = ($ha->conf->doc->findnodes(
+    '//subconfig[@id="subconfig.haccess"]')
+  )[0];
 
   # Start with a brand new service element
   my $service_elt = XML::LibXML::Element->new('service');
@@ -444,7 +450,9 @@ information is transferred.
 =cut
 #hp
 sub call_ServiceConfig {
-  my $han = $ha->conf->doc->getElementById("subconfig.haccess");
+  my $han = ($ha->conf->doc->findnodes(
+    '//subconfig[@id="subconfig.haccess"]')
+  )[0];
   my $ret = XML::LibXML::Element->new('subconfig');
   my $auth = $ret->appendChild(XML::LibXML::Element->new("authentication"));
   $ret->setAttribute('xml:id', "subconfig.haccess");

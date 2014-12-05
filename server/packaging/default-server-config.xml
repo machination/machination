@@ -23,7 +23,7 @@
     <component value="/etc/machination/server"/>
   </dir>
   <dir xml:id="dir.SECRETS">
-    <compenent ref="dir.CONFIG"/>
+    <component ref="dir.CONFIG"/>
     <component value="secrets"/>
   </dir>
   <dir xml:id="dir.LOG">
@@ -45,6 +45,10 @@
     <dir xml:id="dir.database.FUNCTIONS">
       <component ref="dir.DATABASE"/>
       <component value="functions"/>
+    </dir>
+    <dir xml:id="dir.database.OBJECT_TYPES">
+      <component ref="dir.DATABASE"/>
+      <component value="object-types"/>
     </dir>
     <file xml:id="file.database.BOOTSTRAP_ASSERTIONS"
 	  dir="dir.DATABASE" name="bootstrap_assertions.xml"/>

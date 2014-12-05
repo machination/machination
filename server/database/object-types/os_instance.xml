@@ -1,0 +1,33 @@
+<objectType name='os_instance'
+            isEntity='1'
+            >
+  <depends name='set'/>
+  <help short='Instance of an operating system.'>
+    <long>
+    </long>
+  </help>
+
+  <column name='os_id' type='{IDREF_TYPE}' nullAllowed='0'/>
+
+  <constraint type='foreign key' refTable='valid_oses' makesEnumeration='1'>
+    <column name='os_id' references='id'/>
+  </constraint>
+
+  <table name='valid_oses' history='1'>
+    <primaryKey>
+      <column name='id'/>
+    </primaryKey>
+    <column name='id' type='{ID_TYPE}'/>
+    <column name='name' type='varchar' nullAllowed='0'/>
+    <column name='major_version' type='varchar' nullAllowed='0'/>
+    <column name='minor_version' type='varchar' nullAllowed='0'/>
+    <column name='bitness' type='int' nullAllowed='0'/>
+    <constraint type='unique'>
+      <column name='name'/>
+      <column name='major_version'/>
+      <column name='minor_version'/>
+      <column name='bitness'/>
+    </constraint>
+  </table>
+
+</objectType>

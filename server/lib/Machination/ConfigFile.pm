@@ -65,6 +65,7 @@ sub new {
   my $self = {};
   bless $self,$class;
   $self->file($file) if(defined $file);
+  $self->root("");
   $self->defaults($defaults);
 
   return $self;
@@ -108,8 +109,25 @@ sub file {
 
 sub mpath {
   my $self = shift;
-  my (undef,$mpath,$file) = File::Spec->splitpath($self->file);
+  my (undef,$mpath,$file) =
+    File::Spec->splitpath(File::Spec->rel2abs($self->file));
   return File::Spec->canonpath($mpath);
+}
+
+=item * $conf->root_path
+
+  All paths are calculated relative to this. Default is "".
+
+=cut
+
+sub root_path {
+  my $self = shift;
+  my ($in) = @_;
+
+  if(defined $in) {
+    $self->{root_path} = $in;
+  }
+  return $self->{root_path};
 }
 
 =item * $conf->parser
@@ -135,8 +153,11 @@ sub doc {
 	    throw("tried to get doc with no file set");
   }
   unless($self->{doc}) {
+#    print "loading from " . $self->file . "\n";
     $self->{doc} = $self->parser->parse_file($self->file);
   }
+
+# carp "returning " . (0 + $self->{doc});
   return $self->{doc};
 }
 
@@ -155,22 +176,23 @@ sub root {
 
 sub get_dir {
   my $self = shift;
-  my ($id) = @_;
+  my ($id,$recursing) = @_;
 
   my $dir;
-  my $found = $self->doc->getElementById($id);
+  my $found = ($self->doc->findnodes("//dir\[\@xml:id='$id'\]"))[0];
   if($found) {
     my $sep = "";
     foreach my $c ($found->findnodes("component")) {
 	    if($c->hasAttribute('value')){
         $dir .= $sep . $c->getAttribute('value');
 	    } elsif($c->hasAttribute('ref')) {
-        $dir .= $sep . $self->get_dir($c->getAttribute('ref'));
+        $dir .= $sep . $self->get_dir($c->getAttribute('ref'),1);
 	    } else {
         MachinationException->
           throw("don't know how to interpret component element:\n" .
                 $c->toString(1));
 	    }
+      # Set the seperator correctly for subsequent iterations
 	    $sep = "/";
     }
   } else {
@@ -181,6 +203,10 @@ sub get_dir {
     $dir = $self->mpath . "/" . $dir;
   }
 
+  if(!$recursing && $self->root_path ne "") {
+    $dir = $self->root_path . $dir;
+  }
+
   return $dir;
 }
 
@@ -189,17 +215,17 @@ sub get_dir {
 =cut
 
 sub get_file {
-    my $self = shift;
-    my ($id) = @_;
+  my $self = shift;
+  my ($id) = @_;
 
-    my $found = $self->doc->getElementById($id);
-    if($found) {
-	return $self->get_dir($found->getAttribute("dir")) . "/" .
-	    $found->getAttribute("name");
-    } else {
-	my ($dir,$fname) = @{$self->defaults->{$id}};
-	return $self->get_dir($dir) . "/" . $fname;
-    }
+  my $found = ($self->doc->findnodes("//file\[\@xml:id='$id'\]"))[0];
+  if($found) {
+    return $self->get_dir($found->getAttribute("dir")) . "/" .
+      $found->getAttribute("name");
+  } else {
+    my ($dir,$fname) = @{$self->defaults->{$id}};
+    return $self->get_dir($dir) . "/" . $fname;
+  }
 }
 
 =item * $value = $conf->get_value($xpath)
@@ -219,7 +245,7 @@ sub get_value {
   } else {
     $id = shift;
     $xpath = shift;
-    $base_node = $self->doc->getElementById($id);
+    $base_node = ($self->doc->findnodes("//*\[\@xml:id='$id'\]"))[0];
   }
 
   my @nodes = $base_node->findnodes($xpath);

@@ -1,0 +1,66 @@
+<ops>
+  <op name='add_object_type' description="add a new object type"/>
+  <op name='add_setmember_type'/>
+
+  <op name='add_channel' description="add a new channel"/>
+  <!-- svc_subscribe => "subscribe object type to service" -->
+
+  <op name='create_obj'
+    description="create_obj ($type_id,$name,$parent,$fields): Create a new object in specified parent"
+  />
+  <op name='modify_obj'
+    description="modify_obj ($type_id,$obj_id,{$field=>$value,...}): change object data"
+  />
+  <op name='delete_obj' description="delete_obj ($type_id,$obj_id)"/>
+  <op name='create_path'
+    description="create_path(\$path,\$fields): recursively create path"
+  />
+  <op name='assertion_group_from_xml'
+    description="create an assertion group populated with assertions derived from XML"
+  />
+
+  <op name='add_valid_os'/>
+  <op name='delete_valid_os'/>
+
+  <op name='add_to_hc'
+    description="add_to_hc ($type_id,$obj_id,$parent)"
+  />
+  <op name='remove_from_hc'
+    description="remove_from_hc ($type_id,$obj_id,$parent)"
+  />
+  <op name='move_hc'
+    description="move_hc ($type_id,$obj_id,$from,$to)"
+  />
+
+  <op name='attach_to_hc'/>
+  <op name='modify_attachment'/>
+  <op name='detach_from_hc'/>
+  <op name='create_agroup'/>
+  <op name='add_to_agroup'/>
+  <op name='remove_from_agroup'/>
+
+  <op name='add_to_set'/>
+  <op name='remove_from_set'/>
+  <!-- set_special_set=>"", -->
+  <op name='add_valid_condition_op'/>
+  <op name='add_set_direct_condition'/>
+  <op name='remove_set_direct_condition'/>
+
+  <op name='add_valid_action_op'/>
+  <op name='delete_valid_action_op'/>
+  <op name='add_valid_assertion_op'/>
+  <op name='delete_valid_assertion_op'/>
+
+<!--
+  #   create_action=>"",
+  #   modify_action=>"",
+  #   delete_action=>"",
+  #   tag_action=>"",
+  #   create_assertion=>"",
+  #   modify_assertion=>"",
+  #   delete_assertion=>"",
+  #   add_valid_lib_assertion_op=>"",
+  #   delete_valid_lib_assertion_op=>"",
+-->
+
+</ops>

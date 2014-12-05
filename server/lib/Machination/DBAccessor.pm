@@ -59,18 +59,18 @@ use Data::Dumper;
 =cut
 
 sub new {
-    my $class = shift;
-    my ($conf) = @_;
-    my $self = {};
-    bless $self,$class;
-    $self->conf($conf) if(defined $conf);
-    if($self->db_string &&
-       $self->db_username &&
-       $self->db_password) {
-        # we have enough info to make a connection
-	$self->connect;
-    }
-    return $self;
+  my $class = shift;
+  my ($conf) = @_;
+  my $self = {};
+  bless $self,$class;
+  $self->conf($conf) if(defined $conf);
+  if($self->db_string &&
+     $self->db_username &&
+     $self->db_password) {
+    # we have enough info to make a connection
+    $self->connect;
+  }
+  return $self;
 }
 
 =item * $conf = $self->conf

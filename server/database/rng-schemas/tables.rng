@@ -8,6 +8,10 @@
   <include href='table-defs.rng'/>
 
   <start>
-    <ref name='table'/>
+    <element name='tables'>
+      <oneOrMore>
+        <ref name='table'/>
+      </oneOrMore>
+    </element>
   </start>
 </grammar>

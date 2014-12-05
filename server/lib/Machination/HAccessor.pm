@@ -30,7 +30,6 @@ use Machination::HSet;
 #use Machination::HAuthzSet;
 use Text::ParseWords;
 use XML::LibXML;
-use Machination::XML::Element;
 use Machination::XMLConstructor;
 use Machination::Log;
 use Machination::XML2Assertions;
@@ -38,58 +37,6 @@ use Machination::MooseHObject;
 use Machination::MooseHC;
 
 use Data::Dumper;
-
-# TODO: this lot should really be moved to one of the bootstrap_*.xml files
-my $defops =
-	{
-	 add_object_type => "add a new object type",
-   add_setmember_type=>"",
-
-	 add_channel => "add a new channel",
-#	 svc_subscribe => "subscribe object type to service",
-
-	 create_obj => "create_obj (\$type_id,\$name,\$parent,\$fields): Create a new object in specified parent",
-   modify_obj => "modify_obj (\$type_id,\$obj_id,{\$field=>\$value,...}): change object data",
-	 delete_obj => "delete_obj (\$type_id,\$obj_id)",
-   create_path => "create_path(\$path,\$fields): recursively create path",
-   assertion_group_from_xml => "create an assertion group populated with assertions derived from XML",
-
-   add_valid_os => "",
-   delete_valid_os => "",
-
-	 add_to_hc => "add_to_hc (\$type_id,\$obj_id,\$parent)",
-	 remove_from_hc => "remove_from_hc (\$type_id,\$obj_id,\$parent)",
-	 move_hc => "move_hc (\$type_id,\$obj_id,\$from,\$to)",
-
-	 attach_to_hc => "",
-   modify_attachment => "",
-	 detach_from_hc => "",
-	 create_agroup=>"",
-	 add_to_agroup=>"",
-	 remove_from_agroup=>"",
-
-	 add_to_set=>"",
-	 remove_from_set=>"",
-#	 set_special_set=>"",
-   add_valid_condition_op=>"",
-   add_set_direct_condition=>"",
-   remove_set_direct_condition=>"",
-
-   add_valid_action_op=>"",
-   delete_valid_action_op=>"",
-   add_valid_assertion_op=>"",
-   delete_valid_assertion_op=>"",
-
-#   create_action=>"",
-#   modify_action=>"",
-#   delete_action=>"",
-#   tag_action=>"",
-#   create_assertion=>"",
-#   modify_assertion=>"",
-#   delete_assertion=>"",
-#   add_valid_lib_assertion_op=>"",
-#   delete_valid_lib_assertion_op=>"",
-	};
 
 my $def_obj_types =
 	[
@@ -242,16 +189,20 @@ sub new {
   $conf = '/etc/machination/server/config.xml' unless $conf;
 	$self->dbc(Machination::DBConstructor->new($conf));
   $self->dbc->dbh->{RaiseError} = 1;
-	$self->defops($defops);
 	$self->def_obj_types($def_obj_types);
   $self->{type_info} = {};
   unless (defined $log) {
     $log = Machination::Log->new;
-    my $elt = ($self->dbc->conf->doc->
-      getElementById("subconfig.haccess")->findnodes("log"))[0];
-#    print "starting logging to " . $self->dbc->conf->get_file("file.haccess.LOG") . "\n";
-    $elt->appendTextChild("logFile",
-                          $self->dbc->conf->get_file("file.haccess.LOG"));
+		my $subelt = ($self->dbc->conf->doc->findnodes(
+			"//subconfig\[\@xml:id='subconfig.haccess'\]"
+		))[0];
+    my $elt = ($subelt->findnodes("log"))[0];
+#    print "starting logging to " .
+#			$self->dbc->conf->get_file("file.haccess.LOG") . "\n";
+    $elt->appendTextChild(
+			"logFile",
+			$self->dbc->conf->get_file("file.haccess.LOG")
+		);
     $log->from_xml($elt);
   }
   $self->log($log);
@@ -476,12 +427,6 @@ sub write_dbh {
 	return $self->dbc->dbh;
 }
 
-sub defops {
-	my $self = shift;
-	$self->{ops} = shift if(@_);
-	return $self->{ops};
-}
-
 sub def_obj_types {
 	my $self = shift;
 	$self->{def_obj_types} = shift if(@_);
@@ -693,7 +638,9 @@ $fulldn = $ha->ssl_server_dn
 
 sub ssl_server_dn {
   my $self = shift;
-  my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
+  my $haccess_node = ($self->conf->doc->findnodes(
+		"//subconfig\[\@xml:id='subconfig.haccess'\]"
+	))[0];
   my $cafile = $haccess_node->
     findvalue('authentication/certSign/ca/@certfile');
   return $self->ssl_dn_from_file($cafile);
@@ -725,7 +672,9 @@ sub sign_csr {
   my ($csr, $force) = @_;
 
   # get various parameters from config file
-  my $haccess_node = $self->conf->doc->getElementById("subconfig.haccess");
+  my $haccess_node = ($self->conf->doc->findnodes(
+		"//subconfig\[\@xml:id='subconfig.haccess'\]"
+	))[0];
   my $cs_elt = ($haccess_node->findnodes("authentication/certSign"))[0];
   my $lifetime = $cs_elt->findvalue('@lifetime');
   croak "certificate lifetime should be a whole number (of days), " .
@@ -1376,11 +1325,21 @@ $id = $ha->object_in_hc($type, $id, $hc_id)
 
 sub object_in_hc {
   my ($self, $tid, $id, $hc, $opts) = @_;
-  my $sth = $self->read_dbh->prepare_cached
-    ("select obj_id from hccont_$tid where obj_id=? and hc_id=?",
-     {dbi_dummy=>"HAccessor.object_in_hc"});
+	my $sth;
+	if(! defined $tid || $tid eq "machination:hc") {
+		$sth = $self->read_dbh->prepare_cached(
+			"select id from hcs where id=? and parent=?",
+			{dbi_dummy=>"HAccessor.object_in_hc"}
+		);
+	} else {
+		$sth = $self->read_dbh->prepare_cached(
+			"select obj_id from hccont_$tid where obj_id=? and hc_id=?",
+			{dbi_dummy=>"HAccessor.object_in_hc"}
+		);
+	}
   $sth->execute($id, $hc);
   my $row = $sth->fetchrow_arrayref;
+	$sth->finish;
   return unless $row;
   return $id;
 }
@@ -3185,7 +3144,7 @@ sub bootstrap_all {
 	$self->bootstrap_ops;
   $self->bootstrap_basehcs;
 	$self->bootstrap_object_types;
-  $self->bootstrap_postobj_tables;
+#  $self->bootstrap_postobj_tables;
   $self->bootstrap_set_conditions;
   $self->bootstrap_setmember_types;
   $self->bootstrap_oses;
@@ -3199,8 +3158,14 @@ sub bootstrap_all {
 =cut
 
 sub bootstrap_functions {
-	my $self = shift;
-	$self->dbc->config_base_functions;
+  my $self = shift;
+  my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_functions.xml";
+  my $doc = XML::LibXML->load_xml(location=>$file);
+  foreach my $f ($doc->findnodes('//function')) {
+    $self->dbc->dbconfig->config_function
+      ($f,$self->conf->get_dir('dir.database.FUNCTIONS'));
+  }
 }
 
 =item B<bootstrap_tables>
@@ -3209,7 +3174,12 @@ sub bootstrap_functions {
 
 sub bootstrap_tables {
 	my $self = shift;
-	$self->dbc->config_base_tables;
+	my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_tables.xml";
+	my $doc = XML::LibXML->load_xml(location=>$file);
+	$self->dbc->config_tables(
+		$doc->findnodes('/tables/table')
+	);
 }
 
 =item B<bootstrap_ops>
@@ -3218,8 +3188,14 @@ sub bootstrap_tables {
 
 sub bootstrap_ops {
 	my $self = shift;
-	foreach my $op (keys %{$self->defops}) {
-		$self->dbc->register_op($op,$self->defops->{$op});
+	my $file = $self->conf->get_dir('dir.DATABASE') .
+		"/bootstrap_ops.xml";
+	my $doc = XML::LibXML->load_xml(location=>$file);
+	foreach my $op ($doc->findnodes('/ops/op')) {
+		$self->dbc->register_op(
+			$op->getAttribute('name'),
+			$op->getAttribute('description')
+			);
 	}
 }
 
@@ -3256,9 +3232,16 @@ sub bootstrap_basehcs {
 sub bootstrap_object_types {
 	my $self = shift;
 
-	foreach my $info (@{$self->def_obj_types}) {
-		$self->add_object_type({actor=>'Machination:System'},$info->{name},$info->{plural},$info)
-			unless ($self->type_exists_byname($info->{name},{cache=>0}));
+	my $dir = $self->conf->get_dir('dir.database.OBJECT_TYPES');
+
+	foreach my $file (<"$dir/*.xml">) {
+		my $elt = XML::LibXML->load_xml(location=>$file)->documentElement;
+		$self->add_object_type({actor=>'Machination:System'}, $elt)
+			unless(
+				$self->type_exists_byname(
+					$elt->getAttribute('name'),{cache=>0}
+				)
+			);
 	}
 }
 
@@ -3663,45 +3646,104 @@ sub add_object_type {
 }
 sub op_add_object_type {
 	my $self = shift;
-	my ($actor,$rev,$type,$plural,$opts) = @_;
+	my ($actor,$rev,$elt) = @_;
   my $cat = "HAccessor.op_add_object_type";
-	my $entity = $opts->{is_entity};
-	$entity = 0 unless defined $entity;
-	my $attachable = $opts->{is_attachable};
-	$attachable = 0 unless defined $attachable;
-	my $agroup = $opts->{is_agroup};
-	$agroup = 0 unless defined $agroup;
-	my $cols = $opts->{cols};
-	$cols = [] unless defined $cols;
-	my $fks = $opts->{fks};
-	$fks = [] unless defined $fks;
 
-  my $direct_attachable = int($agroup || ($type eq "set"));
+	# Get the object element
+  if(!ref $elt) {
+    $elt = XML::LibXML->load_xml(string=>$elt)->documentElement;
+  }
+
+	# Check the element against the objectType schema
+	my $schema = XML::LibXML::RelaxNG->new(
+		location => $self->dbc->conf->get_dir("dir.DATABASE") .
+			"/rng-schemas/objectType.rng"
+	);
+	my $tmpdoc = XML::LibXML->createDocument;
+	$tmpdoc->setDocumentElement($elt->cloneNode(1));
+	eval {
+		$schema->validate($tmpdoc);
+	};
+	if($@) {
+		die "Object type XML does not validate.\n" .
+			$tmpdoc->toString(1) .
+			$@;
+	}
+
+  my $type_name = $elt->getAttribute('name');
+  my $plural = $type_name . "s";
+  if($elt->hasAttribute('plural')) {
+    $plural = $elt->getAttribute('plural');
+  }
+
+	my $entity = 0;
+  if($elt->hasAttribute('isEntity')) {
+    $entity = $elt->getAttribute('isEntity');
+  }
+
+	my $attachable = 0;
+  if($elt->hasAttribute('attachable')) {
+    $attachable = $elt->getAttribute('attachable');
+  }
+
+	my $needs_agroup = 1;
+  if($elt->hasAttribute('agroupRequired')) {
+    $needs_agroup = $elt->getAttribute('agroupRequired');
+  }
+
+	my $is_agroup = 0;
+	if($elt->hasAttribute('isAgroup')) {
+		$is_agroup = $elt->getAttribute('isAgroup');
+	}
+
+  my $direct_attachable = 0;
+  $direct_attachable = 1 if($is_agroup);
+  $direct_attachable = 1 if($attachable && ! $needs_agroup);
+
+  my $libs = 0;
+  if($elt->hasAttribute('libraries')) {
+    $libs = $elt->getAttribute('libraries');
+  }
+
+	my @cols = $elt->findnodes('column');
+	my @cons = $elt->findnodes('constraint');
+	my @fks = $elt->findnodes('constraint[@type="foreign key"]');
+	my @subtables = $elt->findnodes('table');
 
   my $dbc = $self->dbc;
-  my $dbh = $dbc->dbh;
-#  my $dbh = $self->write_dbh;
+#  my $dbh = $dbc->dbh;
+  my $dbh = $self->write_dbh;
 
 	# can't add an existing type - the database will enforce this too
-  if($self->type_exists_byname($type, {cache=>0})) {
+  if($self->type_exists_byname($type_name, {cache=>0})) {
 		MachinationException->
       throw("Tried to add an object type that " .
-            "already exists ($type)");
+            "already exists ($type_name)");
+  }
+
+  # Create any objectTypes this type depends on.
+  foreach my $dep ($elt->findnodes('depends')) {
+		my $dep_name = $dep->getAttribute("name");
+		if(! $self->type_exists_byname($dep_name)) {
+    	my $dep_elt = $self->get_object_type_elt($dep_name);
+    	$self->do_op('add_object_type',{actor=>$actor, parent=>$rev},$dep_elt);
+		}
   }
 
 	# there's a bootstrapping problem such that the type "set" has to be
 	# added first (so that the foreign key constraints on the set
 	# membership tables can be added).
-	if ($type ne "set" && ! $self->type_exists_byname("set",{cache=>0})) {
+	if ($type_name ne "set" && ! $self->type_exists_byname("set",{cache=>0})) {
 		MachinationException->
-      throw("Could not add type \"$type\" - " .
+      throw("Could not add type \"$type_name\" - " .
             "the object type \"set\" must be added first.");
 	}
 
-  # check that the table referred to in any "objtable" foreign
-  # key constraints has been created
-	foreach my $fk (@$fks) {
-		if (my $objtable = $fk->{objtable}) {
+  # check that the table referred to in any "objTable" foreign
+  # key constraints has been created and then massage the constraint
+	# into a standard foreign key with 'refTable' set correctly.
+	foreach my $fk (@fks) {
+		if (my $objtable = $fk->getAttribute('objTable')) {
 			my $other_id;
 			eval {
 				$other_id = $dbh->selectall_hashref
@@ -3709,40 +3751,77 @@ sub op_add_object_type {
            'name',{},$objtable)->{$objtable}->{"id"};
 			};
 			if (my $e = $@) {
-				croak "couldn't find $objtable type id:\n$e";
+				croak "Couldn't find $objtable type id. Try referencing as dependency:\n$e";
 			}
-			$fk->{table} = "objs_$other_id";
+			$fk->removeAttribute('objTable');
+			$fk->setAttribute("objs_$other_id");
 		}
 	}
 
+	# Create any required subtables
+	foreach my $st (@subtables) {
+		foreach my $t ($dbc->mach_table_to_canonical($st)) {
+			$self->log->dmsg($cat,"subtable: " . $t->toString(1),8);
+			$dbc->dbconfig->config_table_all($t);
+		}
+	}
+
+	# If $needs_agroup is true: make an agroup object type; add
+	# agroup columns to base type; add foreign key constraint between
+	# the base object type and agroup tables.
   my $agroup_type_id;
-  if ($attachable) {
-		$agroup_type_id = $self->do_op
-      ("add_object_type",{actor=>$actor,parent=>$rev},
-       "agroup_$type", "agroup_$plural",
-       {is_agroup=>1,
-        cols=>[["channel_id",Machination::DBConstructor::IDREF_TYPE,
-                {nullAllowed=>0}]],
-        fks=>[{table=>"valid_channels",
-               cols=>[["channel_id","id"]]}],
-       });
-		push @$cols,
-      ["agroup",Machination::DBConstructor::IDREF_TYPE,{nullAllowed=>0}],
-        ["ag_ordinal","bigint",{nullAllowed=>0}];
-		push @$fks,
-      {table=>"objs_$agroup_type_id",
-       cols=>[['agroup','id']]};
+  if ($attachable && $needs_agroup) {
+		my $agroup_elt = XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<objectType name='agroup_${type_name}' plural='agroup_$plural'
+	attachable='1' agroupRequired='0' isAgroup='1'
+	libraries='$libs'>
+	<column name='channel_id' type='{IDREF_TYPE}' nullAllowed='0'/>
+	<constraint type='foreign key' refTable='valid_channels'>
+		<column name='channel_id' references='id'/>
+	</constraint>
+</objectType>
+EOF
+		$agroup_type_id = $self->do_op(
+			"add_object_type",
+			{actor=>$actor,parent=>$rev},
+			$agroup_elt
+		);
+		my $agroup_col = XML::LibXML::Element->new('column');
+		$agroup_col->setAttribute('name', 'agroup');
+		$agroup_col->setAttribute('type', '{IDREF_TYPE}');
+		my $ag_ordinal_col = XML::LibXML::Element->new('column');
+		$ag_ordinal_col->setAttribute('name', 'ag_ordinal');
+		$ag_ordinal_col->setAttribute('type', 'bigint');
+		$ag_ordinal_col->setAttribute('nullAllowed', '0');
+		push @cols, ($agroup_col, $ag_ordinal_col);
+		my $ag_fk = XML::LibXML::Element->new('constraint');
+		$ag_fk->setAttribute('type', 'foreign key');
+		$ag_fk->setAttribute('refTable', "objs_$agroup_type_id");
+		my $ag_fk_col = XML::LibXML::Element->new('column');
+		$ag_fk_col->setAttribute('name', 'agroup');
+		$ag_fk_col->setAttribute('references', 'id');
+		$ag_fk->appendChild($ag_fk_col);
+		push @cons, $ag_fk;
 	}
 
 
 	# Add a row to the object_types table and get the type id
-	my $sth = $dbh->
-    prepare_cached("insert into object_types " .
-                   "(name,plural,is_entity,is_attachable,agroup,rev_id) " .
-                   "values (?,?,?,?,?,?)",
-                   {dbi_dummy=>"HAccessor.add_object_type"});
+	my $sth = $dbh->prepare_cached(
+		"insert into object_types " .
+    "(name,plural,is_entity,is_attachable,agroup,xml,rev_id) " .
+    "values (?,?,?,?,?,?,?)",
+    {dbi_dummy=>"HAccessor.add_object_type"}
+	);
 	eval {
-		$sth->execute($type,$plural,$entity,$direct_attachable,$agroup_type_id,$rev);
+		$sth->execute(
+			$type_name,
+			$plural,
+			$entity,
+			$direct_attachable,
+			$agroup_type_id,
+			$elt->toStringC14N,
+			$rev
+		);
 	};
 	if (my $e = $@) {
     print "ent: '$entity'\natt: '$direct_attachable'\n";
@@ -3751,9 +3830,10 @@ sub op_add_object_type {
 	$sth->finish;
 
 	# find the id of the type we just created
-	$sth = $dbh->
-    prepare_cached("select currval('object_types_id_seq')",
-                   {dbi_dummy=>"current_object_id"});
+	$sth = $dbh->prepare_cached(
+		"select currval('object_types_id_seq')",
+    {dbi_dummy=>"current_object_id"}
+	);
 	eval {
 		$sth->execute;
 	};
@@ -3763,97 +3843,72 @@ sub op_add_object_type {
 	my ($type_id) = $sth->fetchrow_array;
 	$sth->finish;
 
+	# entities must have globally unique names
+	if($entity) {
+		my $entcon = XML::LibXML::Element->new('constraint');
+		$entcon->setAttribute('type', 'unique');
+		my $col = XML::LibXML::Element->new('column');
+		$col->setAttribute('name','name');
+		$entcon->appendChild($col);
+		push @cons, $entcon;
+	}
+
+	# Make a list of table elements: we'll create them later.
 	my @tables;
 
-  my $objs_table =
-    {name=>"objs_$type_id",
-     pk=>['id'],
-     fks=>$fks,
-     history=>1,
-     cols=>[
-            ['id',Machination::DBConstructor::ID_TYPE],
-            ['name',Machination::DBConstructor::OBJECT_NAME_TYPE,
-             {nullAllowed=>0}],
-            ['owner',Machination::DBConstructor::OBJECT_NAME_TYPE,
-             {nullAllowed=>0}],
-            @$cols,
-           ],
-    };
-  # entities must have globally unique names
-  $objs_table->{cons} = [{type=>"UNIQUE",cols=>['name']}]
-    if($entity);
-	push @tables,
-    (
-     $dbc->gentable
-     ($objs_table),
-     $dbc->gentable
-     ({name=>"hccont_$type_id",
-       pk=>["obj_id","hc_id"],
-       cols=>[["obj_id",Machination::DBConstructor::IDREF_TYPE],
-              ["hc_id",Machination::DBConstructor::IDREF_TYPE]],
-       fks=>[{table=>"objs_$type_id",
-              cols=>[['obj_id','id']]},
-             {table=>'hcs',
-              cols=>[['hc_id','id']]}],
-       history=>1,
-      }),
-    );
+	# A table for object instances
+	my $objs_elt = XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='objs_$type_id' history='1'>
+	<primaryKey>
+		<column name='id'/>
+	</primaryKey>
+	<column name='id' type='{ID_TYPE}'/>
+	<column name='name' type='{OBJECT_NAME_TYPE}'/>
+	<column name='owner' type='{OBJECT_NAME_TYPE}'/>
+</table>
+EOF
+	foreach my $e (@cols, @cons) {
+		$objs_elt->appendChild($e->cloneNode(1));
+	}
+	push @tables, $objs_elt;
 
-	if ($type eq "set") {
-    #		push @tables, $dbc->gentable
-    #      ({name=>"nested_sets",
-    #        pk=>["child_id","parent_id"],
-    #        cols=>[["child_id",Machination::DBConstructor::IDREF_TYPE],
-    #               ["parent_id",Machination::DBConstructor::IDREF_TYPE]],
-    #        fks=>[{table=>"objs_$type_id",
-    #               cols=>[['child_id','id']]},
-    #              {table=>"objs_$type_id",
-    #               cols=>[['parent_id','id']]}],
-    #        history=>1,
-    #       });
-    #		push @tables, $dbc->gentable
-    #      (
-    #       {name=>"special_sets",
-    #        pk=>['name'],
-    #        cols=>[['name','varchar'],
-    #               ['set_id',Machination::DBConstructor::IDREF_TYPE],
-    #							],
-    #        fks=>[{table=>"objs_$type_id",cols=>[['set_id','id']]}],
-    #        cons=>[{type=>"UNIQUE",cols=>['set_id']}],
-    #        history=>1,
-    #       }
-    #      );
-    push @tables,
-      (
-       $dbc->gentable
-       ({name=>"setmembers_external",
-         pk=>["set_id","obj_rep"],
-         cols=>[["set_id",Machination::DBConstructor::IDREF_TYPE],
-                ["obj_rep","varchar"]],
-         fks=>[{table=>"objs_$type_id",cols=>[["set_id","id"]]}],
-         history=>1,
-        }),
-       $dbc->gentable
-       ({name=>"hcatt_$type_id",
-         pk=>["obj_id","hc_id"],
-         cols=>[["obj_id",Machination::DBConstructor::IDREF_TYPE],
-                ["hc_id",Machination::DBConstructor::IDREF_TYPE],
-                ['ordinal','bigint',{nullAllowed=>0}],
-                ["owner",Machination::DBConstructor::OBJECT_NAME_TYPE,
-                 {nullAllowed=>0}],
-               ],
-         fks=>[{table=>"objs_$type_id",
-                cols=>[['obj_id','id']]},
-               {table=>'hcs',
-                cols=>[['hc_id','id']]},
-               ],
-         cons=>[{type=>"UNIQUE",cols=>['hc_id','ordinal']}],
-         history=>1,
-        }),
-      )
-    }
+	# A number of extra tables need to be created for each object type
+
+	# hc contents for this object type
+	push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='hccont_$type_id' history='1'>
+	<primaryKey>
+		<column name='obj_id'/>
+		<column name='hc_id'/>
+	</primaryKey>
+	<column name='obj_id' type='{IDREF_TYPE}'/>
+	<column name='hc_id' type='{IDREF_TYPE}'/>
+	<constraint type='foreign key' refTable='objs_$type_id'>
+		<column name='obj_id' references='id'/>
+	</constraint>
+	<constraint type='foreign key' refTable='hcs'>
+		<column name='hc_id' references='id'/>
+	</constraint>
+</table>
+EOF
+
+	if ($type_name eq "set") {
+		push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='setmembers_external' history='1'>
+	<primaryKey>
+		<column name='set_id'/>
+		<column name='obj_rep'/>
+	</primaryKey>
+	<column name='set_id' type='{IDREF_TYPE}'/>
+	<column name='obj_rep' type='varchar'/>
+	<constraint type='foreign key' refTable='objs_$type_id'>
+		<column name='set_id' references='id'/>
+	</constraint>
+</table>
+EOF
+  }
 	my $set_type_id;
-	if ($type eq "set") {
+	if ($type_name eq "set") {
 		$set_type_id = $type_id;
 	} else {
 		eval {
@@ -3865,94 +3920,130 @@ sub op_add_object_type {
 			croak "couldn't find set type id:\n$e";
 		}
 	}
-	push @tables, $dbc->gentable
-    (
-     {name=>"setmembers_$type_id",
-      pk=>["obj_id","set_id"],
-      cols=>[["obj_id",Machination::DBConstructor::IDREF_TYPE],
-             ["set_id",Machination::DBConstructor::IDREF_TYPE]],
-      fks=>[{table=>"objs_$type_id",
-             cols=>[['obj_id','id']]},
-            {table=>"objs_$set_type_id",
-             cols=>[['set_id','id']]}],
-      history=>1,
-     }
-    );
 
-	if ($agroup) {
-		push @tables,
-      $dbc->gentable
-				({name=>"hcatt_$type_id",
-					pk=>["obj_id","hc_id"],
-					cols=>[["obj_id",Machination::DBConstructor::IDREF_TYPE],
-								 ["hc_id",Machination::DBConstructor::IDREF_TYPE],
-								 ['ordinal','bigint',{nullAllowed=>0}],
-								 ["is_mandatory","boolean",{nullAllowed=>0}],
-								 ['applies_to_set',Machination::DBConstructor::IDREF_TYPE],
-								 ["approval","varchar[]"],
-								 ["owner",Machination::DBConstructor::OBJECT_NAME_TYPE,
-									{nullAllowed=>0}],
-#								 ["channel_id",Machination::DBConstructor::IDREF_TYPE,
-#                  {nullAllowed=>0}],
-                 ["active","boolean",{default=>1}],
-                ],
-					fks=>[{table=>"objs_$type_id",
-								 cols=>[['obj_id','id']]},
-								{table=>'hcs',
-								 cols=>[['hc_id','id']]},
-								{table=>"objs_$set_type_id",
-								 cols=>[['applies_to_set','id']]},
-#								{table=>"valid_channels",
-#								 cols=>[["channel_id","id"]]},
-               ],
-					cons=>[{type=>"UNIQUE",cols=>['hc_id','ordinal']}],
-					history=>1,
-				 });
-	}
-	if ($type eq "authz_set") {
-		push @tables,
-      $dbc->gentable
-				({name=>"authz_set_members",
-					pk=>["set_id","identifier_type","identifier"],
-					cols=>[["set_id",Machination::DBConstructor::IDREF_TYPE],
-								 ["identifier_type","varchar"],
-								 ["identifier","varchar"],],
-					fks=>[{table=>"objs_$type_id",cols=>[["set_id","id"]]}],
-					history=>1,
-				 });
+	push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='setmembers_$type_id' history='1'>
+	<primaryKey>
+		<column name='obj_id'/>
+		<column name='set_id'/>
+	</primaryKey>
+	<column name='obj_id' type='{IDREF_TYPE}'/>
+	<column name='set_id' type='{IDREF_TYPE}'/>
+	<constraint type='foreign key' refTable='objs_$type_id'>
+		<column name='obj_id' references='id'/>
+	</constraint>
+	<constraint type='foreign key' refTable='objs_$set_type_id'>
+		<column name='set_id' references='id'/>
+	</constraint>
+</table>
+EOF
+
+	if ($direct_attachable) {
+		push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='hcatt_$type_id' history='1'>
+	<primaryKey>
+		<column name='obj_id'/>
+		<column name='hc_id'/>
+	</primaryKey>
+	<column name='obj_id' type='{IDREF_TYPE}'/>
+	<column name='hc_id' type='{IDREF_TYPE}'/>
+	<column name='ordinal' type='bigint' nullAllowed='0'/>
+	<column name='is_mandatory' type='boolean'
+		nullAllowed='0' default='FALSE'/>
+	<column name='applies_to_set' type='{IDREF_TYPE}'/>
+	<column name='approval' type='varchar[]'/>
+	<column name='owner' type='{OBJECT_NAME_TYPE}' nullAllowed='0'/>
+	<column name='active' type='boolean'
+		nullAllowed='0' default='TRUE'/>
+	<constraint type='foreign key' refTable='objs_$type_id'>
+		<column name='obj_id' references='id'/>
+	</constraint>
+	<constraint type='foreign key' refTable='hcs'>
+		<column name='hc_id' references='id'/>
+	</constraint>
+	<constraint type='foreign key' refTable='objs_$set_type_id'>
+		<column name='applies_to_set' references='id'/>
+	</constraint>
+	<constraint type='unique'>
+		<column name='hc_id'/>
+		<column name='ordinal'/>
+	</constraint>
+</table>
+EOF
 	}
 
-	foreach my $t (@tables) {
-		$self->log->dmsg($cat,$t->toString(1),8);
-		$dbc->dbconfig->config_table_all($t);
+# not needed any more?
+#	if ($type_name eq "authz_set") {
+	if(0) {
+		push @tables, XML::LibXML->load_xml(string=><<"EOF")->documentElement;
+<table name='authz_set_members' history='1'>
+	<primaryKey>
+		<column name='set_id'/>
+		<column name='identifier_type'/>
+		<column name='identifier'/>
+	</primaryKey>
+	<column name='set_id' type='{IDREF_TYPE}'/>
+	<column name='identifier_type' type='varchar'/>
+	<column name='identifier' type='varchar'/>
+	<constraint type='foreign key' refTable='objs_$type_id'>
+		<column name='set_id' references='id'/>
+	</constraint>
+</table>
+EOF
 	}
 
-  my $is_set = $type eq "set";
+	foreach my $table (@tables) {
+		foreach my $t ($dbc->mach_table_to_canonical($table)) {
+			$self->log->dmsg($cat,$t->toString(1),8);
+			$dbc->dbconfig->config_table_all($t);
+		}
+	}
+
+  my $is_set = $type_name eq "set";
   $is_set = 0 unless($is_set);
-  $self->do_op("add_setmember_type",{actor=>$actor,parent=>$rev},
-               $type_id,1,$is_set);
+  $self->do_op(
+		"add_setmember_type",
+		{actor=>$actor,parent=>$rev},
+    $type_id,
+		1,
+		$is_set
+	);
 
-  print "creating special sets...\n";
+#  print "creating special sets...\n";
 #  return $type_id;
-  print "here2\n";
+#  print "here2\n";
   # create a universal and empty set for this type
-  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
-               "/system/sets/universal/set:$type",
-               {
-                is_internal=>1,
-                member_type=>$type_id,
-                direct=>'UNIVERSAL',
-               }
-              );
-  $self->do_op("create_path", {actor=>$actor, parent=>$rev},
-               "/system/sets/empty/set:$type",
-               {
-                is_internal=>1,
-                member_type=>$type_id,
-                direct=>'EMPTY',
-               }
-              );
+  $self->do_op(
+		"create_path", {actor=>$actor, parent=>$rev},
+    "/system/sets/universal/set:$type_name",
+    {
+      is_internal=>1,
+      member_type=>$type_id,
+      direct=>'UNIVERSAL',
+    }
+  );
+  $self->do_op(
+		"create_path", {actor=>$actor, parent=>$rev},
+    "/system/sets/empty/set:$type_name",
+    {
+      is_internal=>1,
+      member_type=>$type_id,
+      direct=>'EMPTY',
+    }
+  );
   return $type_id;
+}
+
+=item B<get_object_type_elt>
+
+=cut
+
+sub get_object_type_elt {
+	my $self = shift;
+	my $name = shift;
+	my $file = $self->dbc->conf->get_dir('dir.database.OBJECT_TYPES') .
+		"/$name.xml";
+	return XML::LibXML->load_xml(location=>$file)->documentElement;
 }
 
 =item B<op_add_setmember_type>

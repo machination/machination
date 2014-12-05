@@ -1,0 +1,19 @@
+<table name='dbc_test'
+       history='0'>
+  <primaryKey>
+    <column name='id'/>
+  </primaryKey>
+  <column name='id' type='bigint'/>
+  <column name='parent' type='bigint'/>
+  <column name='test' type='varchar'/>
+  <constraint type='foreignKey' refTable='hcs' makesEnumeration='1'>
+    <column name='id' references='id'/>
+  </constraint>
+  <constraint type='unique'>
+    <column name='parent'/>
+  </constraint>
+  <trigger name='history'
+           when='after insert or update or delete'
+           each='row'
+           execute='history_trigger'/>
+</table>

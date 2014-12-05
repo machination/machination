@@ -1,0 +1,128 @@
+<tables>
+  <table name="valid_ops">
+    <primaryKey>
+      <column name="name"/>
+    </primaryKey>
+    <column name="name" type="varchar"/>
+    <column name="description" type="varchar"/>
+  </table>
+  <table name="revisions">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="foreign key" refTable="valid_ops">
+      <column name="vop" references="name"/>
+    </constraint>
+    <constraint type="foreign key" refTable="revisions">
+      <column name="parent" references="id"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="vop" type="varchar"/>
+    <column name="parent" type="{IDREF_TYPE}"/>
+    <column name="actor" type="varchar"/>
+  </table>
+  <table name="valid_channels" history="1">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="unique">
+      <column name="name"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="name" type="varchar" nullAllowed="0"/>
+    <column name="root_tag" type="varchar" nullAllowed="0"/>
+    <column name="scratch_mpath" type="varchar" nullAllowed="0"/>
+    <column name="keep_scratch" type="bool" nullAllowed="0"/>
+  </table>
+  <table name="valid_oses" history="1">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="unique">
+      <column name="name"/>
+      <column name="major_version"/>
+      <column name="minor_version"/>
+      <column name="bitness"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="name" type="varchar" nullAllowed="0"/>
+    <column name="major_version" type="varchar" nullAllowed="0"/>
+    <column name="minor_version" type="varchar" nullAllowed="0"/>
+    <column name="bitness" type="int" nullAllowed="0"/>
+  </table>
+  <table name="object_types" history="1">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="foreign key" refTable="object_types">
+      <column name="agroup" references="id"/>
+    </constraint>
+    <constraint type="unique">
+      <column name="name"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="name" type="varchar" nullAllowed="0"/>
+    <column name="plural" type="varchar" nullAllowed="0"/>
+    <column name="is_entity" type="boolean" nullAllowed="0"/>
+    <column name="is_attachable" type="boolean" nullAllowed="0"/>
+    <column name="agroup" type="{IDREF_TYPE}"/>
+    <column name="xml" type="varchar" nullAllowed="0"/>
+  </table>
+  <!-- no longer required: put in by set object type definition
+  <table name="setmember_types" history="1">
+    <primaryKey>
+      <column name="type"/>
+    </primaryKey>
+    <column name="type" type="varchar"/>
+    <column name="is_internal" type="boolean" nullAllowed="0"/>
+    <column name="is_set" type="boolean" nullAllowed="0"/>
+  </table> -->
+  <table name="valid_condition_ops" history="1">
+    <primaryKey>
+      <column name="op"/>
+    </primaryKey>
+    <column name="op" type="varchar"/>
+  </table>
+  <table name="direct_conditions" history="1">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="foreign key" refTable="valid_condition_ops">
+      <column name="op" references="op"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="set_id" type="{IDREF_TYPE}" nullAllowed="0"/>
+    <column name="col" type="name" nullAllowed="0"/>
+    <column name="op" type="varchar" nullAllowed="0"/>
+    <column name="val" type="varchar" nullAllowed="0"/>
+  </table>
+  <table name="hcs" history="1">
+    <primaryKey>
+      <column name="id"/>
+    </primaryKey>
+    <constraint type="foreign key" refTable="hcs">
+      <column name="parent" references="id"/>
+    </constraint>
+    <constraint type="unique">
+      <column name="parent"/>
+      <column name="ordinal"/>
+    </constraint>
+    <column name="id" type="{ID_TYPE}"/>
+    <column name="parent" type="{IDREF_TYPE}"/>
+    <column name="name" type="{OBJECT_NAME_TYPE}" nullAllowed="0"/>
+    <column name="ordinal" type="bigint" nullAllowed="0"/>
+    <column name="is_mp" type="boolean" nullAllowed="0"/>
+    <column name="owner" type="{OBJECT_NAME_TYPE}"/>
+  </table>
+  <table name="certs">
+    <primaryKey>
+      <column name="serial"/>
+    </primaryKey>
+    <constraint type="generic">check (type in ('V','E','R'))</constraint>
+    <column name="serial" type="{ID_TYPE}"/>
+    <column name="name" type="varchar" nullAllowed="0"/>
+    <column name="type" type="char(1)" nullAllowed="0"/>
+    <column name="expiry_date" type="timestamp" nullAllowed="0"/>
+    <column name="rev_date" type="timestamp"/>
+  </table>
+</tables>

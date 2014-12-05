@@ -518,7 +518,9 @@ sub existing_pos {
     my $parent;
     foreach my $item (@{$self->rep}) {
       if($item->branch eq "machination_root") {
-        $item->id($self->ha->fetch_root_id);
+        my $root_id = $self->ha->fetch_root_id;
+        last unless defined $root_id;
+        $item->id($root_id);
       } elsif($item->branch eq "contents") {
         if($item->has_id) {
           # Check if id exists in parent

@@ -1,0 +1,35 @@
+<objectType name='set'
+            attachable='1'
+            agroupRequired='0'>
+
+  <help short='A set of other objects.'>
+    <long>
+      Sets have members which are other objects in the hierarchy. This
+      may include other sets. Some sets may have members outside the
+      hierarchy (external members). The main example of this is
+      'string' members which are used for authorisation lists.
+    </long>
+  </help>
+
+  <column name='is_internal' type='boolean'
+          nullAllowed='0'/>
+  <column name='member_type' type='varchar'
+          nullAllowed='0'/>
+  <column name='direct' type='varchar'/>
+  <column name='expression' type='varchar'/>
+
+  <constraint type='foreign key' refTable='setmember_types'
+              makesEnumeration='1'>
+    <column name='member_type' references='type'/>
+  </constraint>
+
+  <table name='setmember_types' history='1'>
+    <primaryKey>
+      <column name='type'/>
+    </primaryKey>
+    <column name='type' type='varchar'/>
+    <column name='is_internal' type='boolean' nullAllowed='0'/>
+    <column name='is_set' type='boolean' nullAllowed='0'/>
+  </table>
+
+</objectType>

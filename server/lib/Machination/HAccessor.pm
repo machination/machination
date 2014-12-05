@@ -1325,11 +1325,21 @@ $id = $ha->object_in_hc($type, $id, $hc_id)
 
 sub object_in_hc {
   my ($self, $tid, $id, $hc, $opts) = @_;
-  my $sth = $self->read_dbh->prepare_cached
-    ("select obj_id from hccont_$tid where obj_id=? and hc_id=?",
-     {dbi_dummy=>"HAccessor.object_in_hc"});
+	my $sth;
+	if(! defined $tid || $tid eq "machination:hc") {
+		$sth = $self->read_dbh->prepare_cached(
+			"select id from hcs where id=? and parent=?",
+			{dbi_dummy=>"HAccessor.object_in_hc"}
+		);
+	} else {
+		$sth = $self->read_dbh->prepare_cached(
+			"select obj_id from hccont_$tid where obj_id=? and hc_id=?",
+			{dbi_dummy=>"HAccessor.object_in_hc"}
+		);
+	}
   $sth->execute($id, $hc);
   my $row = $sth->fetchrow_arrayref;
+	$sth->finish;
   return unless $row;
   return $id;
 }

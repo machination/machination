@@ -12,6 +12,7 @@ use Machination::Parser ':all';
 use Machination::WebClient;
 #use HOP::Parser ':all';
 use HOP::Stream ':all';
+use File::Spec::Functions;
 
 Exception::Class::Base->Trace(1) if $ENV{DEBUG};
 
@@ -19,15 +20,22 @@ my $client_type = "ha";
 my $config = "/etc/machination/server/config.xml";
 my $url = "http://localhost/machination/hierarchy/";
 my $user = getpwuid($>);
+my $root_path;
 GetOptions(
            "client=s" => \$client_type,
            "config=s" => \$config,
            "url=s" => \$url,
            "user=s" => \$user,
+           "root_path=s" => \$root_path,
           );
 my $client;
 if($client_type eq "ha") {
-  $client = Machination::HAccessor->new($config);
+  if(defined $root_path) {
+    $config = catfile($root_path, $config);
+  }
+  my $conf = Machination::ConfigFile->new($config);
+  $conf->root_path($root_path) if(defined $root_path);
+  $client = Machination::HAccessor->new($conf);
 } elsif($client_type eq "web") {
   die "web client not supported yet";
   $client = Machination::WebClient->new(url=>$url,user=>$user);
@@ -567,7 +575,7 @@ sub func_type_id {
 sub func_obj_id {
   showfn(@_);
   my $hp = Machination::HPath->new(ha=>$client, from=>$_[0]);
-  $hp->populate_ids;
+#  $hp->populate_ids;
   return $hp->id;
 }
 
